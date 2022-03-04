@@ -4,7 +4,7 @@ import numpy as np
 from extractor import Extractor, FIN_CASES, YEARS, TECH_DETAIL_SCENARIO_COL
 
 CRP_CHOICES = ['20', '30', 'TechLife']
-TOL = 1e-6
+TOL = 1e-6  # Tolerance for comparing if a float is zero
 
 
 class TechProcessor:
