@@ -181,6 +181,10 @@ class TechProcessor:
         if abs(self.ss_lcoe.subtract(self.df_lcoe).sum().sum()) < TOL:
             print('Calculated LCOE matches LCOE from spreadsheet')
         else:
+            print("Spreadsheet LCOE")
+            print(self.ss_lcoe)
+            print("DF LCOE:")
+            print(self.df_lcoe)
             raise ValueError('Calculated LCOE doesn\'t match LCOE from spreadsheet')
 
     def test_capex(self):

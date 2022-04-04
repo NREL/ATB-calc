@@ -35,7 +35,7 @@ class Extractor:
 
         # Open spreadsheet, set fin case and CRP, and save
         wb = xw.Book(data_master_fname)
-        sheet = wb.sheets['Financial Assumptions and CRP']
+        sheet = wb.sheets['Financial and CRP Inputs']
         sheet.range('B5').value = case
         sheet.range('E5').value = crp
         wb.save()

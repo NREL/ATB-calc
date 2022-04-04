@@ -33,7 +33,7 @@ class DistributedWindProc(TechProcessor):
     sheet_name = 'Distributed Wind'
     depreciation_schedule = MACRS_6
     tech_life = 30
-    num_tds = 4
+    num_tds = 40
     has_ptc = False
     has_itc = False
 
