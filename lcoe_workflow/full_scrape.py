@@ -62,7 +62,7 @@ class FullScrape:
         self.data = data.reset_index(drop=True)
 
     @property
-    def data_pivoted(self):
+    def data_flattened(self):
         """ Get flat data pivoted with each year as a row """
         if self.data is None:
             raise ValueError('Please run scrape() first')
@@ -78,8 +78,8 @@ class FullScrape:
 
         self.data.to_csv(fname)
 
-    def pivoted_to_csv(self, fname):
+    def flat_to_csv(self, fname):
         """ Write pivoted data to CSV """
         if self.data is None:
             raise ValueError('Please run scrape() first')
-        self.data_pivoted.to_csv(fname)
+        self.data_flattened.to_csv(fname)
