@@ -79,7 +79,6 @@ class UtilityPvPlusBatteryProc(TechProcessor):
     has_itc = True
 
     GRID_ROUNDTRIP_EFF = 0.85 # Roundtrip Efficiency (Grid charging)
-    PV_ROUNDTRIP_EFF = 0.87  # Roundtrip Efficiency (PV Charging)
 
     metrics = [
         ('Net Capacity Factor (%)', 'df_ncf'),
