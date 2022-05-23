@@ -34,7 +34,7 @@ class DistributedWindProc(TechProcessor):
     depreciation_schedule = MACRS_6
     tech_life = 30
     num_tds = 40
-    has_ptc = False
+    has_ptc = True
     has_itc = False
 
 
@@ -78,6 +78,7 @@ class UtilityPvPlusBatteryProc(TechProcessor):
     has_ptc = False
     has_itc = True
 
+    GRID_ROUNDTRIP_EFF = 0.85 # Roundtrip Efficiency (Grid charging)
     PV_ROUNDTRIP_EFF = 0.87  # Roundtrip Efficiency (PV Charging)
 
     metrics = [
@@ -103,7 +104,7 @@ class UtilityPvPlusBatteryProc(TechProcessor):
                        + self.df_fom
         df_lcoe = (df_lcoe_part * 1000 / self.df_aep)\
                   + self.df_vom\
-                  + (1 - batt_charge_frac) * grid_charge_cost / self.PV_ROUNDTRIP_EFF
+                  + (1 - batt_charge_frac) * grid_charge_cost / self.GRID_ROUNDTRIP_EFF
 
         return df_lcoe
 
