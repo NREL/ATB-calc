@@ -288,7 +288,7 @@ class CoalProc(TechProcessor):
 
     sheet_name = 'Coal_FE'
     depreciation_schedule = MACRS_21
-    num_tds = 3
+    num_tds = 5
     has_ptc = False
     has_itc = False
     has_tax_credit = False
@@ -326,7 +326,7 @@ class NaturalGasProc(TechProcessor):
     ]
     sheet_name = 'Natural Gas_FE'
     depreciation_schedule = MACRS_16
-    num_tds = 3
+    num_tds = 7
     has_ptc = False
     has_itc = False
     has_tax_credit = False
