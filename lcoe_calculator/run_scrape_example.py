@@ -1,5 +1,5 @@
 """
-Example fullscrape work flow.
+Example full scrape work flow.
 """
 from datetime import datetime as dt
 from full_scrape import FullScrape
@@ -8,7 +8,7 @@ from full_scrape import FullScrape
 version_string = "_v121"
 
 # Path to data master spreadsheet
-data_master_filename = '../2022-ATB-Data_Master' + version_string + '.xlsx'
+data_master_filename = '../../2022-ATB-Data_Master' + version_string + '.xlsx'
 
 
 # Kick off scraper

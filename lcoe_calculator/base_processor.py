@@ -148,7 +148,7 @@ class TechProcessor:
 
             old_cols = df.columns
             df[['DisplayName', 'Scenario']] = df[TECH_DETAIL_SCENARIO_COL].str\
-                .rsplit('/', 1, expand=True)
+                .rsplit('/', n=1, expand=True)
             df.DisplayName = df.DisplayName.str.strip()
             df.Scenario = df.Scenario.str.strip()
             df['Parameter'] = parameter
@@ -219,13 +219,13 @@ class TechProcessor:
                 wacc = df.loc[f'WACC Real - {scenario}']
                 pff = self.df_pff.loc[f'PFF - {scenario}']
                 crf, fcr = self._calc_fcr(wacc, self._crp_years, pff, scenario)
-                df = df.append([crf, fcr])
+                df = pd.concat([df, crf, fcr])
         else:
             # No tax credit, just fill with *
             cols = df.columns
             fcr = pd.DataFrame({c:['*'] for c in cols}, index=['FCR'])
             crf = pd.DataFrame({c:['*'] for c in cols}, index=['CRF'])
-            df = df.append([crf, fcr])
+            df = pd.concat([df, crf, fcr])
 
         # Explode index and clean up
         df.index.rename('WACC', inplace=True)

@@ -1,6 +1,8 @@
-# ATB Data Scraper
+# ATB Calculator
 This code scrapes the ATB data master Excel spreadsheet, calculates LCOE and CAPEX
 for all technologies as needed, and exports data in flat or flat + pivoted formats.
+
+**Note:** You will likely have to give Python access to interact with Excel. A window will automatically ask for permission the first time this script is run.
 
 ## Files
 Files are listed in roughly descending order of importance and approachability.
@@ -15,8 +17,9 @@ Files are listed in roughly descending order of importance and approachability.
  - `Full work flow.ipynb` - Jupter notebook for testing full scrape. May not be up-to-date.
 
 ## Dependencies
-The scraper is known to work with Python 3.8.12. The following packages are required.
+The scraper is known to work with Python 3.8.12 and 3.11.0. The following packages are required.
 
  - numpy
  - pandas
  - xlwings - OS agnostic Excel automator
+ - openpyxl - required for xlwings
