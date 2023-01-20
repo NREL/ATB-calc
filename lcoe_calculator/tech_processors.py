@@ -245,6 +245,7 @@ class PumpedStorageHydroProc(TechProcessor):
     num_tds = 15
     has_ptc = False
     has_itc = False
+    has_tax_credit = False
 
     metrics = [
         ('Overnight Capital Cost ($/kW)', 'df_occ'),
