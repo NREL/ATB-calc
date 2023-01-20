@@ -288,7 +288,7 @@ class CoalProc(TechProcessor):
 
     sheet_name = 'Coal_FE'
     depreciation_schedule = MACRS_21
-    num_tds = 5
+    num_tds = 4
     has_ptc = False
     has_itc = False
     has_tax_credit = False
@@ -444,11 +444,13 @@ class UtilityBatteryProc(TechProcessor):
     metrics = [
         ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
         ('Variable Operation and Maintenance Expenses ($/MWh)', 'df_vom'),
-        ('CAPEX ($/kW)', 'df_capex')
     ]
 
     def run(self):
         """ No calcs needed for batteries """
+        pass
+
+    def test_capex(self):
         pass
 
 
@@ -467,11 +469,13 @@ class CommBatteryProc(TechProcessor):
     metrics = [
         ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
         ('Variable Operation and Maintenance Expenses ($/MWh)', 'df_vom'),
-        ('CAPEX ($/kW)', 'df_capex')
     ]
 
     def run(self):
         """ No calcs needed for batteries"""
+        pass
+    
+    def test_capex(self):
         pass
 
 class ResBatteryProc(TechProcessor):
@@ -489,9 +493,11 @@ class ResBatteryProc(TechProcessor):
     metrics = [
         ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
         ('Variable Operation and Maintenance Expenses ($/MWh)', 'df_vom'),
-        ('CAPEX ($/kW)', 'df_capex')
     ]
 
     def run(self):
         """ No calcs needed for batteries"""
+        pass
+
+    def test_capex(self):
         pass

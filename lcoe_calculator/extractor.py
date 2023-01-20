@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import xlwings as xw
 
-BASE_YEAR = 2020
+BASE_YEAR = 2021
 YEARS = list(range(BASE_YEAR, 2051 , 1))
 
 FIN_CASES = ['Market', 'R&D']
