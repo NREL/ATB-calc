@@ -230,7 +230,38 @@ class GeothermalProc(TechProcessor):
 class HydropowerProc(TechProcessor):
     tech_name = 'Hydropower'
     sheet_name = 'Hydropower'
-    depreciation_schedule = MACRS_21
+    depreciation_schedule = { 
+        2021: MACRS_21,
+        2022: MACRS_21,
+        2023: MACRS_21,
+        2024: MACRS_21,
+        2025: MACRS_6,
+        2026: MACRS_6,
+        2027: MACRS_6,
+        2028: MACRS_6,
+        2029: MACRS_6,
+        2030: MACRS_6,
+        2031: MACRS_6,
+        2032: MACRS_6,
+        2033: MACRS_6,
+        2034: MACRS_6,
+        2035: MACRS_6,
+        2036: MACRS_6,
+        2037: MACRS_6,
+        2038: MACRS_6,
+        2039: MACRS_6,
+        2040: MACRS_6,
+        2041: MACRS_6,
+        2042: MACRS_6,
+        2043: MACRS_6,
+        2044: MACRS_6,
+        2045: MACRS_6,
+        2046: MACRS_21,
+        2047: MACRS_21,
+        2048: MACRS_21,
+        2049: MACRS_21,
+        2050: MACRS_21,
+    }
     tech_life = 100
     num_tds = 12
     has_ptc = True
@@ -346,7 +377,38 @@ class NuclearProc(TechProcessor):
     tech_name = 'Nuclear'
     tech_life = 60
     sheet_name = 'Nuclear'
-    depreciation_schedule = MACRS_16
+    depreciation_schedule = { 
+        2021: MACRS_16,
+        2022: MACRS_16,
+        2023: MACRS_16,
+        2024: MACRS_16,
+        2025: MACRS_6,
+        2026: MACRS_6,
+        2027: MACRS_6,
+        2028: MACRS_6,
+        2029: MACRS_6,
+        2030: MACRS_6,
+        2031: MACRS_6,
+        2032: MACRS_6,
+        2033: MACRS_6,
+        2034: MACRS_6,
+        2035: MACRS_6,
+        2036: MACRS_6,
+        2037: MACRS_6,
+        2038: MACRS_6,
+        2039: MACRS_6,
+        2040: MACRS_6,
+        2041: MACRS_6,
+        2042: MACRS_6,
+        2043: MACRS_6,
+        2044: MACRS_6,
+        2045: MACRS_6,
+        2046: MACRS_16,
+        2047: MACRS_16,
+        2048: MACRS_16,
+        2049: MACRS_16,
+        2050: MACRS_16,
+    }
     num_tds = 2
     scenarios = ['Moderate']
     has_ptc = True

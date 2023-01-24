@@ -29,7 +29,14 @@ class TechProcessor:
     # ----------- These attributes must be set for each tech --------------
     sheet_name = None  # Name of the sheet in the excel data master
     tech_name = None  # Name of tech for flat file
+    
+    # The depreciation schedule can be consistent for all years or can vary by
+    # year. For a consistent schedule, use one of the lists from the macrs.py
+    # file, see the LandBasedWindProc in tech_processors.py for an example. A
+    # varying schedule can be defined using a dict keyed by year. See
+    # HydropowerProc in tech_processors.py for an example. 
     depreciation_schedule = None  # MACRS_6, etc.
+
 
     # ------------ All other attributes have defaults -------------------------
     # Metrics to load from SS. Format: (header in SS, object attribute name)
@@ -87,6 +94,12 @@ class TechProcessor:
         for attr in ['sheet_name', 'tech_name', 'depreciation_schedule']:
             assert getattr(self, attr) is not None, \
                 f'{attr} must be defined in tech sub-classes. Currently is None.'
+
+        assert isinstance(self.depreciation_schedule, list) or\
+            isinstance(self.depreciation_schedule, dict),\
+            'The depreciation schedule must be a list of MACRS values or, for '\
+            'techs with depreciation schedules that change by year, a dict of '\
+            'MACRS lists, keyed by year.'
 
         self._data_master_fname = data_master_fname
         self._case = case
@@ -181,11 +194,13 @@ class TechProcessor:
         if abs(self.ss_lcoe.subtract(self.df_lcoe).sum().sum()) < TOL:
             print('Calculated LCOE matches LCOE from spreadsheet')
         else:
+            msg = f'Calculated LCOE doesn\'t match LCOE from spreadsheet for {self.sheet_name}'
+            print(msg)
             print("Spreadsheet LCOE")
             print(self.ss_lcoe)
             print("DF LCOE:")
             print(self.df_lcoe)
-            raise ValueError('Calculated LCOE doesn\'t match LCOE from spreadsheet')
+            raise ValueError(msg)
 
     def test_capex(self):
         """
@@ -369,27 +384,53 @@ class TechProcessor:
         @returns {pd.DataFrame} - dataframe of PFF
         """
         df_tax_rate = self.df_wacc.loc['Tax Rate (Federal and State)']
-        MACRS_schedule = self.depreciation_schedule
-        dep_years = len(MACRS_schedule)
         inflation = self.df_wacc.loc['Inflation Rate']
 
         df_pvd = pd.DataFrame(columns=YEARS)
         for scenario in self.scenarios:
-            df_depreciation_factor = pd.DataFrame(columns=YEARS)
-            wacc_real = self.df_wacc.loc['WACC Real - ' + scenario]
-
-            for year in range(dep_years):
-                df_depreciation_factor.loc[year+1] = 1/((1+wacc_real)*(1+inflation))**(year+1)
-
             for year in YEARS:
-                df_pvd.loc['PVD - ' + scenario,year] = np.dot(MACRS_schedule, df_depreciation_factor[year])
+                # The dep schedule may be consistent for all years or vary by year 
+                if isinstance(self.depreciation_schedule, list):
+                    MACRS_schedule = self.depreciation_schedule
+                else:
+                    assert year in self.depreciation_schedule,\
+                         f'Depreciation schedule is missing year {year} for '\
+                         f'{self.sheet_name}'
+                    MACRS_schedule = self.depreciation_schedule[year]
 
+                df_depreciation_factor = self._calc_dep_factor(
+                    MACRS_schedule, inflation, scenario
+                )
+
+                df_pvd.loc['PVD - ' + scenario,year] = np.dot(MACRS_schedule, 
+                                                              df_depreciation_factor[year])
+            
         itc_schedule = self._calc_itc(type=itc_type)
 
         df_pff = (1 - df_tax_rate.values*df_pvd*(1-itc_schedule/2) - itc_schedule)/(1-df_tax_rate.values)
         df_pff.index = [f'PFF - {scenario}' for scenario in self.scenarios]
 
         return df_pff
+
+    def _calc_dep_factor(self, MACRS_schedule, inflation, scenario):
+        """
+        Calculate the depreciation factor
+
+        @param {list of float} MACRS_schedule - MACRS
+        @param {pd.Series} inflation - inflation by year
+        @param {string} scenario - tech scenario
+
+        @returns {pd.DataFrame} - Depreciation factor. Columns are atb years, rows are 
+            depreciation years.
+        """
+        dep_years = len(MACRS_schedule)
+        df_depreciation_factor = pd.DataFrame(columns=YEARS)
+        wacc_real = self.df_wacc.loc['WACC Real - ' + scenario]
+
+        for dep_year in range(dep_years):
+            df_depreciation_factor.loc[dep_year+1] = 1/((1+wacc_real)*(1+inflation))**(dep_year+1)
+
+        return df_depreciation_factor
 
     def _calc_ptc(self):
         """
