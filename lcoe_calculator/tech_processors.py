@@ -14,7 +14,7 @@ class OffShoreWindProc(TechProcessor):
     depreciation_schedule = MACRS_6
     tech_life = 30
     num_tds = 14
-    has_ptc = False
+    has_ptc = True
     has_itc = True
 
 
@@ -25,7 +25,7 @@ class LandBasedWindProc(TechProcessor):
     tech_life = 30
     num_tds = 10
     has_ptc = True
-    has_itc = False
+    has_itc = True
 
 
 class DistributedWindProc(TechProcessor):
@@ -35,7 +35,7 @@ class DistributedWindProc(TechProcessor):
     tech_life = 30
     num_tds = 40
     has_ptc = True
-    has_itc = False
+    has_itc = True
 
 
 class UtilityPvProc(TechProcessor):
@@ -44,7 +44,7 @@ class UtilityPvProc(TechProcessor):
     sheet_name = 'Solar - Utility PV'
     depreciation_schedule = MACRS_6
     num_tds = 10
-    has_ptc = False
+    has_ptc = True
     has_itc = True
 
 
@@ -54,7 +54,7 @@ class CommPvProc(TechProcessor):
     sheet_name = 'Solar - PV Dist. Comm'
     depreciation_schedule = MACRS_6
     num_tds = 10
-    has_ptc = False
+    has_ptc = True
     has_itc = True
 
 
@@ -64,7 +64,7 @@ class ResPvProc(TechProcessor):
     sheet_name = 'Solar - PV Dist. Res'
     depreciation_schedule = MACRS_6
     num_tds = 10
-    has_ptc = False
+    has_ptc = True
     has_itc = True
 
 
@@ -75,7 +75,7 @@ class UtilityPvPlusBatteryProc(TechProcessor):
     wacc_name = 'Solar - Utility PV'  # Use solar PV WACC values
     depreciation_schedule = MACRS_6
     num_tds = 10
-    has_ptc = False
+    has_ptc = True
     has_itc = True
 
     GRID_ROUNDTRIP_EFF = 0.85 # Roundtrip Efficiency (Grid charging)
@@ -95,6 +95,8 @@ class UtilityPvPlusBatteryProc(TechProcessor):
         batt_charge_frac = self.df_fin.loc['Fraction of Battery Energy Charged from PV (75% to 100%)', 'Value']
         grid_charge_cost = self.df_fin.loc['Average Cost of Battery Energy Charged from Grid ($/MWh)', 'Value']
 
+        ptc = self._calc_ptc()
+
         fcr_pv = pd.concat([self.df_crf.values * self.df_pff_pv] * self.num_tds).values
         fcr_batt = pd.concat([self.df_crf.values * self.df_pff_batt] * self.num_tds).values
 
@@ -103,7 +105,7 @@ class UtilityPvPlusBatteryProc(TechProcessor):
                        + self.df_fom
         df_lcoe = (df_lcoe_part * 1000 / self.df_aep)\
                   + self.df_vom\
-                  + (1 - batt_charge_frac) * grid_charge_cost / self.GRID_ROUNDTRIP_EFF
+                  + (1 - batt_charge_frac) * grid_charge_cost / self.GRID_ROUNDTRIP_EFF - ptc
 
         return df_lcoe
 
@@ -124,7 +126,7 @@ class CspProc(TechProcessor):
     sheet_name = 'Solar - CSP'
     depreciation_schedule = MACRS_6
     num_tds = 3
-    has_ptc = False
+    has_ptc = True
     has_itc = True
 
 
@@ -232,7 +234,7 @@ class HydropowerProc(TechProcessor):
     tech_life = 100
     num_tds = 12
     has_ptc = True
-    has_itc = False
+    has_itc = True
     split_metrics = True
 
 
@@ -245,6 +247,7 @@ class PumpedStorageHydroProc(TechProcessor):
     num_tds = 15
     has_ptc = False
     has_itc = False
+    has_tax_credit = False
 
     metrics = [
         ('Overnight Capital Cost ($/kW)', 'df_occ'),
@@ -346,8 +349,8 @@ class NuclearProc(TechProcessor):
     depreciation_schedule = MACRS_16
     num_tds = 2
     scenarios = ['Moderate']
-    has_ptc = False
-    has_itc = False
+    has_ptc = True
+    has_itc = True
 
     metrics = [
         ('Heat Rate  (MMBtu/MWh)', 'df_hr'),
@@ -396,8 +399,8 @@ class BiopowerProc(TechProcessor):
     sheet_name = 'Biopower'
     depreciation_schedule = MACRS_6
     num_tds = 1
-    has_ptc = False
-    has_itc = False
+    has_ptc = True
+    has_itc = True
 
     metrics = [
         ('Heat Rate  (MMBtu/MWh)', 'df_hr'),
@@ -438,7 +441,7 @@ class UtilityBatteryProc(TechProcessor):
     has_lcoe_and_wacc = False
     has_fin_assump = False
     has_tax_credit = False
-    has_ptc = False
+    has_ptc = True
     has_itc = True
 
     metrics = [
@@ -463,7 +466,7 @@ class CommBatteryProc(TechProcessor):
     has_lcoe_and_wacc = False
     has_fin_assump = False
     has_tax_credit = False
-    has_ptc = False
+    has_ptc = True
     has_itc = True
 
     metrics = [
@@ -487,7 +490,7 @@ class ResBatteryProc(TechProcessor):
     has_lcoe_and_wacc = False
     has_fin_assump = False
     has_tax_credit = False
-    has_ptc = False
+    has_ptc = True
     has_itc = True
 
     metrics = [
