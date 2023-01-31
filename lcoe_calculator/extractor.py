@@ -17,6 +17,7 @@ class Extractor:
     Extract financial assumptions, metrics, and WACC from Excel datamaster.
     """
     wacc_sheet = 'WACC Calc'
+    tax_credits_sheet = 'Tax Credits'
 
     def __init__(self, data_master_fname, sheet_name, case, crp, scenarios):
         """
@@ -50,6 +51,56 @@ class Extractor:
         tables_start_row, _ = self._find_cell(df, 'Future Projections')
         tables_end_row, _ = self._find_cell(df, 'Data Sources for Default Inputs')
         self._df_tech_full = df.loc[tables_start_row:tables_end_row]
+    
+    @classmethod
+    def get_tax_credits_sheet(cls, data_master_fname):
+        """
+        Pull tax credits from the Tax Credits sheet. It is assumed there is one empty row
+        between ITC and PTC data. 
+
+        @param {str} data_master_fname - file name of data master
+        @returns {pd.DataFrame, pd.DataFrame} df_itc, df_ptc - data frames of 
+            itc and ptc data.
+        """
+        df_tc = pd.read_excel(data_master_fname, sheet_name=cls.tax_credits_sheet)
+        df_tc = df_tc.reset_index()
+
+        # Give columns numerical names
+        columns = {x:y for x,y in zip(df_tc.columns,range(0,len(df_tc.columns)))}
+        df_tc = df_tc.rename(columns=columns)
+
+        #First and last year locations in header
+        fy_row, fy_col = cls._find_cell(df_tc, YEARS[0])
+        ly_row, ly_col = cls._find_cell(df_tc, YEARS[-1])
+        assert fy_row == ly_row, 'First and last year headings were not found on the same row '+\
+            'on the tax credit sheet.'
+
+        # Figure out location of data
+        itc_row, itc_col = cls._find_cell(df_tc, 'ITC (%)')
+        ptc_row, ptc_col = cls._find_cell(df_tc, 'PTC ($/MWh)')
+        assert itc_col + 2 == fy_col, 'Expected first data column for ITC does not line up '+\
+            'with first year heading.'
+        assert ptc_col + 2 == fy_col, 'Expected first data column for PTC does not line up '+\
+            'with first year heading.'
+        assert itc_col == ptc_col, 'ITC and PTC marker text are not in the same column'
+        
+        # Pull years from tax credit sheet
+        years = list(df_tc.loc[fy_row, fy_col:ly_col].astype(int).values)
+        assert years == YEARS, 'Years in tax credit sheet ({years}) do not match ATB years ({YEARS})'
+
+        # Pull ITC and PTC values
+        df_itc = df_tc.loc[itc_row:ptc_row-2, itc_col+1:ly_col]
+        df_itc.columns = ['Technology'] + years
+        df_itc.index = df_itc.Technology
+        df_itc.drop('Technology', axis=1, inplace=True)
+
+        df_ptc = df_tc.loc[ptc_row:, ptc_col+1:ly_col]
+        df_ptc.columns = ['Technology'] + years
+        df_ptc.index = df_ptc.Technology
+        df_ptc.drop('Technology', axis=1, inplace=True)
+        df_ptc = df_ptc.dropna()
+
+        return df_itc, df_ptc
 
     def get_wacc(self, tech_name=None):
         """
