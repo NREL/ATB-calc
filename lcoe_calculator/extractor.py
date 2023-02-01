@@ -86,7 +86,7 @@ class Extractor:
         
         # Pull years from tax credit sheet
         years = list(df_tc.loc[fy_row, fy_col:ly_col].astype(int).values)
-        assert years == YEARS, 'Years in tax credit sheet ({years}) do not match ATB years ({YEARS})'
+        assert years == YEARS, f'Years in tax credit sheet ({years}) do not match ATB years ({YEARS})'
 
         # Pull ITC and PTC values
         df_itc = df_tc.loc[itc_row:ptc_row-2, itc_col+1:ly_col]

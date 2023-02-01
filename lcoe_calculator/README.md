@@ -13,8 +13,13 @@ Files are listed in roughly descending order of importance and approachability.
  - `base_processor.py` - Base processor class that is subclassed to process individual technologies.
  - `extractor.py` - Code to pull values from the spreadsheet
  - `macrs.py` - MACRS depreciation schedules
+
+## Jupyter Notebooks
+Notebooks demonstrating how to use the the code in this directory.
+
+ - `Full work flow.ipynb` - Jupter notebook for testing full scrape.
  - `Test Tech processors.ipynb` - Jupyter notebook for testing individual techs. May not be up-to-date.
- - `Full work flow.ipynb` - Jupter notebook for testing full scrape. May not be up-to-date.
+ - `Test Tax Credit Scrape.ipynb` - Jupyter notebook for testing and demonstrating the tax credit scraper.
 
 ## Dependencies
 The scraper is known to work with Python 3.8.12 and 3.11.0. The following packages are required.
