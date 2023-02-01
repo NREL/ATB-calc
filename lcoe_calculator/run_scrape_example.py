@@ -5,10 +5,10 @@ from datetime import datetime as dt
 from full_scrape import FullScrape
 
 # Data master version on sharepoint - empty string if you haven't renamed the file
-version_string = "_v1"
+version_string = "_v1.29"
 
 # Path to data master spreadsheet
-data_master_filename = '../../2023-ATB-Data_Master' + version_string + '.xlsx'
+data_master_filename = '../2023-ATB-Data_Master' + version_string + '.xlsx'
 
 
 # Kick off scraper

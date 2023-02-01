@@ -2,6 +2,19 @@ import pandas as pd
 import numpy as np
 import PySAM.Singleowner as singleowner
 
+from full_scrape import FullScrape
+from base_processor import CRP_YEARS
+
+# Data master version on sharepoint - empty string if you haven't renamed the file
+version_string = "_v1.29"
+
+# Path to data master spreadsheet
+data_master_filename = '../2023-ATB-Data_Master' + version_string + '.xlsx'
+
+CRP_YEARS = [20]
+scraper = FullScrape(data_master_filename)
+scraper.scrape()
+
 model = singleowner.default("GenericSystemSingleOwner")
 
 analysis_period = 20

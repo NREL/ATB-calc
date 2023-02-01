@@ -79,6 +79,11 @@ class TechProcessor:
         ('df_capex', 'CAPEX'),
     ]
 
+    # Variables used by the debt fraction calculator. Should be filled out for any tech where has_lcoe_and_wacc = True
+    default_tech_detail = None
+    dscr = None
+    irr_target = None
+
     def __init__(self, data_master_fname, case='Market', crp=30):
         """
         @param {str} data_master_fname - name of spreadsheet

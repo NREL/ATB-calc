@@ -16,6 +16,9 @@ class OffShoreWindProc(TechProcessor):
     num_tds = 14
     has_ptc = True
     has_itc = True
+    default_tech_detail = 'Offshore Wind - Class 3'
+    dscr = 1.4
+    irr_target = 10.0
 
 
 class LandBasedWindProc(TechProcessor):
@@ -26,6 +29,9 @@ class LandBasedWindProc(TechProcessor):
     num_tds = 10
     has_ptc = True
     has_itc = True
+    default_tech_detail = 'Land-Based Wind - Class 4'
+    dscr = 1.4
+    irr_target = 9.0
 
 
 class DistributedWindProc(TechProcessor):
@@ -36,7 +42,9 @@ class DistributedWindProc(TechProcessor):
     num_tds = 40
     has_ptc = True
     has_itc = True
-
+    default_tech_detail = 'Midsize DW - Class 4'
+    dscr = 1.4
+    irr_target = 9.0
 
 class UtilityPvProc(TechProcessor):
     tech_name = 'UtilityPV'
@@ -46,7 +54,9 @@ class UtilityPvProc(TechProcessor):
     num_tds = 10
     has_ptc = True
     has_itc = True
-
+    default_tech_detail = 'Utility PV - Class 5'
+    dscr = 1.3
+    irr_target = 7.75
 
 class CommPvProc(TechProcessor):
     tech_name = 'CommPV'
@@ -56,6 +66,9 @@ class CommPvProc(TechProcessor):
     num_tds = 10
     has_ptc = True
     has_itc = True
+    default_tech_detail = 'Commercial PV - Class 5'
+    dscr = 1.3
+    irr_target = 8.75
 
 
 class ResPvProc(TechProcessor):
@@ -66,7 +79,9 @@ class ResPvProc(TechProcessor):
     num_tds = 10
     has_ptc = True
     has_itc = True
-
+    default_tech_detail = 'Residential PV - Class 5'
+    dscr = 1.3
+    irr_target = 8.75
 
 class UtilityPvPlusBatteryProc(TechProcessor):
     tech_name = 'Utility-Scale PV-Plus-Battery'
@@ -77,6 +92,9 @@ class UtilityPvPlusBatteryProc(TechProcessor):
     num_tds = 10
     has_ptc = True
     has_itc = True
+    default_tech_detail = 'PV+Storage - Class 5'
+    dscr = 1.3
+    irr_target = 7.75
 
     GRID_ROUNDTRIP_EFF = 0.85 # Roundtrip Efficiency (Grid charging)
 
@@ -128,7 +146,9 @@ class CspProc(TechProcessor):
     num_tds = 3
     has_ptc = True
     has_itc = True
-
+    default_tech_detail = 'CSP - Class 2'
+    dscr = 1.45
+    irr_target = 10.0
 
 class GeothermalProc(TechProcessor):
     tech_name = 'Geothermal'
@@ -138,6 +158,9 @@ class GeothermalProc(TechProcessor):
     num_tds = 6
     has_ptc = True
     has_itc = True
+    default_tech_detail = 'Geothermal - Hydro / Flash'
+    dscr = 1.45
+    irr_target = 10.0
 
     def _load_cff(self, extractor, cff_name):
         """
@@ -267,7 +290,9 @@ class HydropowerProc(TechProcessor):
     has_ptc = True
     has_itc = True
     split_metrics = True
-
+    default_tech_detail = 'Hydropower - NPD 1'
+    dscr = 1.50
+    irr_target = 10.0
 
 class PumpedStorageHydroProc(TechProcessor):
     tech_name = 'Pumped Storage Hydropower'
@@ -326,6 +351,9 @@ class CoalProc(TechProcessor):
     has_ptc = False
     has_itc = False
     has_tax_credit = False
+    default_tech_detail = 'Coal-95%-CCS'
+    dscr = 1.45
+    irr_target = 10.0
 
     def run(self):
         """ Run all calculations except LCOE """
@@ -364,6 +392,9 @@ class NaturalGasProc(TechProcessor):
     has_ptc = False
     has_itc = False
     has_tax_credit = False
+    default_tech_detail = 'NG F-Frame CC 95% CCS'
+    dscr = 1.45
+    irr_target = 10.0
 
     def run(self):
         """ Run all calculations except LCOE """
@@ -413,6 +444,9 @@ class NuclearProc(TechProcessor):
     scenarios = ['Moderate']
     has_ptc = True
     has_itc = True
+    default_tech_detail = 'Nuclear - AP1000'
+    dscr = 1.45
+    irr_target = 10.0
 
     metrics = [
         ('Heat Rate  (MMBtu/MWh)', 'df_hr'),
@@ -435,6 +469,7 @@ class NuclearProc(TechProcessor):
         ('df_lcoe', 'LCOE'),
         ('df_capex', 'CAPEX'),
         ('df_fuel_costs_mwh', 'Fuel'),
+        ('df_hr', 'Heat Rate'),
     ]
 
     def _calc_crf(self):
@@ -463,6 +498,9 @@ class BiopowerProc(TechProcessor):
     num_tds = 1
     has_ptc = True
     has_itc = True
+    default_tech_detail = 'Biopower - Dedicated'
+    dscr = 1.45
+    irr_target = 10.0
 
     metrics = [
         ('Heat Rate  (MMBtu/MWh)', 'df_hr'),
@@ -485,6 +523,7 @@ class BiopowerProc(TechProcessor):
         ('df_lcoe', 'LCOE'),
         ('df_capex', 'CAPEX'),
         ('df_fuel_costs_mwh', 'Fuel'),
+        ('df_hr', 'Heat Rate'),
     ]
 
     def _calc_lcoe(self):
