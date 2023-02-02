@@ -179,79 +179,80 @@ def calculate_debt_fraction(input_vals, debug=False):
 
     return model.Outputs.debt_fraction
 
-# Start by running the scrape for relevant technologies
-# Data master version on sharepoint - empty string if you haven't renamed the file
-version_string = "_v1.51"
+if __name__ == "__main__":
+    # Start by running the scrape for relevant technologies
+    # Data master version on sharepoint - empty string if you haven't renamed the file
+    version_string = "_v1.51"
 
-# Path to data master spreadsheet
-data_master_filename = '../2023-ATB-Data_Master' + version_string + '.xlsx'
+    # Path to data master spreadsheet
+    data_master_filename = '../2023-ATB-Data_Master' + version_string + '.xlsx'
 
-# Techs will both be scraped and have debt fractions calculated
-techs = [
-                OffShoreWindProc, LandBasedWindProc, DistributedWindProc,
-                UtilityPvProc, CommPvProc, ResPvProc, UtilityPvPlusBatteryProc,
-                CspProc, GeothermalProc, HydropowerProc, NuclearProc, BiopowerProc
-            ]
+    # Techs will both be scraped and have debt fractions calculated
+    techs = [
+                    OffShoreWindProc, LandBasedWindProc, DistributedWindProc,
+                    UtilityPvProc, CommPvProc, ResPvProc, UtilityPvPlusBatteryProc,
+                    CspProc, GeothermalProc, HydropowerProc, NuclearProc, BiopowerProc
+                ]
 
-df_itc, df_ptc = Extractor.get_tax_credits_sheet(data_master_filename)
+    df_itc, df_ptc = Extractor.get_tax_credits_sheet(data_master_filename)
 
-crp = 20
+    crp = 20
 
-debt_frac_dict = {}
+    debt_frac_dict = {}
 
-cols = ["Technology", "Case", *YEARS] # column structure of resulting data frame
+    cols = ["Technology", "Case", *YEARS] # column structure of resulting data frame
 
-for tech in techs:
-    for fin_case in FIN_CASES:
-        print("Tech ", tech.tech_name, "Fin case " , fin_case)
-        debt_fracs = [tech.tech_name, fin_case] # First two columns are metadata
-    
-        proc = tech(data_master_filename, crp=crp, case=fin_case)
-        proc.run()
+    for tech in techs:
+        for fin_case in FIN_CASES:
+            print("Tech ", tech.tech_name, "Fin case " , fin_case)
+            debt_fracs = [tech.tech_name, fin_case] # First two columns are metadata
         
-        d = proc.flat
-
-        # Values that are specific to the representative tech detail
-        detail_vals = d[(d.DisplayName == tech.default_tech_detail) & (d.Case == fin_case) 
-                & (d.Scenario == 'Moderate') & (d.CRPYears == 20) & 
-                ((d.Parameter == 'Fixed O&M') | (d.Parameter == 'Variable O&M') 
-                | (d.Parameter == 'OCC') | (d.Parameter == 'CFC') | (d.Parameter == 'CF')
-                | (d.Parameter == 'Heat Rate') | (d.Parameter == 'Fuel'))]
-
-        # Values that apply to entire technology
-        tech_vals = d[(d.Technology == tech.tech_name) & (d.CRPYears == 20) & (d.Case == fin_case) & 
-                ((d.Parameter == 'Inflation Rate') | (d.Parameter == 'Tax Rate (Federal and State)') 
-                | (d.Parameter == 'Calculated Rate of Return on Equity Real') 
-                | (d.Parameter == 'Interest Rate Nominal'))]
-
-        for year in YEARS:            
-            input_vals = detail_vals.set_index('Parameter')[year].to_dict()
-
-            gen_vals = tech_vals.set_index('Parameter')[year].to_dict()
-
-            # Tax credits
-            if tech.has_itc and tech.has_ptc and fin_case == 'Market':
-                input_vals["PTC"] = df_ptc.loc[tech.sheet_name][year]
-                input_vals["ITC"] = df_itc.loc[tech.sheet_name][year]
-            else:
-                input_vals["PTC"] = 0
-                input_vals["ITC"] = 0
+            proc = tech(data_master_filename, crp=crp, case=fin_case)
+            proc.run()
             
-            # Financial parameters stored in tech processor
-            input_vals["DSCR"] = tech.dscr
-            input_vals["IRR"] = tech.irr_target
-            if isinstance(tech.depreciation_schedule, list):
-                input_vals["MACRS"] = tech.depreciation_schedule
-            elif isinstance(tech.depreciation_schedule, dict):
-                input_vals["MACRS"] = tech.depreciation_schedule[year]
-            input_vals.update(gen_vals)
+            d = proc.flat
 
-            #Calculate debt fraction using PySAM
-            debt_frac = calculate_debt_fraction(input_vals)
+            # Values that are specific to the representative tech detail
+            detail_vals = d[(d.DisplayName == tech.default_tech_detail) & (d.Case == fin_case) 
+                    & (d.Scenario == 'Moderate') & (d.CRPYears == 20) & 
+                    ((d.Parameter == 'Fixed O&M') | (d.Parameter == 'Variable O&M') 
+                    | (d.Parameter == 'OCC') | (d.Parameter == 'CFC') | (d.Parameter == 'CF')
+                    | (d.Parameter == 'Heat Rate') | (d.Parameter == 'Fuel'))]
 
-            debt_fracs.append(debt_frac / 100.0)
-        
-        debt_frac_dict[tech.tech_name + fin_case] = debt_fracs
+            # Values that apply to entire technology
+            tech_vals = d[(d.Technology == tech.tech_name) & (d.CRPYears == 20) & (d.Case == fin_case) & 
+                    ((d.Parameter == 'Inflation Rate') | (d.Parameter == 'Tax Rate (Federal and State)') 
+                    | (d.Parameter == 'Calculated Rate of Return on Equity Real') 
+                    | (d.Parameter == 'Interest Rate Nominal'))]
 
-debt_frac_df = pd.DataFrame.from_dict(debt_frac_dict, orient='index', columns=cols)
-debt_frac_df.to_csv("2023_debt_fractions" + version_string + ".csv")
+            for year in YEARS:            
+                input_vals = detail_vals.set_index('Parameter')[year].to_dict()
+
+                gen_vals = tech_vals.set_index('Parameter')[year].to_dict()
+
+                # Tax credits
+                if tech.has_itc and tech.has_ptc and fin_case == 'Market':
+                    input_vals["PTC"] = df_ptc.loc[tech.sheet_name][year]
+                    input_vals["ITC"] = df_itc.loc[tech.sheet_name][year]
+                else:
+                    input_vals["PTC"] = 0
+                    input_vals["ITC"] = 0
+                
+                # Financial parameters stored in tech processor
+                input_vals["DSCR"] = tech.dscr
+                input_vals["IRR"] = tech.irr_target
+                if isinstance(tech.depreciation_schedule, list):
+                    input_vals["MACRS"] = tech.depreciation_schedule
+                elif isinstance(tech.depreciation_schedule, dict):
+                    input_vals["MACRS"] = tech.depreciation_schedule[year]
+                input_vals.update(gen_vals)
+
+                #Calculate debt fraction using PySAM
+                debt_frac = calculate_debt_fraction(input_vals)
+
+                debt_fracs.append(debt_frac / 100.0)
+            
+            debt_frac_dict[tech.tech_name + fin_case] = debt_fracs
+
+    debt_frac_df = pd.DataFrame.from_dict(debt_frac_dict, orient='index', columns=cols)
+    debt_frac_df.to_csv("2023_debt_fractions" + version_string + ".csv")
