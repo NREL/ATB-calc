@@ -8,8 +8,7 @@ import pandas as pd
 import numpy as np
 import PySAM.Singleowner as singleowner
 
-from full_scrape import FullScrape
-from extractor import Extractor
+from extractor import Extractor, YEARS, FIN_CASES
 
 # Import processors that calculate LCOE
 from tech_processors import OffShoreWindProc, LandBasedWindProc, DistributedWindProc,\
@@ -37,7 +36,8 @@ def calculate_debt_fraction(input_vals, debug=False):
         Calculated Rate of Return on Equity Real (%, 0-1)
         ITC - Investment tax Credit, federal (%, 0-1)
         PTC - Production tax credit, federal ($/MWh)
-
+    
+    Returns debt_fraction, float, (% 0-100)
     """
     model = singleowner.default("GenericSystemSingleOwner")
 
@@ -79,7 +79,9 @@ def calculate_debt_fraction(input_vals, debug=False):
     if 'Heat Rate' in input_vals:
         model.value("system_heat_rate", input_vals['Heat Rate'])
 
-    model.value("degradation", [degradation]) # Specify length 1 so degradation is applied each year. An array of 0.7 len(analysis_period) assumes degradation the first year, but not afterwards
+    # Specify length 1 so degradation is applied each year.
+    # An array of 0.7 len(analysis_period) assumes degradation the first year, but not afterwards
+    model.value("degradation", [degradation]) 
     model.value("system_use_lifetime_output", 0) # Do degradation in the financial model
 
     model.value("debt_option", 1) # Use DSCR (alternative is to specify the debt fraction, which doesn't help)
@@ -87,7 +89,7 @@ def calculate_debt_fraction(input_vals, debug=False):
     model.value("inflation_rate", inflation)
     model.value("term_int_rate", input_vals['Interest Rate Nominal'] * 100)
     model.value("term_tenor", 18) # years
-    model.value("real_discount_rate", input_vals['Calculated Rate of Return on Equity Real'] * 100) ## "real equity rate" 
+    model.value("real_discount_rate", input_vals['Calculated Rate of Return on Equity Real'] * 100) 
     model.value("flip_target_percent", irr_target) ## "nominal equity rate"
     model.value("ppa_escalation", 0.0)
 
@@ -152,26 +154,28 @@ def calculate_debt_fraction(input_vals, debug=False):
     model.value("ppa_soln_mode", 0)
     model.value("payment_option", 0)
 
-    model.value('en_electricity_rates', 1 ) # Required for calculate PPA price. Default is $0.045/kWh. However given the way we've set up gen, this will never be used 
+    # Required for calculate PPA price. 
+    # Default is $0.045/kWh. However given the way we've set up gen, this will never be used 
+    model.value('en_electricity_rates', 1 ) 
 
     model.execute()
 
     if debug:
-        print("LCOE: " + str(model.Outputs.lcoe_real)) #Cents / kWh - multiply by 10 to get $ / MWh
-        print("NPV: " + str(model.Outputs.project_return_aftertax_npv))
+        print(f"LCOE: {model.Outputs.lcoe_real}") #Cents / kWh - multiply by 10 to get $ / MWh
+        print(f"NPV: {model.Outputs.project_return_aftertax_npv}")
         print()
-        print("IRR in target year: " + str(model.Outputs.flip_target_irr))
-        print("IRR at end of project: " + str(model.Outputs.analysis_period_irr))
-        print("O&M: " + str(model.Outputs.cf_om_capacity_expense))
-        print("PPA price: " + str(model.Outputs.cf_ppa_price))
-        print("Debt Principal: " + str(model.Outputs.cf_debt_payment_principal))
-        print("Debt Interest: " + str(model.Outputs.cf_debt_payment_interest))
-        print("Depreciation: " + str(model.Outputs.cf_feddepr_total))
-        print("Production: " + str(model.Outputs.cf_energy_net))
-        print("Tax " + str(model.Outputs.cf_fedtax))
-        print("ITC " + str(model.Outputs.itc_total_fed))
-        print("PTC " + str(model.Outputs.cf_ptc_fed))
-        print("Debt fraction " + str(model.Outputs.debt_fraction))
+        print(f"IRR in target year: {model.Outputs.flip_target_irr}")
+        print(f"IRR at end of project: {model.Outputs.analysis_period_irr}")
+        print(f"O&M: {model.Outputs.cf_om_capacity_expense}")
+        print(f"PPA price: {model.Outputs.cf_ppa_price}")
+        print(f"Debt Principal: {model.Outputs.cf_debt_payment_principal}")
+        print(f"Debt Interest: {model.Outputs.cf_debt_payment_interest}")
+        print(f"Depreciation: {model.Outputs.cf_feddepr_total}")
+        print(f"Production: {model.Outputs.cf_energy_net}")
+        print(f"Tax {model.Outputs.cf_fedtax}")
+        print(f"ITC {model.Outputs.itc_total_fed}")
+        print(f"PTC {model.Outputs.cf_ptc_fed}")
+        print(f"Debt fraction {model.Outputs.debt_fraction}")
 
     return model.Outputs.debt_fraction
 
@@ -189,36 +193,41 @@ techs = [
                 CspProc, GeothermalProc, HydropowerProc, NuclearProc, BiopowerProc
             ]
 
-scraper = FullScrape(data_master_filename, techs=techs)
-scraper.scrape()
-
 df_itc, df_ptc = Extractor.get_tax_credits_sheet(data_master_filename)
 
-# Set up cases to calculate debt fraction
-fin_cases = ['Market','R&D']
+crp = 20
 
-d = scraper.data
 debt_frac_dict = {}
 
-years = range(2021, 2051)
-cols = ["Technology", "Case", *years] # column structure of resulting data frame
+cols = ["Technology", "Case", *YEARS] # column structure of resulting data frame
 
 for tech in techs:
-    for fin_case in fin_cases:
+    for fin_case in FIN_CASES:
         print("Tech ", tech.tech_name, "Fin case " , fin_case)
         debt_fracs = [tech.tech_name, fin_case] # First two columns are metadata
+    
+        proc = tech(data_master_filename, crp=crp, case=fin_case)
+        proc.run()
         
-        for year in years:
-            # Values that are specific to the representative tech detail
-            input_vals = d[(d.DisplayName == tech.default_tech_detail) & (d.Case == fin_case) & (d.Scenario == 'Moderate') & (d.CRPYears == 20) & 
-                ((d.Parameter == 'Fixed O&M') | (d.Parameter == 'Variable O&M') |(d.Parameter == 'OCC') | (d.Parameter == 'CFC') | (d.Parameter == 'CF')
-                | (d.Parameter == 'Heat Rate') | (d.Parameter == 'Fuel'))]
-            input_vals = input_vals.set_index('Parameter')[year].to_dict()
+        d = proc.flat
 
-            # Values that apply to entire technology
-            gen_vals = d[(d.Technology == tech.tech_name) & (d.CRPYears == 20) & (d.Case == fin_case) & 
-                ((d.Parameter == 'Inflation Rate') | (d.Parameter == 'Tax Rate (Federal and State)') | (d.Parameter == 'Calculated Rate of Return on Equity Real') | (d.Parameter == 'Interest Rate Nominal'))]
-            gen_vals = gen_vals.set_index('Parameter')[year].to_dict()
+        # Values that are specific to the representative tech detail
+        detail_vals = d[(d.DisplayName == tech.default_tech_detail) & (d.Case == fin_case) 
+                & (d.Scenario == 'Moderate') & (d.CRPYears == 20) & 
+                ((d.Parameter == 'Fixed O&M') | (d.Parameter == 'Variable O&M') 
+                | (d.Parameter == 'OCC') | (d.Parameter == 'CFC') | (d.Parameter == 'CF')
+                | (d.Parameter == 'Heat Rate') | (d.Parameter == 'Fuel'))]
+
+        # Values that apply to entire technology
+        tech_vals = d[(d.Technology == tech.tech_name) & (d.CRPYears == 20) & (d.Case == fin_case) & 
+                ((d.Parameter == 'Inflation Rate') | (d.Parameter == 'Tax Rate (Federal and State)') 
+                | (d.Parameter == 'Calculated Rate of Return on Equity Real') 
+                | (d.Parameter == 'Interest Rate Nominal'))]
+
+        for year in YEARS:            
+            input_vals = detail_vals.set_index('Parameter')[year].to_dict()
+
+            gen_vals = tech_vals.set_index('Parameter')[year].to_dict()
 
             # Tax credits
             if tech.has_itc and tech.has_ptc and fin_case == 'Market':
