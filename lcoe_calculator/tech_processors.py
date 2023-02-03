@@ -87,7 +87,6 @@ class UtilityPvPlusBatteryProc(TechProcessor):
     tech_name = 'Utility-Scale PV-Plus-Battery'
     tech_life = 30
     sheet_name = 'Utility-Scale PV-Plus-Battery'
-    wacc_name = 'Solar - Utility PV'  # Use solar PV WACC values
     depreciation_schedule = MACRS_6
     num_tds = 10
     has_ptc = True
