@@ -394,14 +394,20 @@ class TechProcessor:
         df_pvd = pd.DataFrame(columns=YEARS)
         for scenario in self.scenarios:
             for year in YEARS:
-                # The dep schedule may be consistent for all years or vary by year 
-                if isinstance(self.depreciation_schedule, list):
-                    MACRS_schedule = self.depreciation_schedule
+                # The dep schedule can be constant by financial case or by year, or be consistant
+                dep_sched = self.depreciation_schedule
+                if isinstance(self.depreciation_schedule, dict):
+                    if self._case in self.depreciation_schedule.keys():
+                        dep_sched = self.depreciation_schedule[self._case]
+                    # At this point dep_sched will either be a list or a dict by year, and the code below will handle it
+                    
+                if isinstance(dep_sched, list):
+                    MACRS_schedule = dep_sched
                 else:
-                    assert year in self.depreciation_schedule,\
+                    assert year in dep_sched,\
                          f'Depreciation schedule is missing year {year} for '\
                          f'{self.sheet_name}'
-                    MACRS_schedule = self.depreciation_schedule[year]
+                    MACRS_schedule = dep_sched[year]
 
                 df_depreciation_factor = self._calc_dep_factor(
                     MACRS_schedule, inflation, scenario
