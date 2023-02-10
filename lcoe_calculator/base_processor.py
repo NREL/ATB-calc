@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-from extractor import Extractor, FIN_CASES, YEARS, TECH_DETAIL_SCENARIO_COL
+from extractor import Extractor, FIN_CASES, YEARS, TECH_DETAIL_SCENARIO_COL, MARKET_FIN_CASE
 
 CRP_CHOICES = ['20', '30', 'TechLife']
 TOL = 1e-6  # Tolerance for comparing if a float is zero
@@ -84,7 +84,7 @@ class TechProcessor:
     dscr = None
     irr_target = None
 
-    def __init__(self, data_master_fname, case='Market', crp=30):
+    def __init__(self, data_master_fname, case=MARKET_FIN_CASE, crp=30):
         """
         @param {str} data_master_fname - name of spreadsheet
         @param {str} case - financial case to run: 'Market' or 'R&D'
@@ -156,7 +156,7 @@ class TechProcessor:
 
         case = self._case.upper()
         if case == 'MARKET':
-            case = 'Market'
+            case = MARKET_FIN_CASE
 
         for attr, parameter in self.flat_attrs:
             df = getattr(self, attr)

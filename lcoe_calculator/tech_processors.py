@@ -3,7 +3,7 @@ Individual tech scrapers. See documentation in base_processor.py.
 """
 import pandas as pd
 
-from extractor import TECH_DETAIL_SCENARIO_COL, BASE_YEAR, FIN_CASES
+from extractor import TECH_DETAIL_SCENARIO_COL, BASE_YEAR, MARKET_FIN_CASE, R_AND_D_FIN_CASE
 from macrs import MACRS_6, MACRS_16, MACRS_21
 from base_processor import TechProcessor
 
@@ -253,8 +253,8 @@ class HydropowerProc(TechProcessor):
     tech_name = 'Hydropower'
     sheet_name = 'Hydropower'
     depreciation_schedule = { 
-        FIN_CASES[1] : MACRS_6, # R&D
-        FIN_CASES[0] : { # Market
+        R_AND_D_FIN_CASE : MACRS_6, 
+        MARKET_FIN_CASE : { 
             2021: MACRS_21,
             2022: MACRS_21,
             2023: MACRS_21,
@@ -411,8 +411,8 @@ class NuclearProc(TechProcessor):
     tech_life = 60
     sheet_name = 'Nuclear'
     depreciation_schedule = { 
-        FIN_CASES[1] : MACRS_6, # R&D
-        FIN_CASES[0] : { # Market
+        R_AND_D_FIN_CASE : MACRS_6, 
+        MARKET_FIN_CASE : { 
             2021: MACRS_16,
             2022: MACRS_16,
             2023: MACRS_16,
