@@ -178,6 +178,11 @@ class TechProcessor:
         return df_flat
 
     def get_depreciation_schedule(self, year):
+        """
+        Provide a function to return the depreciation schedule
+        year - integer of analysis year
+        Not used for most techs, but some child classes vary by year based on Inflation Reduction Act credits
+        """
         return self._depreciation_schedule
 
     def test_lcoe(self):
