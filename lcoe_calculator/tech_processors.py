@@ -11,7 +11,6 @@ from base_processor import TechProcessor
 class OffShoreWindProc(TechProcessor):
     tech_name = 'OffShoreWind'
     sheet_name = 'Offshore Wind'
-    depreciation_schedule = MACRS_6
     tech_life = 30
     num_tds = 14
     has_ptc = True
@@ -24,7 +23,6 @@ class OffShoreWindProc(TechProcessor):
 class LandBasedWindProc(TechProcessor):
     tech_name = 'LandbasedWind'
     sheet_name = 'Land-Based Wind'
-    depreciation_schedule = MACRS_6
     tech_life = 30
     num_tds = 10
     has_ptc = True
@@ -37,7 +35,6 @@ class LandBasedWindProc(TechProcessor):
 class DistributedWindProc(TechProcessor):
     tech_name = 'DistributedWind'
     sheet_name = 'Distributed Wind'
-    depreciation_schedule = MACRS_6
     tech_life = 30
     num_tds = 40
     has_ptc = True
@@ -50,7 +47,6 @@ class UtilityPvProc(TechProcessor):
     tech_name = 'UtilityPV'
     tech_life = 30
     sheet_name = 'Solar - Utility PV'
-    depreciation_schedule = MACRS_6
     num_tds = 10
     has_ptc = True
     has_itc = True
@@ -62,7 +58,6 @@ class CommPvProc(TechProcessor):
     tech_name = 'CommPV'
     tech_life = 30
     sheet_name = 'Solar - PV Dist. Comm'
-    depreciation_schedule = MACRS_6
     num_tds = 10
     has_ptc = True
     has_itc = True
@@ -75,7 +70,6 @@ class ResPvProc(TechProcessor):
     tech_name = 'ResPV'
     tech_life = 30
     sheet_name = 'Solar - PV Dist. Res'
-    depreciation_schedule = MACRS_6
     num_tds = 10
     has_ptc = True
     has_itc = True
@@ -87,7 +81,6 @@ class UtilityPvPlusBatteryProc(TechProcessor):
     tech_name = 'Utility-Scale PV-Plus-Battery'
     tech_life = 30
     sheet_name = 'Utility-Scale PV-Plus-Battery'
-    depreciation_schedule = MACRS_6
     num_tds = 10
     has_ptc = True
     has_itc = True
@@ -141,7 +134,6 @@ class CspProc(TechProcessor):
     tech_name = 'CSP'
     tech_life = 30
     sheet_name = 'Solar - CSP'
-    depreciation_schedule = MACRS_6
     num_tds = 3
     has_ptc = True
     has_itc = True
@@ -152,7 +144,6 @@ class CspProc(TechProcessor):
 class GeothermalProc(TechProcessor):
     tech_name = 'Geothermal'
     sheet_name = 'Geothermal'
-    depreciation_schedule = MACRS_6
     tech_life = 30
     num_tds = 6
     has_ptc = True
@@ -252,41 +243,6 @@ class GeothermalProc(TechProcessor):
 class HydropowerProc(TechProcessor):
     tech_name = 'Hydropower'
     sheet_name = 'Hydropower'
-    depreciation_schedule = { 
-        R_AND_D_FIN_CASE : MACRS_6, 
-        MARKET_FIN_CASE : { 
-            2021: MACRS_21,
-            2022: MACRS_21,
-            2023: MACRS_21,
-            2024: MACRS_21,
-            2025: MACRS_6,
-            2026: MACRS_6,
-            2027: MACRS_6,
-            2028: MACRS_6,
-            2029: MACRS_6,
-            2030: MACRS_6,
-            2031: MACRS_6,
-            2032: MACRS_6,
-            2033: MACRS_6,
-            2034: MACRS_6,
-            2035: MACRS_6,
-            2036: MACRS_6,
-            2037: MACRS_6,
-            2038: MACRS_6,
-            2039: MACRS_6,
-            2040: MACRS_6,
-            2041: MACRS_6,
-            2042: MACRS_6,
-            2043: MACRS_6,
-            2044: MACRS_6,
-            2045: MACRS_6,
-            2046: MACRS_21,
-            2047: MACRS_21,
-            2048: MACRS_21,
-            2049: MACRS_21,
-            2050: MACRS_21,
-        }
-    }
     tech_life = 100
     num_tds = 12
     has_ptc = True
@@ -296,11 +252,16 @@ class HydropowerProc(TechProcessor):
     dscr = 1.50
     irr_target = 10.0
 
+    def get_depreciation_schedule(self, year):
+        if self._case is MARKET_FIN_CASE and (year < 2025 or year > 2045):
+            return MACRS_21
+        else:
+            return MACRS_6
+
 class PumpedStorageHydroProc(TechProcessor):
     tech_name = 'Pumped Storage Hydropower'
     sheet_name = 'Pumped Storage Hydropower'
     wacc_name = 'Hydropower'  # Use hydropower WACC values for pumped storage
-    depreciation_schedule = MACRS_21
     tech_life = 100
     num_tds = 15
     has_ptc = False
@@ -348,7 +309,6 @@ class CoalProc(TechProcessor):
     ]
 
     sheet_name = 'Coal_FE'
-    depreciation_schedule = MACRS_21
     num_tds = 4
     has_ptc = False
     has_itc = False
@@ -365,6 +325,8 @@ class CoalProc(TechProcessor):
     def test_lcoe(self):
         pass
 
+    def get_depreciation_schedule(self, year):
+        return MACRS_21
 
 class NaturalGasProc(TechProcessor):
     tech_name = 'NaturalGas_FE'
@@ -389,7 +351,6 @@ class NaturalGasProc(TechProcessor):
         ('df_capex', 'CAPEX'),
     ]
     sheet_name = 'Natural Gas_FE'
-    depreciation_schedule = MACRS_16
     num_tds = 7
     has_ptc = False
     has_itc = False
@@ -405,6 +366,9 @@ class NaturalGasProc(TechProcessor):
 
     def test_lcoe(self):
         pass
+
+    def get_depreciation_schedule(self, year):
+        return MACRS_16
 
 class NuclearProc(TechProcessor):
     tech_name = 'Nuclear'
@@ -494,12 +458,16 @@ class NuclearProc(TechProcessor):
         df_lcoe = super()._calc_lcoe() + self.df_fuel_costs_mwh
         return df_lcoe
 
+    def get_depreciation_schedule(self, year):
+        if self._case is MARKET_FIN_CASE and (year < 2025 or year > 2045):
+            return MACRS_16
+        else:
+            return MACRS_6
 
 class BiopowerProc(TechProcessor):
     tech_name = 'Biopower'
     tech_life = 45
     sheet_name = 'Biopower'
-    depreciation_schedule = MACRS_6
     num_tds = 1
     has_ptc = True
     has_itc = True
@@ -542,7 +510,6 @@ class UtilityBatteryProc(TechProcessor):
     tech_name = 'Utility-Scale Battery Storage'
     tech_life = 30
     sheet_name = 'Utility-Scale Battery Storage'
-    depreciation_schedule = MACRS_6
     num_tds = 5
     has_lcoe_and_wacc = False
     has_fin_assump = False
@@ -567,7 +534,6 @@ class CommBatteryProc(TechProcessor):
     tech_name = 'Commercial Battery Storage'
     tech_life = 30
     sheet_name = 'Commercial Battery Storage'
-    depreciation_schedule = MACRS_6
     num_tds = 5
     has_lcoe_and_wacc = False
     has_fin_assump = False
@@ -591,7 +557,6 @@ class ResBatteryProc(TechProcessor):
     tech_name = 'Residential Battery Storage'
     tech_life = 30
     sheet_name = 'Residential Battery Storage'
-    depreciation_schedule = MACRS_6
     num_tds = 2
     has_lcoe_and_wacc = False
     has_fin_assump = False

@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 
 from extractor import Extractor, FIN_CASES, YEARS, TECH_DETAIL_SCENARIO_COL, MARKET_FIN_CASE
+from macrs import MACRS_6
 
 CRP_CHOICES = ['20', '30', 'TechLife']
 TOL = 1e-6  # Tolerance for comparing if a float is zero
@@ -35,8 +36,7 @@ class TechProcessor:
     # file, see the LandBasedWindProc in tech_processors.py for an example. A
     # varying schedule can be defined using a dict keyed by year. See
     # HydropowerProc in tech_processors.py for an example. 
-    depreciation_schedule = None  # MACRS_6, etc.
-
+    _depreciation_schedule = MACRS_6  # MACRS_6, etc.
 
     # ------------ All other attributes have defaults -------------------------
     # Metrics to load from SS. Format: (header in SS, object attribute name)
@@ -96,15 +96,9 @@ class TechProcessor:
             f' received {crp}')
         assert isinstance(self.scenarios, list), 'self.scenarios must be a list'
 
-        for attr in ['sheet_name', 'tech_name', 'depreciation_schedule']:
+        for attr in ['sheet_name', 'tech_name']:
             assert getattr(self, attr) is not None, \
                 f'{attr} must be defined in tech sub-classes. Currently is None.'
-
-        assert isinstance(self.depreciation_schedule, list) or\
-            isinstance(self.depreciation_schedule, dict),\
-            'The depreciation schedule must be a list of MACRS values or, for '\
-            'techs with depreciation schedules that change by year, a dict of '\
-            'MACRS lists, keyed by year.'
 
         self._data_master_fname = data_master_fname
         self._case = case
@@ -182,6 +176,9 @@ class TechProcessor:
         df_flat = df_flat.drop(TECH_DETAIL_SCENARIO_COL, axis=1).reset_index(drop=True)
 
         return df_flat
+
+    def get_depreciation_schedule(self, year):
+        return self._depreciation_schedule
 
     def test_lcoe(self):
         """
@@ -394,20 +391,8 @@ class TechProcessor:
         df_pvd = pd.DataFrame(columns=YEARS)
         for scenario in self.scenarios:
             for year in YEARS:
-                # The dep schedule can be constant by financial case or by year, or be consistant
-                dep_sched = self.depreciation_schedule
-                if isinstance(self.depreciation_schedule, dict):
-                    if self._case in self.depreciation_schedule.keys():
-                        dep_sched = self.depreciation_schedule[self._case]
-                    # At this point dep_sched will either be a list or a dict by year, and the code below will handle it
-                    
-                if isinstance(dep_sched, list):
-                    MACRS_schedule = dep_sched
-                else:
-                    assert year in dep_sched,\
-                         f'Depreciation schedule is missing year {year} for '\
-                         f'{self.sheet_name}'
-                    MACRS_schedule = dep_sched[year]
+                
+                MACRS_schedule = self.get_depreciation_schedule(year)
 
                 df_depreciation_factor = self._calc_dep_factor(
                     MACRS_schedule, inflation, scenario
