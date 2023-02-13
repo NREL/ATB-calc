@@ -5,7 +5,10 @@ import xlwings as xw
 BASE_YEAR = 2021
 YEARS = list(range(BASE_YEAR, 2051 , 1))
 
-FIN_CASES = ['Market', 'R&D']
+MARKET_FIN_CASE = 'Market'
+R_AND_D_FIN_CASE = 'R&D'
+FIN_CASES = [MARKET_FIN_CASE, R_AND_D_FIN_CASE]
+
 FIN_ASSUMP_COL = 5  # Number of columns from fin assumption keys to values
 TECH_DETAIL_SCENARIO_COL = 'tech_detail-scenario'  # Column name for combined
     # tech detail name and scenario, aka Column K in spreadsheet

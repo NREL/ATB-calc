@@ -182,7 +182,7 @@ def calculate_debt_fraction(input_vals, debug=False):
 if __name__ == "__main__":
     # Start by running the scrape for relevant technologies
     # Data master version on sharepoint - empty string if you haven't renamed the file
-    version_string = "_v1.51"
+    version_string = "_v1.102"
 
     # Path to data master spreadsheet
     data_master_filename = '../2023-ATB-Data_Master' + version_string + '.xlsx'
@@ -241,10 +241,9 @@ if __name__ == "__main__":
                 # Financial parameters stored in tech processor
                 input_vals["DSCR"] = tech.dscr
                 input_vals["IRR"] = tech.irr_target
-                if isinstance(tech.depreciation_schedule, list):
-                    input_vals["MACRS"] = tech.depreciation_schedule
-                elif isinstance(tech.depreciation_schedule, dict):
-                    input_vals["MACRS"] = tech.depreciation_schedule[year]
+
+                input_vals["MACRS"] = proc.get_depreciation_schedule(year)
+
                 input_vals.update(gen_vals)
 
                 #Calculate debt fraction using PySAM
