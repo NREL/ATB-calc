@@ -316,6 +316,7 @@ class CoalProc(TechProcessor):
     default_tech_detail = 'Coal-95%-CCS'
     dscr = 1.45
     irr_target = 10.0
+    _depreciation_schedule = MACRS_21
 
     def run(self):
         """ Run all calculations except LCOE """
@@ -324,9 +325,6 @@ class CoalProc(TechProcessor):
 
     def test_lcoe(self):
         pass
-
-    def get_depreciation_schedule(self, year):
-        return MACRS_21
 
 class NaturalGasProc(TechProcessor):
     tech_name = 'NaturalGas_FE'
@@ -358,6 +356,7 @@ class NaturalGasProc(TechProcessor):
     default_tech_detail = 'NG F-Frame CC 95% CCS'
     dscr = 1.45
     irr_target = 10.0
+    _depreciation_schedule = MACRS_21
 
     def run(self):
         """ Run all calculations except LCOE """
@@ -366,9 +365,6 @@ class NaturalGasProc(TechProcessor):
 
     def test_lcoe(self):
         pass
-
-    def get_depreciation_schedule(self, year):
-        return MACRS_16
 
 class NuclearProc(TechProcessor):
     tech_name = 'Nuclear'
