@@ -1,4 +1,5 @@
 import pandas as pd
+from typing import List, Union
 
 from tech_processors import OffShoreWindProc, LandBasedWindProc, DistributedWindProc,\
     UtilityPvProc, CommPvProc, ResPvProc, UtilityPvPlusBatteryProc,\
@@ -13,12 +14,11 @@ class FullScrape:
     Scrape datamaster and calculate LCOE for all techs, CRPs, and financial
     scenarios.
     """
-    def __init__(self, data_master_fname, techs=None):
+    def __init__(self, data_master_fname: str, techs: Union[List, None] = None):
         """
         @param {str} data_master_fname - name of spreadsheet
         @param {list|None} techs - techs to run, all if None
         """
-
         if techs is None:
             techs = [
                 OffShoreWindProc, LandBasedWindProc, DistributedWindProc,
@@ -32,13 +32,16 @@ class FullScrape:
             techs = [techs]
 
         self.data = None  # Flat data from scrape
+        self.meta = None  # Meta data from scrape
 
         self._techs = techs
         self._fname = data_master_fname
 
-    def scrape(self, test_capex=True, test_lcoe=True):
+    def scrape(self, test_capex: bool = True, test_lcoe: bool = True):
         """ Scrap all techs """
-        data = pd.DataFrame()
+        self.data = pd.DataFrame()  # Flat data from scrape
+        self.meta = pd.DataFrame()  # Meta data from scrape
+
         for i, tech in enumerate(self._techs):
             print(f'##### Processing {tech.tech_name} ({i+1}/{len(self._techs)}) #####')
 
@@ -57,9 +60,14 @@ class FullScrape:
                         proc.test_lcoe()
 
                     flat = proc.flat
-                    data = pd.concat([data, flat])
+                    self.data = pd.concat([self.data, flat])
 
-        self.data = data.reset_index(drop=True)
+            meta = proc.get_meta_data()
+            meta['Tech Name'] = tech.tech_name
+            self.meta = pd.concat([self.meta, meta])
+
+        self.data = self.data.reset_index(drop=True)
+        self.meta = self.meta.reset_index(drop=True)
 
     @property
     def data_flattened(self):
@@ -71,15 +79,22 @@ class FullScrape:
                                              'Technology', 'DisplayName', 'Scenario'])
         return melted
 
-    def to_csv(self, fname):
+    def to_csv(self, fname: str):
         """ Write data to CSV """
         if self.data is None:
             raise ValueError('Please run scrape() first')
 
         self.data.to_csv(fname)
 
-    def flat_to_csv(self, fname):
+    def flat_to_csv(self, fname: str):
         """ Write pivoted data to CSV """
         if self.data is None:
             raise ValueError('Please run scrape() first')
         self.data_flattened.to_csv(fname)
+
+    def meta_data_to_csv(self, fname: str):
+        """ Write meta data to CSV """
+        if self.data is None:
+            raise ValueError('Please run scrape() first')
+
+        self.meta.to_csv(fname)

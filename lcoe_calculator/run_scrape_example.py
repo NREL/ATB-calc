@@ -34,6 +34,10 @@ if False:
 if False:
     scraper.flat_to_csv('flat' + version_string + '.csv')
 
+# Save meta data to CSV
+if False:
+    scraper.meta_data_to_csv('meta' + version_string + '.csv')
+
 # Copy data to clipboard to paste into excel
 if False:
     scraper.data.to_clipboard()

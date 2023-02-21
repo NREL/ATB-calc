@@ -51,8 +51,10 @@ class Extractor:
         df = df.rename(columns=columns)
         self._df = df
 
+        # Grab tech values and header
         tables_start_row, _ = self._find_cell(df, 'Future Projections')
         tables_end_row, _ = self._find_cell(df, 'Data Sources for Default Inputs')
+        self._df_tech_header = df.loc[0:tables_start_row]
         self._df_tech_full = df.loc[tables_start_row:tables_end_row]
     
     @classmethod
@@ -261,6 +263,32 @@ class Extractor:
 
         return df_met
 
+    def get_meta_data(self):
+        """
+        Grab meta data for tech
+
+        @returns {pd.DataFrame}
+        """
+        r, c = self._find_cell(self._df_tech_header, 'Technology Classification' )
+        first_row = r + 1
+        first_col = c + 1
+        end_row = self._next_empty_row(self._df_tech_header, first_col, first_row) - 1
+        end_col = c + 5
+
+        # Extract headings
+        headings = self._df_tech_header.loc[first_row - 1, first_col:end_col]
+        headings = list(headings)
+
+        # Extract data
+        df_meta = self._df_tech_header.loc[first_row:end_row, first_col:end_col]
+        
+        # Clean up
+        df_meta = df_meta.reset_index(drop=True)
+        df_meta = df_meta.fillna('')
+        df_meta.columns = headings
+
+        return df_meta
+
     @staticmethod
     def _is_empty(val):
         if isinstance(val, str):
@@ -299,3 +327,14 @@ class Extractor:
             if col2 == len(df.loc[row]):
                 return col2
         return col2
+
+    def _next_empty_row(self, df: pd.DataFrame, col: int, row1: int) -> int:
+        """
+        Find next empty row in a column, starting at row1
+        """
+        row2 = row1 + 1
+        while not self._is_empty(df.loc[row2, col]):
+            row2 += 1
+            if row2 == len(df.loc[col]):
+                return row2
+        return row2

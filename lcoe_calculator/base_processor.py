@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from typing import List, Union
 
 from extractor import Extractor, FIN_CASES, YEARS, TECH_DETAIL_SCENARIO_COL, MARKET_FIN_CASE
 from macrs import MACRS_6
@@ -28,15 +29,14 @@ class TechProcessor:
     """
 
     # ----------- These attributes must be set for each tech --------------
-    sheet_name = None  # Name of the sheet in the excel data master
-    tech_name = None  # Name of tech for flat file
+    sheet_name: Union[None, str] = None  # Name of the sheet in the excel data master
+    tech_name: Union[None, str] = None  # Name of tech for flat file
     
-    # The depreciation schedule can be consistent for all years or can vary by
-    # year. For a consistent schedule, use one of the lists from the macrs.py
-    # file, see the LandBasedWindProc in tech_processors.py for an example. A
-    # varying schedule can be defined using a dict keyed by year. See
-    # HydropowerProc in tech_processors.py for an example. 
-    _depreciation_schedule = MACRS_6  # MACRS_6, etc.
+    # For a consistent depreciation schedule, use one of the lists from the
+    # macrs.py file as shown below. More complex schedules can be defined by
+    # overloading the get_depreciation_schedule() function. See HydropowerProc
+    # in tech_processors.py for an example. 
+    _depreciation_schedule: List[float] = MACRS_6
 
     # ------------ All other attributes have defaults -------------------------
     # Metrics to load from SS. Format: (header in SS, object attribute name)
@@ -60,7 +60,7 @@ class TechProcessor:
 
     split_metrics = False  # Indicates 3 empty rows in tech detail metrics, e.g. hydropower
 
-    wacc_name = None  # Name of tech to look for on WACC sheet, use sheet name if None
+    wacc_name: Union[None, str] = None  # Name of tech to look for on WACC sheet, use sheet name if None
     has_lcoe_and_wacc = True  # If True, pull values from WACC sheet and calculate CRF,
                               # PFF, & LCOE. Techs that have WACC but not LCOE will need
                               # to overload run() (e.g., pumped storage hydro)
@@ -80,9 +80,9 @@ class TechProcessor:
     ]
 
     # Variables used by the debt fraction calculator. Should be filled out for any tech where has_lcoe_and_wacc = True
-    default_tech_detail = None
-    dscr = None
-    irr_target = None
+    default_tech_detail: Union[None, str] = None
+    dscr: Union[None, float] = None
+    irr_target: Union[None, float] = None
 
     def __init__(self, data_master_fname, case=MARKET_FIN_CASE, crp=30):
         """
@@ -184,6 +184,12 @@ class TechProcessor:
         Not used for most techs, but some child classes vary by year based on Inflation Reduction Act credits
         """
         return self._depreciation_schedule
+
+    def get_meta_data(self) -> pd.DataFrame:
+        """
+        Get meta data/technology classification
+        """
+        return self._extractor.get_meta_data()
 
     def test_lcoe(self):
         """
