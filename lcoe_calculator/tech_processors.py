@@ -27,7 +27,7 @@ class LandBasedWindProc(TechProcessor):
     num_tds = 10
     has_ptc = True
     has_itc = True
-    default_tech_detail = 'Land-Based Wind - Class 4'
+    default_tech_detail = 'Land-Based Wind - Class 4 - Technology 1'
     dscr = 1.4
     irr_target = 9.0
 
@@ -89,6 +89,7 @@ class UtilityPvPlusBatteryProc(TechProcessor):
     irr_target = 7.75
 
     GRID_ROUNDTRIP_EFF = 0.85 # Roundtrip Efficiency (Grid charging)
+    CO_LOCATION_SAVINGS = 0.938
 
     metrics = [
         ('Net Capacity Factor (%)', 'df_ncf'),
@@ -110,8 +111,8 @@ class UtilityPvPlusBatteryProc(TechProcessor):
         fcr_pv = pd.concat([self.df_crf.values * self.df_pff_pv] * self.num_tds).values
         fcr_batt = pd.concat([self.df_crf.values * self.df_pff_batt] * self.num_tds).values
 
-        df_lcoe_part = (fcr_pv * self.df_cff * (self.df_pv_cost * 1 + self.df_gcc))\
-                       + (fcr_batt * self.df_cff * (self.df_batt_cost * 1 + self.df_gcc))\
+        df_lcoe_part = (fcr_pv * self.df_cff * (self.df_pv_cost * self.CO_LOCATION_SAVINGS + self.df_gcc))\
+                       + (fcr_batt * self.df_cff * (self.df_batt_cost * self.CO_LOCATION_SAVINGS + self.df_gcc))\
                        + self.df_fom
         df_lcoe = (df_lcoe_part * 1000 / self.df_aep)\
                   + self.df_vom\

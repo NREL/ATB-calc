@@ -6,7 +6,7 @@ Developed against PySAM 4.0.0
 
 import pandas as pd
 import numpy as np
-import PySAM.Singleowner as singleowner
+import PySAM.Levpartflip as levpartflip
 
 from extractor import Extractor, YEARS, FIN_CASES
 
@@ -39,7 +39,7 @@ def calculate_debt_fraction(input_vals, debug=False):
     
     Returns debt_fraction, float, (% 0-100)
     """
-    model = singleowner.default("GenericSystemSingleOwner")
+    model = levpartflip.default("GenericSystemLeveragedPartnershipFlip")
 
     # Values required for computation. Additional input values used directly in model.value calls
     analysis_period = 20
@@ -117,6 +117,14 @@ def calculate_debt_fraction(input_vals, debug=False):
     model.value('itc_fed_percent_maxvalue', [1e38])
     model.value("itc_sta_amount", [0])
     model.value("ptc_fed_amount", [input_vals["PTC"] / 1000]) # Convert $/MWh to $/kWh
+    
+    # Production based incentive code to test treating the tax credits as available for debt service
+    model.value("pbi_fed_amount", [0])
+    model.value("pbi_fed_term", 0)
+    model.value("pbi_fed_escal", 2.5)
+    model.value("pbi_fed_for_ds", True)
+    model.value("pbi_fed_tax_fed", False)
+    model.value("pbi_fed_tax_sta", False)
 
     # Convert ATB deprecation fields to SAM depreciation. Set ITC basis equal to 100% of CAPEX in all cases
     if input_vals["MACRS"] == MACRS_6:
@@ -182,7 +190,7 @@ def calculate_debt_fraction(input_vals, debug=False):
 if __name__ == "__main__":
     # Start by running the scrape for relevant technologies
     # Data master version on sharepoint - empty string if you haven't renamed the file
-    version_string = "_v1.102"
+    version_string = "_v2.70"
 
     # Path to data master spreadsheet
     data_master_filename = '../2023-ATB-Data_Master' + version_string + '.xlsx'
@@ -249,7 +257,9 @@ if __name__ == "__main__":
                 #Calculate debt fraction using PySAM
                 debt_frac = calculate_debt_fraction(input_vals)
 
-                debt_fracs.append(debt_frac / 100.0)
+                # Enforce minimum 20% debt fraction based on discussions with David Feldman and Mark Bolinger
+                debt_frac /= 100.0                
+                debt_fracs.append(max(debt_frac, 0.2))
             
             debt_frac_dict[tech.tech_name + fin_case] = debt_fracs
 
