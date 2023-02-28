@@ -6,7 +6,7 @@ Developed against PySAM 4.0.0
 
 import pandas as pd
 import numpy as np
-import PySAM.Singleowner as singleowner
+import PySAM.Levpartflip as levpartflip
 
 from extractor import Extractor, YEARS, FIN_CASES
 
@@ -39,7 +39,7 @@ def calculate_debt_fraction(input_vals, debug=False):
     
     Returns debt_fraction, float, (% 0-100)
     """
-    model = singleowner.default("GenericSystemSingleOwner")
+    model = levpartflip.default("GenericSystemLeveragedPartnershipFlip")
 
     # Values required for computation. Additional input values used directly in model.value calls
     analysis_period = 20
@@ -66,9 +66,9 @@ def calculate_debt_fraction(input_vals, debug=False):
     model.value("analysis_period", analysis_period)
     model.value("flip_target_year", analysis_period)
     model.value("gen", gen)
-    model.value("system_pre_curtailment_kwac", gen)
+    #model.value("system_pre_curtailment_kwac", gen)
     model.value("system_capacity", ac_capacity)
-    model.value("cp_system_nameplate", ac_capacity / 1000)
+    #model.value("cp_system_nameplate", ac_capacity / 1000)
     model.value("total_installed_cost", initial_investment)
 
     ## Single Owner will apply the O&M cost to each year, so no need to multiply by analysis period
@@ -91,7 +91,14 @@ def calculate_debt_fraction(input_vals, debug=False):
     model.value("term_tenor", 18) # years
     model.value("real_discount_rate", input_vals['Calculated Rate of Return on Equity Real'] * 100) 
     model.value("flip_target_percent", irr_target) ## "nominal equity rate"
+    model.value("flip_target_year", 10) # Assume flip occurs when PTC expires
     model.value("ppa_escalation", 0.0)
+
+    model.value("tax_investor_preflip_cash_percent", 90.0)
+    model.value("tax_investor_preflip_tax_percent", 90.0)
+    model.value("tax_investor_equity_percent", 90.0)
+    model.value("tax_investor_postflip_cash_percent", 10.0)
+    model.value("tax_investor_postflip_tax_percent", 10.0)
 
     model.value("federal_tax_rate", [tax_federal])
     model.value("state_tax_rate", [tax_state])
@@ -117,6 +124,14 @@ def calculate_debt_fraction(input_vals, debug=False):
     model.value('itc_fed_percent_maxvalue', [1e38])
     model.value("itc_sta_amount", [0])
     model.value("ptc_fed_amount", [input_vals["PTC"] / 1000]) # Convert $/MWh to $/kWh
+    
+    # Production based incentive code to test treating the tax credits as available for debt service
+    model.value("pbi_fed_amount", [0])
+    model.value("pbi_fed_term", 0)
+    model.value("pbi_fed_escal", 2.5)
+    model.value("pbi_fed_for_ds", True)
+    model.value("pbi_fed_tax_fed", False)
+    model.value("pbi_fed_tax_sta", False)
 
     # Convert ATB deprecation fields to SAM depreciation. Set ITC basis equal to 100% of CAPEX in all cases
     if input_vals["MACRS"] == MACRS_6:
@@ -182,7 +197,7 @@ def calculate_debt_fraction(input_vals, debug=False):
 if __name__ == "__main__":
     # Start by running the scrape for relevant technologies
     # Data master version on sharepoint - empty string if you haven't renamed the file
-    version_string = "_v1.102"
+    version_string = "_v2.70"
 
     # Path to data master spreadsheet
     data_master_filename = '../2023-ATB-Data_Master' + version_string + '.xlsx'
@@ -249,7 +264,8 @@ if __name__ == "__main__":
                 #Calculate debt fraction using PySAM
                 debt_frac = calculate_debt_fraction(input_vals)
 
-                debt_fracs.append(debt_frac / 100.0)
+                debt_frac /= 100.0                
+                debt_fracs.append(debt_frac)
             
             debt_frac_dict[tech.tech_name + fin_case] = debt_fracs
 
