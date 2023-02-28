@@ -66,9 +66,9 @@ def calculate_debt_fraction(input_vals, debug=False):
     model.value("analysis_period", analysis_period)
     model.value("flip_target_year", analysis_period)
     model.value("gen", gen)
-    model.value("system_pre_curtailment_kwac", gen)
+    #model.value("system_pre_curtailment_kwac", gen)
     model.value("system_capacity", ac_capacity)
-    model.value("cp_system_nameplate", ac_capacity / 1000)
+    #model.value("cp_system_nameplate", ac_capacity / 1000)
     model.value("total_installed_cost", initial_investment)
 
     ## Single Owner will apply the O&M cost to each year, so no need to multiply by analysis period
@@ -91,7 +91,14 @@ def calculate_debt_fraction(input_vals, debug=False):
     model.value("term_tenor", 18) # years
     model.value("real_discount_rate", input_vals['Calculated Rate of Return on Equity Real'] * 100) 
     model.value("flip_target_percent", irr_target) ## "nominal equity rate"
+    model.value("flip_target_year", 10) # Assume flip occurs when PTC expires
     model.value("ppa_escalation", 0.0)
+
+    model.value("tax_investor_preflip_cash_percent", 90.0)
+    model.value("tax_investor_preflip_tax_percent", 90.0)
+    model.value("tax_investor_equity_percent", 90.0)
+    model.value("tax_investor_postflip_cash_percent", 10.0)
+    model.value("tax_investor_postflip_tax_percent", 10.0)
 
     model.value("federal_tax_rate", [tax_federal])
     model.value("state_tax_rate", [tax_state])
@@ -257,9 +264,8 @@ if __name__ == "__main__":
                 #Calculate debt fraction using PySAM
                 debt_frac = calculate_debt_fraction(input_vals)
 
-                # Enforce minimum 20% debt fraction based on discussions with David Feldman and Mark Bolinger
                 debt_frac /= 100.0                
-                debt_fracs.append(max(debt_frac, 0.2))
+                debt_fracs.append(debt_frac)
             
             debt_frac_dict[tech.tech_name + fin_case] = debt_fracs
 
