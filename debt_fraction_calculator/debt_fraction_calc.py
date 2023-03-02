@@ -56,7 +56,6 @@ def calculate_debt_fraction(input_vals, debug=False):
     dscr = input_vals["DSCR"]
 
     ## Set these here so we can adjust below
-    irr_target = input_vals["IRR"] 
     tax_federal = input_vals["Tax Rate (Federal and State)"] * 100
     tax_state = 0
     inflation = input_vals["Inflation Rate"] * 100
@@ -90,7 +89,7 @@ def calculate_debt_fraction(input_vals, debug=False):
     model.value("term_int_rate", input_vals['Interest Rate Nominal'] * 100)
     model.value("term_tenor", 18) # years
     model.value("real_discount_rate", input_vals['Calculated Rate of Return on Equity Real'] * 100) 
-    model.value("flip_target_percent", irr_target) ## "nominal equity rate"
+    model.value("flip_target_percent", input_vals['Rate of Return on Equity Nominal'] * 100) ## "nominal equity rate"
     model.value("flip_target_year", 10) # Assume flip occurs when PTC expires
     model.value("ppa_escalation", 0.0)
 
@@ -197,7 +196,7 @@ def calculate_debt_fraction(input_vals, debug=False):
 if __name__ == "__main__":
     # Start by running the scrape for relevant technologies
     # Data master version on sharepoint - empty string if you haven't renamed the file
-    version_string = "_v2.70"
+    version_string = "_v2.90"
 
     # Path to data master spreadsheet
     data_master_filename = '../2023-ATB-Data_Master' + version_string + '.xlsx'
@@ -238,6 +237,7 @@ if __name__ == "__main__":
             tech_vals = d[(d.Technology == tech.tech_name) & (d.CRPYears == 20) & (d.Case == fin_case) & 
                     ((d.Parameter == 'Inflation Rate') | (d.Parameter == 'Tax Rate (Federal and State)') 
                     | (d.Parameter == 'Calculated Rate of Return on Equity Real') 
+                    | (d.Parameter == 'Rate of Return on Equity Nominal') 
                     | (d.Parameter == 'Interest Rate Nominal'))]
 
             for year in YEARS:            
@@ -255,7 +255,6 @@ if __name__ == "__main__":
                 
                 # Financial parameters stored in tech processor
                 input_vals["DSCR"] = tech.dscr
-                input_vals["IRR"] = tech.irr_target
 
                 input_vals["MACRS"] = proc.get_depreciation_schedule(year)
 

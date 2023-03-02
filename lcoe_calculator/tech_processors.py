@@ -17,7 +17,6 @@ class OffShoreWindProc(TechProcessor):
     has_itc = True
     default_tech_detail = 'Offshore Wind - Class 3'
     dscr = 1.4
-    irr_target = 10.0
 
 
 class LandBasedWindProc(TechProcessor):
@@ -29,7 +28,6 @@ class LandBasedWindProc(TechProcessor):
     has_itc = True
     default_tech_detail = 'Land-Based Wind - Class 4 - Technology 1'
     dscr = 1.4
-    irr_target = 9.0
 
 
 class DistributedWindProc(TechProcessor):
@@ -41,7 +39,6 @@ class DistributedWindProc(TechProcessor):
     has_itc = True
     default_tech_detail = 'Midsize DW - Class 4'
     dscr = 1.4
-    irr_target = 9.0
 
 class UtilityPvProc(TechProcessor):
     tech_name = 'UtilityPV'
@@ -52,7 +49,6 @@ class UtilityPvProc(TechProcessor):
     has_itc = True
     default_tech_detail = 'Utility PV - Class 5'
     dscr = 1.3
-    irr_target = 7.75
 
 class CommPvProc(TechProcessor):
     tech_name = 'CommPV'
@@ -63,7 +59,6 @@ class CommPvProc(TechProcessor):
     has_itc = True
     default_tech_detail = 'Commercial PV - Class 5'
     dscr = 1.3
-    irr_target = 8.75
 
 
 class ResPvProc(TechProcessor):
@@ -75,7 +70,6 @@ class ResPvProc(TechProcessor):
     has_itc = True
     default_tech_detail = 'Residential PV - Class 5'
     dscr = 1.3
-    irr_target = 8.75
 
 class UtilityPvPlusBatteryProc(TechProcessor):
     tech_name = 'Utility-Scale PV-Plus-Battery'
@@ -86,7 +80,6 @@ class UtilityPvPlusBatteryProc(TechProcessor):
     has_itc = True
     default_tech_detail = 'PV+Storage - Class 5'
     dscr = 1.3
-    irr_target = 7.75
 
     GRID_ROUNDTRIP_EFF = 0.85 # Roundtrip Efficiency (Grid charging)
     CO_LOCATION_SAVINGS = 0.938
@@ -140,7 +133,6 @@ class CspProc(TechProcessor):
     has_itc = True
     default_tech_detail = 'CSP - Class 2'
     dscr = 1.45
-    irr_target = 10.0
 
 class GeothermalProc(TechProcessor):
     tech_name = 'Geothermal'
@@ -151,7 +143,6 @@ class GeothermalProc(TechProcessor):
     has_itc = True
     default_tech_detail = 'Geothermal - Hydro / Flash'
     dscr = 1.45
-    irr_target = 10.0
 
     def _load_cff(self, extractor, cff_name):
         """
@@ -251,7 +242,6 @@ class HydropowerProc(TechProcessor):
     split_metrics = True
     default_tech_detail = 'Hydropower - NPD 1'
     dscr = 1.50
-    irr_target = 10.0
 
     def get_depreciation_schedule(self, year):
         if self._case is MARKET_FIN_CASE and (year < 2025 or year > 2045):
@@ -316,7 +306,6 @@ class CoalProc(TechProcessor):
     has_tax_credit = False
     default_tech_detail = 'Coal-95%-CCS'
     dscr = 1.45
-    irr_target = 10.0
     _depreciation_schedule = MACRS_21
 
     def run(self):
@@ -356,7 +345,6 @@ class NaturalGasProc(TechProcessor):
     has_tax_credit = False
     default_tech_detail = 'NG F-Frame CC 95% CCS'
     dscr = 1.45
-    irr_target = 10.0
     _depreciation_schedule = MACRS_21
 
     def run(self):
@@ -412,7 +400,6 @@ class NuclearProc(TechProcessor):
     has_itc = True
     default_tech_detail = 'Nuclear - AP1000'
     dscr = 1.45
-    irr_target = 10.0
 
     metrics = [
         ('Heat Rate  (MMBtu/MWh)', 'df_hr'),
@@ -470,7 +457,6 @@ class BiopowerProc(TechProcessor):
     has_itc = True
     default_tech_detail = 'Biopower - Dedicated'
     dscr = 1.45
-    irr_target = 10.0
 
     metrics = [
         ('Heat Rate  (MMBtu/MWh)', 'df_hr'),
@@ -515,6 +501,7 @@ class UtilityBatteryProc(TechProcessor):
     has_itc = True
 
     metrics = [
+        ('Overnight Capital Cost ($/kW)', 'df_occ'),
         ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
         ('Variable Operation and Maintenance Expenses ($/MWh)', 'df_vom'),
     ]
@@ -539,6 +526,7 @@ class CommBatteryProc(TechProcessor):
     has_itc = True
 
     metrics = [
+        ('Overnight Capital Cost ($/kW)', 'df_occ'),
         ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
         ('Variable Operation and Maintenance Expenses ($/MWh)', 'df_vom'),
     ]
@@ -562,6 +550,7 @@ class ResBatteryProc(TechProcessor):
     has_itc = True
 
     metrics = [
+        ('Overnight Capital Cost ($/kW)', 'df_occ'),
         ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
         ('Variable Operation and Maintenance Expenses ($/MWh)', 'df_vom'),
     ]
