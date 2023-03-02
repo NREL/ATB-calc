@@ -82,7 +82,7 @@ class UtilityPvPlusBatteryProc(TechProcessor):
     dscr = 1.3
 
     GRID_ROUNDTRIP_EFF = 0.85 # Roundtrip Efficiency (Grid charging)
-    CO_LOCATION_SAVINGS = 0.938
+    CO_LOCATION_SAVINGS = 0.9228
 
     metrics = [
         ('Net Capacity Factor (%)', 'df_ncf'),
