@@ -501,6 +501,7 @@ class UtilityBatteryProc(TechProcessor):
     has_itc = True
 
     metrics = [
+        ('Overnight Capital Cost ($/kW)', 'df_occ'),
         ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
         ('Variable Operation and Maintenance Expenses ($/MWh)', 'df_vom'),
     ]
@@ -525,6 +526,7 @@ class CommBatteryProc(TechProcessor):
     has_itc = True
 
     metrics = [
+        ('Overnight Capital Cost ($/kW)', 'df_occ'),
         ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
         ('Variable Operation and Maintenance Expenses ($/MWh)', 'df_vom'),
     ]
@@ -548,6 +550,7 @@ class ResBatteryProc(TechProcessor):
     has_itc = True
 
     metrics = [
+        ('Overnight Capital Cost ($/kW)', 'df_occ'),
         ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
         ('Variable Operation and Maintenance Expenses ($/MWh)', 'df_vom'),
     ]
