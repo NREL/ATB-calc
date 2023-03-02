@@ -6,7 +6,6 @@ from extractor import Extractor, FIN_CASES, YEARS, TECH_DETAIL_SCENARIO_COL, MAR
 from macrs import MACRS_6
 
 CRP_CHOICES = ['20', '30', 'TechLife']
-TOL = 1e-6  # Tolerance for comparing if a float is zero
 
 
 class TechProcessor:
@@ -131,10 +130,17 @@ class TechProcessor:
         self.df_capex = self._calc_capex()
         self.df_cfc = self._calc_con_fin_cost()
 
+        assert not self.df_capex.isnull().any().any(),\
+            f'Error in calculated CAPEX, found missing values: {self.df_capex}'
+
         if self.has_lcoe_and_wacc:
             self.df_crf = self._calc_crf()
             self.df_pff = self._calc_pff()
             self.df_lcoe = self._calc_lcoe()
+
+            assert not self.df_lcoe.isnull().any().any(),\
+                f'Error in calculated LCOE, found missing values: {self.df_lcoe}'
+        
 
     @property
     def flat(self):
@@ -204,7 +210,13 @@ class TechProcessor:
         self.ss_lcoe = self._extractor.get_metric_values('Levelized Cost of Energy ($/MWh)',
                                                  self.num_tds, self.split_metrics)
 
-        if abs(self.ss_lcoe.subtract(self.df_lcoe).sum().sum()) < TOL:
+        assert not self.df_lcoe.isnull().any().any(),\
+            f'Error in calculated LCOE, found missing values: {self.df_lcoe}'
+        assert not self.ss_lcoe.isnull().any().any(),\
+            f'Error in LCOE from spreadsheet, found missing values: {self.ss_lcoe}'
+
+        if np.allclose(np.array(self.df_lcoe, dtype=float), 
+                       np.array(self.ss_lcoe, dtype=float)):
             print('Calculated LCOE matches LCOE from spreadsheet')
         else:
             msg = f'Calculated LCOE doesn\'t match LCOE from spreadsheet for {self.sheet_name}'
@@ -224,7 +236,13 @@ class TechProcessor:
         self.ss_capex = self._extractor.get_metric_values('CAPEX ($/kW)', self.num_tds,
                                                      self.split_metrics)
 
-        if abs(self.ss_capex.subtract(self.df_capex).sum().sum()) < TOL:
+        assert not self.df_capex.isnull().any().any(),\
+            f'Error in calculated CAPEX, found missing values: {self.df_capex}'
+        assert not self.ss_capex.isnull().any().any(),\
+            f'Error in CAPEX from spreadsheet, found missing values: {self.ss_capex}'
+
+        if np.allclose(np.array(self.df_capex, dtype=float), 
+                       np.array(self.ss_capex, dtype=float)):
             print('Calculated CAPEX matches CAPEX from spreadsheet')
         else:
             raise ValueError('Calculated CAPEX doesn\'t match CAPEX from spreadsheet')
@@ -358,7 +376,7 @@ class TechProcessor:
 
     def _calc_crf(self):
         crp = self.df_fin.loc['Capital Recovery Period (Years)', 'Value']
-        assert isinstance(crp, int) or isinstance(crp, float),\
+        assert (isinstance(crp, int) or isinstance(crp, float)) and not np.isnan(crp),\
             f'CRP must be a number, got "{crp}"'
 
         df_crf = self.df_just_wacc/(1-(1/(1+self.df_just_wacc))**crp)

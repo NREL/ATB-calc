@@ -105,6 +105,11 @@ class Extractor:
         df_ptc.drop('Technology', axis=1, inplace=True)
         df_ptc = df_ptc.dropna()
 
+        assert not df_itc.isnull().any().any(),\
+            f'Error loading ITC. Found empty values: {df_itc}'
+        assert not df_ptc.isnull().any().any(),\
+            f'Error loading PTC. Found empty values: {df_ptc}'
+
         return df_itc, df_ptc
 
     def get_wacc(self, tech_name=None):
@@ -155,6 +160,9 @@ class Extractor:
         assert cols[0] == YEARS[0], f'WACC: First year should be {YEARS[0]}, got {cols[0]} instead'
         assert cols[-1] == YEARS[-1], f'WACC: Last year should be {YEARS[-1]}, got {cols[-1]} instead'
 
+        assert not df_wacc.isnull().any().any(),\
+            f'Error loading WACC for {tech_name}. Found empty values: {df_wacc}'
+
         return df_wacc, df_just_wacc
 
     def get_fin_assump(self):
@@ -172,12 +180,19 @@ class Extractor:
             assert r2 != self._df.shape[0], "Error finding end of fin assumptions"
             val = self._df.loc[r2, c]
 
+        # Stop on the last row with data, not the empty row
+        if self._is_empty(val):
+            r2 -= 1
+
         headers = ['Financial Assumptions', 'Value']
 
         df_fin_assump = pd.DataFrame(self._df.loc[r1 + 1:r2, c])
         df_fin_assump['Value'] = self._df.loc[r1 + 1:r2, c + FIN_ASSUMP_COL]
         df_fin_assump.columns = headers
         df_fin_assump = df_fin_assump.set_index('Financial Assumptions')
+
+        assert not df_fin_assump.isnull().any().any(),\
+            f'Error loading financial assumptions. Found empty values: {df_fin_assump}'
         return df_fin_assump
 
     def get_metric_values(self, metric, num_tds, split_metrics=False):
@@ -260,6 +275,9 @@ class Extractor:
         cols = df_met.columns
         assert cols[0] == YEARS[0], f'{metric}: First year should be {YEARS[0]}, got {cols[0]} instead'
         assert cols[-1] == YEARS[-1], f'{metric}: Last year should be {YEARS[-1]}, got {cols[-1]} instead'
+
+        assert not df_met.isnull().any().any(),\
+            f'Error extracting values for {metric}. Found missing values: {df_met}'
 
         return df_met
 
