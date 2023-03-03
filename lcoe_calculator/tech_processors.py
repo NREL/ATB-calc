@@ -339,7 +339,7 @@ class NaturalGasProc(TechProcessor):
         ('df_capex', 'CAPEX'),
     ]
     sheet_name = 'Natural Gas_FE'
-    num_tds = 7
+    num_tds = 9
     has_ptc = False
     has_itc = False
     has_tax_credit = False
