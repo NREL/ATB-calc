@@ -298,7 +298,7 @@ class TechProcessor:
         """
         crf = wacc/(1 - 1/(1 + wacc)**crp)
         fcr = crf*pff
-        crf.name = f'CRC - {scenario}'
+        crf.name = f'CRF - {scenario}'
         fcr.name = f'FCR - {scenario}'
         crf = pd.DataFrame(crf).T
         fcr = pd.DataFrame(fcr).T
