@@ -5,7 +5,8 @@ from tech_processors import OffShoreWindProc, LandBasedWindProc, DistributedWind
     UtilityPvProc, CommPvProc, ResPvProc, UtilityPvPlusBatteryProc,\
     CspProc, GeothermalProc, HydropowerProc, PumpedStorageHydroProc,\
     CoalProc, NaturalGasProc, NuclearProc, BiopowerProc,\
-    UtilityBatteryProc, CommBatteryProc, ResBatteryProc
+    UtilityBatteryProc, CommBatteryProc, ResBatteryProc,\
+    CoalRetrofitProc, NaturalGasRetrofitProc
 from base_processor import CRP_CHOICES
 from extractor import FIN_CASES
 
@@ -25,7 +26,8 @@ class FullScrape:
                 UtilityPvProc, CommPvProc, ResPvProc, UtilityPvPlusBatteryProc,
                 CspProc, GeothermalProc, HydropowerProc, PumpedStorageHydroProc,
                 CoalProc, NaturalGasProc, NuclearProc, BiopowerProc,
-                UtilityBatteryProc, CommBatteryProc, ResBatteryProc
+                UtilityBatteryProc, CommBatteryProc, ResBatteryProc,
+                CoalRetrofitProc, NaturalGasRetrofitProc
             ]
 
         if not isinstance(techs, list):

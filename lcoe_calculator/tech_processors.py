@@ -355,6 +355,76 @@ class NaturalGasProc(TechProcessor):
     def test_lcoe(self):
         pass
 
+class CoalRetrofitProc(TechProcessor):
+    tech_name = 'Coal_Retrofits'
+    tech_life = 75
+
+    has_lcoe_and_wacc = False
+    has_fin_assump = False
+    has_tax_credit = False
+
+    metrics = [
+        ('Change in Heat Rate  (Δ mMMBtu/MWh)', 'df_hr'),
+        ('Additional Overnight Capital Cost ($/kW)', 'df_occ'),
+        ('Change in Fixed Operation and Maintenance Expenses (Δ $/kW-yr)', 'df_fom'),
+        ('Change in Variable Operation and Maintenance Expenses (Δ $/MWh)', 'df_vom'),
+    ]
+
+    flat_attrs = [
+        ('df_hr', 'Change in Heat Rate'),
+        ('df_occ', 'Additional OCC'),
+        ('df_fom', 'Change in Fixed O&M'),
+        ('df_vom', 'Change in Variable O&M'),
+    ]
+
+    sheet_name = 'Coal_Retrofits'
+    num_tds = 1
+    has_ptc = False
+    has_itc = False
+    has_tax_credit = False
+
+    def run(self):
+        """ No calcs needed for retrofits """
+        pass
+
+    def test_capex(self):
+        pass
+
+class NaturalGasRetrofitProc(TechProcessor):
+    tech_name = 'NaturalGas_Retrofits'
+    tech_life = 55
+
+    has_lcoe_and_wacc = False
+    has_fin_assump = False
+    has_tax_credit = False
+
+    metrics = [
+        ('Change in Heat Rate  (Δ mMMBtu/MWh)', 'df_hr'),
+        ('Additional Overnight Capital Cost ($/kW)', 'df_occ'),
+        ('Change in Fixed Operation and Maintenance Expenses (Δ $/kW-yr)', 'df_fom'),
+        ('Change in Variable Operation and Maintenance Expenses (Δ $/MWh)', 'df_vom'),
+    ]
+
+    flat_attrs = [
+        ('df_hr', 'Change in Heat Rate'),
+        ('df_occ', 'Additional OCC'),
+        ('df_fom', 'Change in Fixed O&M'),
+        ('df_vom', 'Change in Variable O&M'),
+    ]
+
+    sheet_name = 'Natural Gas_Retrofits'
+    num_tds = 2
+    has_ptc = False
+    has_itc = False
+    has_tax_credit = False
+
+    def run(self):
+        """ No calcs needed for retrofits """
+        pass
+
+    def test_capex(self):
+        pass
+
 class NuclearProc(TechProcessor):
     tech_name = 'Nuclear'
     tech_life = 60
