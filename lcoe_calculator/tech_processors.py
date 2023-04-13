@@ -465,7 +465,7 @@ class NuclearProc(TechProcessor):
         }
     }
     num_tds = 2
-    scenarios = ['Moderate']
+    scenarios = ['Moderate', 'Conservative']
     has_ptc = True
     has_itc = True
     default_tech_detail = 'Nuclear - AP1000'
@@ -501,9 +501,9 @@ class NuclearProc(TechProcessor):
         """
         # TODO - automatically determine numeber of CRFs needed for tech
         # scenarios in TechProcessor._calc_crf()
-        assert self.scenarios == ['Moderate']
+        assert self.scenarios == ['Moderate', 'Conservative']
         df_crf = super()._calc_crf()
-        df_crf = df_crf[df_crf.index == 'Capital Recovery Factor (CRF) Real - Moderate']
+        df_crf = df_crf[(df_crf.index == 'Capital Recovery Factor (CRF) Real - Moderate') | (df_crf.index == 'Capital Recovery Factor (CRF) Real - Conservative')]
         return df_crf
 
     def _calc_lcoe(self):
