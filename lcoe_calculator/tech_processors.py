@@ -364,21 +364,25 @@ class CoalRetrofitProc(TechProcessor):
     has_tax_credit = False
 
     metrics = [
-        ('Change in Heat Rate  (Δ mMMBtu/MWh)', 'df_hr'),
+        ('Heat Rate  (MMBtu/MWh)', 'df_hr'),
         ('Additional Overnight Capital Cost ($/kW)', 'df_occ'),
-        ('Change in Fixed Operation and Maintenance Expenses (Δ $/kW-yr)', 'df_fom'),
-        ('Change in Variable Operation and Maintenance Expenses (Δ $/MWh)', 'df_vom'),
+        ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
+        ('Variable Operation and Maintenance Expenses ($/MWh)', 'df_vom'),
+        ('Heat Rate Penalty (Δ% from pre-retrofit)' , 'df_hrp'),
+        ('Net Output Penalty (Δ% from pre-retrofit)' , 'df_nop')
     ]
 
     flat_attrs = [
-        ('df_hr', 'Change in Heat Rate'),
+        ('df_hr', 'Heat Rate'),
         ('df_occ', 'Additional OCC'),
-        ('df_fom', 'Change in Fixed O&M'),
-        ('df_vom', 'Change in Variable O&M'),
+        ('df_fom', 'Fixed O&M'),
+        ('df_vom', 'Variable O&M'),
+        ('df_hrp', 'Heat Rate Penalty'),
+        ('df_nop', 'Net Output Penalty')
     ]
 
     sheet_name = 'Coal_Retrofits'
-    num_tds = 1
+    num_tds = 2
     has_ptc = False
     has_itc = False
     has_tax_credit = False
@@ -399,21 +403,21 @@ class NaturalGasRetrofitProc(TechProcessor):
     has_tax_credit = False
 
     metrics = [
-        ('Change in Heat Rate  (Δ mMMBtu/MWh)', 'df_hr'),
+        ('Heat Rate  (MMBtu/MWh)', 'df_hr'),
         ('Additional Overnight Capital Cost ($/kW)', 'df_occ'),
-        ('Change in Fixed Operation and Maintenance Expenses (Δ $/kW-yr)', 'df_fom'),
-        ('Change in Variable Operation and Maintenance Expenses (Δ $/MWh)', 'df_vom'),
+        ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
+        ('Variable Operation and Maintenance Expenses ($/MWh)', 'df_vom'),
     ]
 
     flat_attrs = [
-        ('df_hr', 'Change in Heat Rate'),
+        ('df_hr', 'Heat Rate'),
         ('df_occ', 'Additional OCC'),
-        ('df_fom', 'Change in Fixed O&M'),
-        ('df_vom', 'Change in Variable O&M'),
+        ('df_fom', 'Fixed O&M'),
+        ('df_vom', 'Variable O&M'),
     ]
 
     sheet_name = 'Natural Gas_Retrofits'
-    num_tds = 2
+    num_tds = 4
     has_ptc = False
     has_itc = False
     has_tax_credit = False
@@ -497,7 +501,7 @@ class NuclearProc(TechProcessor):
 
     def _calc_crf(self):
         """
-        Nuclear only has one scenario, extract the correct CRF.
+        Nuclear only has two scenarios, extract the correct CRF.
         """
         # TODO - automatically determine numeber of CRFs needed for tech
         # scenarios in TechProcessor._calc_crf()
