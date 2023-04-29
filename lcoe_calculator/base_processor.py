@@ -51,6 +51,7 @@ class TechProcessor:
     tech_life = 30  # Tech lifespan in years
     num_tds = 10  # Number of technical resource groups
     scenarios = ['Advanced', 'Moderate', 'Conservative']
+    base_year = None
 
     has_ptc = True  # Does the tech quality for a Production Tax Credit?
     has_itc = True  # Does the tech qualify for an Investment Tax Credit?
@@ -313,7 +314,7 @@ class TechProcessor:
 
         print(f'Loading data from {self.sheet_name}, for {self._case} and {crp}')
         extractor = Extractor(self._data_master_fname, self.sheet_name,
-                              self._case, self._crp, self.scenarios)
+                              self._case, self._crp, self.scenarios, self.base_year)
 
         print('\tLoading metrics')
         for metric, var_name in self.metrics:

@@ -22,7 +22,7 @@ class Extractor:
     wacc_sheet = 'WACC Calc'
     tax_credits_sheet = 'Tax Credits'
 
-    def __init__(self, data_master_fname, sheet_name, case, crp, scenarios):
+    def __init__(self, data_master_fname, sheet_name, case, crp, scenarios, base_year = None):
         """
         @param {str} data_master_fname - file name of data master
         @param {str} sheet_name - name of sheet to process
@@ -36,6 +36,10 @@ class Extractor:
         assert case in FIN_CASES, f'Financial case "{case}" is not known'
         self._case = case
         self.scenarios = scenarios
+        if base_year == None:
+            self.base_year = BASE_YEAR
+        else:
+            self.base_year = base_year
 
         # Open spreadsheet, set fin case and CRP, and save
         wb = xw.Book(data_master_fname)
@@ -272,9 +276,10 @@ class Extractor:
         df_met.index.name = TECH_DETAIL_SCENARIO_COL
         df_met = df_met.dropna(how='all')
 
-        cols = df_met.columns
-        assert cols[0] == YEARS[0], f'{metric}: First year should be {YEARS[0]}, got {cols[0]} instead'
-        assert cols[-1] == YEARS[-1], f'{metric}: Last year should be {YEARS[-1]}, got {cols[-1]} instead'
+        if (self.base_year == BASE_YEAR):
+            cols = df_met.columns
+            assert cols[0] == YEARS[0], f'{metric}: First year should be {YEARS[0]}, got {cols[0]} instead'
+            assert cols[-1] == YEARS[-1], f'{metric}: Last year should be {YEARS[-1]}, got {cols[-1]} instead'
 
         assert not df_met.isnull().any().any(),\
             f'Error extracting values for {metric}. Found missing values: {df_met}'
