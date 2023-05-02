@@ -29,6 +29,7 @@ class Extractor:
         @param {str} case - 'Market' or 'R&D'
         @param {int|str} crp - capital recovery period: 20, 30, or 'TechLife'
         @param {list} scenarios - scenarios, e.g. 'Advanced', 'Moderate', etc.
+        @param {int} base_year - first year of data for this technology, min 2021, max 2050
         """
 
         self._dm_fname = data_master_fname
@@ -276,10 +277,9 @@ class Extractor:
         df_met.index.name = TECH_DETAIL_SCENARIO_COL
         df_met = df_met.dropna(how='all')
 
-        if (self.base_year == BASE_YEAR):
-            cols = df_met.columns
-            assert cols[0] == YEARS[0], f'{metric}: First year should be {YEARS[0]}, got {cols[0]} instead'
-            assert cols[-1] == YEARS[-1], f'{metric}: Last year should be {YEARS[-1]}, got {cols[-1]} instead'
+        cols = df_met.columns
+        assert cols[0] == self.base_year, f'{metric}: First year should be {self.base_year}, got {cols[0]} instead'
+        assert cols[-1] == YEARS[-1], f'{metric}: Last year should be {YEARS[-1]}, got {cols[-1]} instead'
 
         assert not df_met.isnull().any().any(),\
             f'Error extracting values for {metric}. Found missing values: {df_met}'

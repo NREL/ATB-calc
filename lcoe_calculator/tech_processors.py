@@ -281,7 +281,7 @@ class CoalProc(TechProcessor):
     tech_life = 75
 
     metrics = [
-        ('Heat Rate  (MMBtu/MWh)', 'df_hr'),
+        ('Heat Rate (MMBtu/MWh)', 'df_hr'),
         ('Overnight Capital Cost ($/kW)', 'df_occ'),
         ('Grid Connection Costs (GCC) ($/kW)', 'df_gcc'),
         ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
@@ -321,7 +321,7 @@ class NaturalGasProc(TechProcessor):
     tech_life = 55
 
     metrics = [
-        ('Heat Rate  (MMBtu/MWh)', 'df_hr'),
+        ('Heat Rate (MMBtu/MWh)', 'df_hr'),
         ('Overnight Capital Cost ($/kW)', 'df_occ'),
         ('Grid Connection Costs (GCC) ($/kW)', 'df_gcc'),
         ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
@@ -360,7 +360,7 @@ class NaturalGasFuelCellProc(TechProcessor):
     tech_life = 55
 
     metrics = [
-        ('Heat Rate  (MMBtu/MWh)', 'df_hr'),
+        ('Heat Rate (MMBtu/MWh)', 'df_hr'),
         ('Overnight Capital Cost ($/kW)', 'df_occ'),
         ('Grid Connection Costs (GCC) ($/kW)', 'df_gcc'),
         ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
@@ -408,7 +408,7 @@ class CoalRetrofitProc(TechProcessor):
     has_tax_credit = False
 
     metrics = [
-        ('Heat Rate  (MMBtu/MWh)', 'df_hr'),
+        ('Heat Rate (MMBtu/MWh)', 'df_hr'),
         ('Additional Overnight Capital Cost ($/kW)', 'df_occ'),
         ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
         ('Variable Operation and Maintenance Expenses ($/MWh)', 'df_vom'),
@@ -447,7 +447,7 @@ class NaturalGasRetrofitProc(TechProcessor):
     has_tax_credit = False
 
     metrics = [
-        ('Heat Rate  (MMBtu/MWh)', 'df_hr'),
+        ('Heat Rate (MMBtu/MWh)', 'df_hr'),
         ('Additional Overnight Capital Cost ($/kW)', 'df_occ'),
         ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
         ('Variable Operation and Maintenance Expenses ($/MWh)', 'df_vom'),
@@ -520,7 +520,7 @@ class NuclearProc(TechProcessor):
     dscr = 1.45
 
     metrics = [
-        ('Heat Rate  (MMBtu/MWh)', 'df_hr'),
+        ('Heat Rate (MMBtu/MWh)', 'df_hr'),
         ('Net Capacity Factor (%)', 'df_ncf'),
         ('Overnight Capital Cost ($/kW)', 'df_occ'),
         ('Grid Connection Costs (GCC) ($/kW)', 'df_gcc'),
@@ -577,7 +577,7 @@ class BiopowerProc(TechProcessor):
     dscr = 1.45
 
     metrics = [
-        ('Heat Rate  (MMBtu/MWh)', 'df_hr'),
+        ('Heat Rate (MMBtu/MWh)', 'df_hr'),
         ('Net Capacity Factor (%)', 'df_ncf'),
         ('Overnight Capital Cost ($/kW)', 'df_occ'),
         ('Grid Connection Costs (GCC) ($/kW)', 'df_gcc'),
