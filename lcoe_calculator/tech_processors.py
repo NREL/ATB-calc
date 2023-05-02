@@ -281,7 +281,7 @@ class CoalProc(TechProcessor):
     tech_life = 75
 
     metrics = [
-        ('Heat Rate  (MMBtu/MWh)', 'df_hr'),
+        ('Heat Rate (MMBtu/MWh)', 'df_hr'),
         ('Overnight Capital Cost ($/kW)', 'df_occ'),
         ('Grid Connection Costs (GCC) ($/kW)', 'df_gcc'),
         ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
@@ -321,7 +321,7 @@ class NaturalGasProc(TechProcessor):
     tech_life = 55
 
     metrics = [
-        ('Heat Rate  (MMBtu/MWh)', 'df_hr'),
+        ('Heat Rate (MMBtu/MWh)', 'df_hr'),
         ('Overnight Capital Cost ($/kW)', 'df_occ'),
         ('Grid Connection Costs (GCC) ($/kW)', 'df_gcc'),
         ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
@@ -339,7 +339,7 @@ class NaturalGasProc(TechProcessor):
         ('df_capex', 'CAPEX'),
     ]
     sheet_name = 'Natural Gas_FE'
-    num_tds = 9
+    num_tds = 7
     has_ptc = False
     has_itc = False
     has_tax_credit = False
@@ -355,6 +355,50 @@ class NaturalGasProc(TechProcessor):
     def test_lcoe(self):
         pass
 
+class NaturalGasFuelCellProc(TechProcessor):
+    tech_name = 'NaturalGas_FE'
+    tech_life = 55
+
+    metrics = [
+        ('Heat Rate (MMBtu/MWh)', 'df_hr'),
+        ('Overnight Capital Cost ($/kW)', 'df_occ'),
+        ('Grid Connection Costs (GCC) ($/kW)', 'df_gcc'),
+        ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
+        ('Variable Operation and Maintenance Expenses ($/MWh)', 'df_vom'),
+        ('Construction Finance Factor', 'df_cff'),
+    ]
+
+    flat_attrs = [
+        ('df_hr', 'Heat Rate'),
+        ('df_occ', 'OCC'),
+        ('df_gcc', 'GCC'),
+        ('df_fom', 'Fixed O&M'),
+        ('df_vom', 'Variable O&M'),
+        ('df_cfc', 'CFC'),
+        ('df_capex', 'CAPEX'),
+    ]
+    sheet_name = 'Natural Gas Fuel Cell_FE'
+    num_tds = 2
+    has_ptc = False
+    has_itc = False
+    has_tax_credit = False
+    has_lcoe_and_wacc = False
+    has_fin_assump = False
+    default_tech_detail = 'NG Fuel Cell Max CCS'
+    dscr = 1.45
+    _depreciation_schedule = MACRS_21
+    scenarios = ['Moderate', 'Advanced']
+    base_year = 2035
+
+    def run(self):
+        """ Run all calculations except LCOE """
+        self.df_capex = self._calc_capex()
+        self.df_cfc = self._calc_con_fin_cost()
+
+    def test_lcoe(self):
+        pass
+
+
 class CoalRetrofitProc(TechProcessor):
     tech_name = 'Coal_Retrofits'
     tech_life = 75
@@ -364,21 +408,25 @@ class CoalRetrofitProc(TechProcessor):
     has_tax_credit = False
 
     metrics = [
-        ('Change in Heat Rate  (Δ mMMBtu/MWh)', 'df_hr'),
+        ('Heat Rate (MMBtu/MWh)', 'df_hr'),
         ('Additional Overnight Capital Cost ($/kW)', 'df_occ'),
-        ('Change in Fixed Operation and Maintenance Expenses (Δ $/kW-yr)', 'df_fom'),
-        ('Change in Variable Operation and Maintenance Expenses (Δ $/MWh)', 'df_vom'),
+        ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
+        ('Variable Operation and Maintenance Expenses ($/MWh)', 'df_vom'),
+        ('Heat Rate Penalty (Δ% from pre-retrofit)' , 'df_hrp'),
+        ('Net Output Penalty (Δ% from pre-retrofit)' , 'df_nop')
     ]
 
     flat_attrs = [
-        ('df_hr', 'Change in Heat Rate'),
+        ('df_hr', 'Heat Rate'),
         ('df_occ', 'Additional OCC'),
-        ('df_fom', 'Change in Fixed O&M'),
-        ('df_vom', 'Change in Variable O&M'),
+        ('df_fom', 'Fixed O&M'),
+        ('df_vom', 'Variable O&M'),
+        ('df_hrp', 'Heat Rate Penalty'),
+        ('df_nop', 'Net Output Penalty')
     ]
 
     sheet_name = 'Coal_Retrofits'
-    num_tds = 1
+    num_tds = 2
     has_ptc = False
     has_itc = False
     has_tax_credit = False
@@ -399,21 +447,21 @@ class NaturalGasRetrofitProc(TechProcessor):
     has_tax_credit = False
 
     metrics = [
-        ('Change in Heat Rate  (Δ mMMBtu/MWh)', 'df_hr'),
+        ('Heat Rate (MMBtu/MWh)', 'df_hr'),
         ('Additional Overnight Capital Cost ($/kW)', 'df_occ'),
-        ('Change in Fixed Operation and Maintenance Expenses (Δ $/kW-yr)', 'df_fom'),
-        ('Change in Variable Operation and Maintenance Expenses (Δ $/MWh)', 'df_vom'),
+        ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
+        ('Variable Operation and Maintenance Expenses ($/MWh)', 'df_vom'),
     ]
 
     flat_attrs = [
-        ('df_hr', 'Change in Heat Rate'),
+        ('df_hr', 'Heat Rate'),
         ('df_occ', 'Additional OCC'),
-        ('df_fom', 'Change in Fixed O&M'),
-        ('df_vom', 'Change in Variable O&M'),
+        ('df_fom', 'Fixed O&M'),
+        ('df_vom', 'Variable O&M'),
     ]
 
     sheet_name = 'Natural Gas_Retrofits'
-    num_tds = 2
+    num_tds = 4
     has_ptc = False
     has_itc = False
     has_tax_credit = False
@@ -472,7 +520,7 @@ class NuclearProc(TechProcessor):
     dscr = 1.45
 
     metrics = [
-        ('Heat Rate  (MMBtu/MWh)', 'df_hr'),
+        ('Heat Rate (MMBtu/MWh)', 'df_hr'),
         ('Net Capacity Factor (%)', 'df_ncf'),
         ('Overnight Capital Cost ($/kW)', 'df_occ'),
         ('Grid Connection Costs (GCC) ($/kW)', 'df_gcc'),
@@ -497,7 +545,7 @@ class NuclearProc(TechProcessor):
 
     def _calc_crf(self):
         """
-        Nuclear only has one scenario, extract the correct CRF.
+        Nuclear only has two scenarios, extract the correct CRF.
         """
         # TODO - automatically determine numeber of CRFs needed for tech
         # scenarios in TechProcessor._calc_crf()
@@ -529,7 +577,7 @@ class BiopowerProc(TechProcessor):
     dscr = 1.45
 
     metrics = [
-        ('Heat Rate  (MMBtu/MWh)', 'df_hr'),
+        ('Heat Rate (MMBtu/MWh)', 'df_hr'),
         ('Net Capacity Factor (%)', 'df_ncf'),
         ('Overnight Capital Cost ($/kW)', 'df_occ'),
         ('Grid Connection Costs (GCC) ($/kW)', 'df_gcc'),

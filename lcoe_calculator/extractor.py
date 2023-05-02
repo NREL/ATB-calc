@@ -22,13 +22,14 @@ class Extractor:
     wacc_sheet = 'WACC Calc'
     tax_credits_sheet = 'Tax Credits'
 
-    def __init__(self, data_master_fname, sheet_name, case, crp, scenarios):
+    def __init__(self, data_master_fname, sheet_name, case, crp, scenarios, base_year = None):
         """
         @param {str} data_master_fname - file name of data master
         @param {str} sheet_name - name of sheet to process
         @param {str} case - 'Market' or 'R&D'
         @param {int|str} crp - capital recovery period: 20, 30, or 'TechLife'
         @param {list} scenarios - scenarios, e.g. 'Advanced', 'Moderate', etc.
+        @param {int} base_year - first year of data for this technology, min 2021, max 2050
         """
 
         self._dm_fname = data_master_fname
@@ -36,6 +37,10 @@ class Extractor:
         assert case in FIN_CASES, f'Financial case "{case}" is not known'
         self._case = case
         self.scenarios = scenarios
+        if base_year == None:
+            self.base_year = BASE_YEAR
+        else:
+            self.base_year = base_year
 
         # Open spreadsheet, set fin case and CRP, and save
         wb = xw.Book(data_master_fname)
@@ -273,7 +278,7 @@ class Extractor:
         df_met = df_met.dropna(how='all')
 
         cols = df_met.columns
-        assert cols[0] == YEARS[0], f'{metric}: First year should be {YEARS[0]}, got {cols[0]} instead'
+        assert cols[0] == self.base_year, f'{metric}: First year should be {self.base_year}, got {cols[0]} instead'
         assert cols[-1] == YEARS[-1], f'{metric}: Last year should be {YEARS[-1]}, got {cols[-1]} instead'
 
         assert not df_met.isnull().any().any(),\
