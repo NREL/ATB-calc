@@ -451,6 +451,8 @@ class NaturalGasRetrofitProc(TechProcessor):
         ('Additional Overnight Capital Cost ($/kW)', 'df_occ'),
         ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
         ('Variable Operation and Maintenance Expenses ($/MWh)', 'df_vom'),
+        ('Heat Rate Penalty (Δ% from pre-retrofit)' , 'df_hrp'),
+        ('Net Output Penalty (Δ% from pre-retrofit)' , 'df_nop')
     ]
 
     flat_attrs = [
@@ -458,6 +460,8 @@ class NaturalGasRetrofitProc(TechProcessor):
         ('df_occ', 'Additional OCC'),
         ('df_fom', 'Fixed O&M'),
         ('df_vom', 'Variable O&M'),
+        ('df_hrp', 'Heat Rate Penalty'),
+        ('df_nop', 'Net Output Penalty')
     ]
 
     sheet_name = 'Natural Gas_Retrofits'
