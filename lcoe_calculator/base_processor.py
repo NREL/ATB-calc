@@ -1,11 +1,18 @@
+"""
+Tech LCOE and CAPEX processor class. This is effectively an abstract class and must be subclassed.
+"""
+from typing import List, Tuple
 import pandas as pd
 import numpy as np
-from typing import List, Union
 
-from extractor import Extractor, FIN_CASES, YEARS, TECH_DETAIL_SCENARIO_COL, MARKET_FIN_CASE
-from macrs import MACRS_6
+from .macrs import MACRS_6
+from .extractor import Extractor, FIN_CASES, YEARS, TECH_DETAIL_SCENARIO_COL, MARKET_FIN_CASE
 
 CRP_CHOICES = ['20', '30', 'TechLife']
+LCOE = 'Levelized Cost of Energy ($/MWh)'
+CAPEX = 'CAPEX ($/kW)'
+SCENARIOS = ['Advanced', 'Moderate', 'Conservative']
+CONSTRUCTION_FINANCE_FACTOR = 'Construction Finance Factor'
 
 
 class TechProcessor:
@@ -28,47 +35,48 @@ class TechProcessor:
     """
 
     # ----------- These attributes must be set for each tech --------------
-    sheet_name: Union[None, str] = None  # Name of the sheet in the excel data master
-    tech_name: Union[None, str] = None  # Name of tech for flat file
-    
+    sheet_name: str|None = None  # Name of the sheet in the excel data master
+    tech_name: str|None = None  # Name of tech for flat file
+
     # For a consistent depreciation schedule, use one of the lists from the
     # macrs.py file as shown below. More complex schedules can be defined by
     # overloading the get_depreciation_schedule() function. See HydropowerProc
-    # in tech_processors.py for an example. 
+    # in tech_processors.py for an example.
     _depreciation_schedule: List[float] = MACRS_6
 
     # ------------ All other attributes have defaults -------------------------
     # Metrics to load from SS. Format: (header in SS, object attribute name)
-    metrics = [
+    metrics: List[Tuple[str, str]] = [
         ('Net Capacity Factor (%)', 'df_ncf'),
         ('Overnight Capital Cost ($/kW)', 'df_occ'),
         ('Grid Connection Costs (GCC) ($/kW)', 'df_gcc'),
         ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
         ('Variable Operation and Maintenance Expenses ($/MWh)', 'df_vom'),
-        ('Construction Finance Factor', 'df_cff'),
+        (CONSTRUCTION_FINANCE_FACTOR, 'df_cff'),
     ]
 
     tech_life = 30  # Tech lifespan in years
     num_tds = 10  # Number of technical resource groups
-    scenarios = ['Advanced', 'Moderate', 'Conservative']
-    base_year = None
+    scenarios = SCENARIOS
+    base_year: int|None = None
 
     has_ptc = True  # Does the tech quality for a Production Tax Credit?
     has_itc = True  # Does the tech qualify for an Investment Tax Credit?
     has_tax_credit = True  # Does the tech have tax credits in spread sheet
     has_fin_assump = True  # Does the tech have financial assumptions in spread sheet
 
-    split_metrics = False  # Indicates 3 empty rows in tech detail metrics, e.g. hydropower
 
-    wacc_name: Union[None, str] = None  # Name of tech to look for on WACC sheet, use sheet name if None
-    has_lcoe_and_wacc = True  # If True, pull values from WACC sheet and calculate CRF,
-                              # PFF, & LCOE. Techs that have WACC but not LCOE will need
-                              # to overload run() (e.g., pumped storage hydro)
+    wacc_name: str|None = None  # Name of tech to look for on WACC sheet, use sheet name if None
+    has_wacc = True  # If True, pull values from WACC sheet.
+    has_capex = True # If True, calculate CAPEX
+    has_lcoe = True  # If True, calculate CRF, PFF, & LCOE.
+
+    split_metrics = False  # Indicates 3 empty rows in tech detail metrics, e.g. hydropower
 
     # Attributes to export in flat file, format: (attr name in class, value for
     # flat file). Any attributes that are None are silently ignored. Financial
     # assumptions values are added automatically.
-    flat_attrs = [
+    flat_attrs: List[Tuple[str, str]] = [
         ('df_ncf', 'CF'),
         ('df_occ', 'OCC'),
         ('df_gcc', 'GCC'),
@@ -79,16 +87,19 @@ class TechProcessor:
         ('df_capex', 'CAPEX'),
     ]
 
-    # Variables used by the debt fraction calculator. Should be filled out for any tech where has_lcoe_and_wacc = True
-    default_tech_detail: Union[None, str] = None
-    dscr: Union[None, float] = None
-    irr_target: Union[None, float] = None
+    # Variables used by the debt fraction calculator. Should be filled out for any tech where
+    # has_lcoe = True
+    default_tech_detail: str|None = None
+    dscr: float|None = None
+    irr_target: float|None = None
 
-    def __init__(self, data_master_fname, case=MARKET_FIN_CASE, crp=30):
+    def __init__(self, data_master_fname, case=MARKET_FIN_CASE, crp=30, extractor=Extractor):
         """
         @param {str} data_master_fname - name of spreadsheet
         @param {str} case - financial case to run: 'Market' or 'R&D'
         @param {int|str} crp - capital recovery period: 20, 30, or 'TechLife'
+        @param {Extractor} extractor - Extractor class to use to obtain source
+            data. Used for testing.
         """
         assert case in FIN_CASES, (f'Financial case must be one of {FIN_CASES},'
             f' received {case}')
@@ -125,25 +136,25 @@ class TechProcessor:
         self.df_pff = None  # Project finance factor (unitless)
         self.df_lcoe = None  # LCOE ($/MWh)
 
+        self._ExtractorClass = extractor
         self._extractor = self._extract_data()
 
     def run(self):
-        """ Run all calculations for CAPEX and LCOE"""
-        self.df_aep = self._calc_aep()
-        self.df_capex = self._calc_capex()
-        self.df_cfc = self._calc_con_fin_cost()
+        """ Run all calculations for CAPEX and LCOE """
+        if self.has_capex:
+            self.df_cfc = self._calc_con_fin_cost()
+            self.df_capex = self._calc_capex()
+            assert not self.df_capex.isnull().any().any(),\
+                f'Error in calculated CAPEX, found missing values: {self.df_capex}'
 
-        assert not self.df_capex.isnull().any().any(),\
-            f'Error in calculated CAPEX, found missing values: {self.df_capex}'
-
-        if self.has_lcoe_and_wacc:
+        if self.has_lcoe and self.has_wacc:
+            self.df_aep = self._calc_aep()
             self.df_crf = self._calc_crf()
             self.df_pff = self._calc_pff()
             self.df_lcoe = self._calc_lcoe()
-
             assert not self.df_lcoe.isnull().any().any(),\
                 f'Error in calculated LCOE, found missing values: {self.df_lcoe}'
-        
+
 
     @property
     def flat(self):
@@ -163,8 +174,6 @@ class TechProcessor:
 
         for attr, parameter in self.flat_attrs:
             df = getattr(self, attr)
-            if df is None:
-                continue
             df = df.reset_index()
 
             old_cols = df.columns
@@ -186,11 +195,12 @@ class TechProcessor:
 
         return df_flat
 
-    def get_depreciation_schedule(self, year):
+    def get_depreciation_schedule(self, year: int) -> List[float]:
         """
-        Provide a function to return the depreciation schedule
-        year - integer of analysis year
-        Not used for most techs, but some child classes vary by year based on Inflation Reduction Act credits
+        Provide a function to return the depreciation schedule.  Not used for most techs, but some
+        child classes vary by year based on Inflation Reduction Act credits
+
+        @param year - integer of analysis year
         """
         return self._depreciation_schedule
 
@@ -205,26 +215,26 @@ class TechProcessor:
         Test calculated LCOE against values in spreadsheet. Raise exception
         if there is a discrepancy.
         """
-        if not self.has_lcoe_and_wacc:
-            print(f'LCOE is not calculated for {self.sheet_name}.')
+        if not self.has_lcoe:
+            print(f'LCOE is not calculated for {self.sheet_name}, skipping test.')
             return
         assert self.df_lcoe is not None, 'Please run `run()` first to calculate LCOE.'
 
-        self.ss_lcoe = self._extractor.get_metric_values('Levelized Cost of Energy ($/MWh)',
-                                                 self.num_tds, self.split_metrics)
+        self.ss_lcoe = self._extractor.get_metric_values(LCOE, self.num_tds,
+                                                         self.split_metrics)
 
         assert not self.df_lcoe.isnull().any().any(),\
             f'Error in calculated LCOE, found missing values: {self.df_lcoe}'
         assert not self.ss_lcoe.isnull().any().any(),\
             f'Error in LCOE from spreadsheet, found missing values: {self.ss_lcoe}'
 
-        if np.allclose(np.array(self.df_lcoe, dtype=float), 
+        if np.allclose(np.array(self.df_lcoe, dtype=float),
                        np.array(self.ss_lcoe, dtype=float)):
             print('Calculated LCOE matches LCOE from spreadsheet')
         else:
             msg = f'Calculated LCOE doesn\'t match LCOE from spreadsheet for {self.sheet_name}'
             print(msg)
-            print("Spreadsheet LCOE")
+            print("Spreadsheet LCOE:")
             print(self.ss_lcoe)
             print("DF LCOE:")
             print(self.df_lcoe)
@@ -235,16 +245,19 @@ class TechProcessor:
         Test calculated CAPEX against values in spreadsheet. Raise exception
         if there is a discrepancy.
         """
+        if not self.has_capex:
+            print(f'CAPEX is not calculated for {self.sheet_name}, skipping test.')
+            return
         assert self.df_capex is not None, 'Please run `run()` first to calculate CAPEX.'
-        self.ss_capex = self._extractor.get_metric_values('CAPEX ($/kW)', self.num_tds,
+
+        self.ss_capex = self._extractor.get_metric_values(CAPEX, self.num_tds,
                                                      self.split_metrics)
 
         assert not self.df_capex.isnull().any().any(),\
             f'Error in calculated CAPEX, found missing values: {self.df_capex}'
         assert not self.ss_capex.isnull().any().any(),\
             f'Error in CAPEX from spreadsheet, found missing values: {self.ss_capex}'
-
-        if np.allclose(np.array(self.df_capex, dtype=float), 
+        if np.allclose(np.array(self.df_capex, dtype=float),
                        np.array(self.ss_capex, dtype=float)):
             print('Calculated CAPEX matches CAPEX from spreadsheet')
         else:
@@ -313,50 +326,61 @@ class TechProcessor:
         crp = self._crp if self._crp != 'TechLife' else  f'TechLife ({self.tech_life})'
 
         print(f'Loading data from {self.sheet_name}, for {self._case} and {crp}')
-        extractor = Extractor(self._data_master_fname, self.sheet_name,
+        extractor = self._ExtractorClass(self._data_master_fname, self.sheet_name,
                               self._case, self._crp, self.scenarios, self.base_year)
 
         print('\tLoading metrics')
         for metric, var_name in self.metrics:
             if var_name == 'df_cff':
-                self.df_cff = self._load_cff(extractor, metric)
-            else:
-                temp = extractor.get_metric_values(metric, self.num_tds, self.split_metrics)
-                setattr(self, var_name, temp)
+                # Grab DF index from another value to use in full CFF DF
+                index = getattr(self, self.metrics[0][1]).index
+                self.df_cff = self.load_cff(extractor, metric, index)
+                continue
+
+            temp = extractor.get_metric_values(metric, self.num_tds, self.split_metrics)
+            setattr(self, var_name, temp)
 
         if self.has_tax_credit:
-            self.df_tc = extractor.get_tax_credits()
+                self.df_tc = extractor.get_tax_credits()
 
         # Pull financial assumptions from small table at top of tech sheet
         print('\tLoading assumptions')
         if self.has_fin_assump:
             self.df_fin = extractor.get_fin_assump()
 
-        if self.has_lcoe_and_wacc:
+        if self.has_wacc:
             print('\tLoading WACC data')
             self.df_wacc, self.df_just_wacc = extractor.get_wacc(self.wacc_name)
 
         print('\tDone loading data')
         return extractor
 
-    def _load_cff(self, extractor, cff_name):
+    @classmethod
+    def load_cff(cls, extractor: Extractor, cff_name: str, index: pd.Index,
+                 return_short_df=False) -> pd.DataFrame:
         """
-        Load CFF data from spreadsheet and duplicate for all tech details
+        Load CFF data from spreadsheet and duplicate for all tech details. This method is
+        a little weird due to testing needs.
 
-        @param {Extractor} extractor - spreadsheet extractor instance
-        @param {str} cff_name - name of CFF data in SS
-        @returns {pd.DataFrame} - CFF dataframe
+        @param extractor - spreadsheet extractor instance
+        @param cff_name - name of CFF data in SS
+        @param index - Index of a "normal" data frame for this tech to use for df_cff
+        @param return_short_df - return original 3 row data frame if True
+        @returns - CFF data frame
         """
-        df_cff = extractor.get_cff(cff_name, len(self.scenarios))
-        assert len(df_cff) == len(self.scenarios),\
-            (f'Wrong number of CFF rows found. Expected {len(self.scenarios)}, '
+        df_cff = extractor.get_cff(cff_name, len(cls.scenarios))
+        assert len(df_cff) == len(cls.scenarios),\
+            (f'Wrong number of CFF rows found. Expected {len(cls.scenarios)}, '
             f'get {len(df_cff)}.')
+
+        if return_short_df:
+            return df_cff
 
         # CFF only has values for the three scenarios. Duplicate for all tech details
         full_df_cff = pd.DataFrame()
-        for _ in range(self.num_tds):
+        for _ in range(cls.num_tds):
             full_df_cff = pd.concat([full_df_cff, df_cff])
-        full_df_cff.index = getattr(self, self.metrics[0][1]).index
+        full_df_cff.index = index
 
         return full_df_cff
 
@@ -379,7 +403,7 @@ class TechProcessor:
 
     def _calc_crf(self):
         crp = self.df_fin.loc['Capital Recovery Period (Years)', 'Value']
-        assert (isinstance(crp, int) or isinstance(crp, float)) and not np.isnan(crp),\
+        assert isinstance(crp, (int, float, np.number)) and not np.isnan(crp),\
             f'CRP must be a number, got "{crp}"'
 
         df_crf = self.df_just_wacc/(1-(1/(1+self.df_just_wacc))**crp)
@@ -392,15 +416,15 @@ class TechProcessor:
 
         return df_crf
 
-    def _calc_itc(self, type=''):
+    def _calc_itc(self, _type=''):
         """
         Calculate ITC if used
 
-        @param {str} type - type of ITC to search for (used for utility PV + batt)
+        @param {str} _type - type of ITC to search for (used for utility PV + batt)
         @returns {np.ndarray|int} - array of ITC values or 0
         """
         if self.has_itc:
-            itc_index = f'ITC Schedule{type}/*'
+            itc_index = f'ITC Schedule{_type}/*'
             assert itc_index in self.df_tc.index, ('ITC schedule not found in '
                 f'tax credit data. Looking for "{itc_index}" in:\n{self.df_tc}')
             df_itc_schedule = self.df_tc.loc[itc_index]
@@ -423,21 +447,20 @@ class TechProcessor:
         df_pvd = pd.DataFrame(columns=YEARS)
         for scenario in self.scenarios:
             for year in YEARS:
-                
+
                 MACRS_schedule = self.get_depreciation_schedule(year)
 
                 df_depreciation_factor = self._calc_dep_factor(
                     MACRS_schedule, inflation, scenario
                 )
 
-                df_pvd.loc['PVD - ' + scenario,year] = np.dot(MACRS_schedule, 
+                df_pvd.loc['PVD - ' + scenario,year] = np.dot(MACRS_schedule,
                                                               df_depreciation_factor[year])
-            
+
         itc_schedule = self._calc_itc(type=itc_type)
 
         df_pff = (1 - df_tax_rate.values*df_pvd*(1-itc_schedule/2) - itc_schedule)/(1-df_tax_rate.values)
         df_pff.index = [f'PFF - {scenario}' for scenario in self.scenarios]
-
         return df_pff
 
     def _calc_dep_factor(self, MACRS_schedule, inflation, scenario):
@@ -448,7 +471,7 @@ class TechProcessor:
         @param {pd.Series} inflation - inflation by year
         @param {string} scenario - tech scenario
 
-        @returns {pd.DataFrame} - Depreciation factor. Columns are atb years, rows are 
+        @returns {pd.DataFrame} - Depreciation factor. Columns are atb years, rows are
             depreciation years.
         """
         dep_years = len(MACRS_schedule)

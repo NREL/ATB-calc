@@ -2,13 +2,14 @@
 Example full scrape work flow.
 """
 from datetime import datetime as dt
-from full_scrape import FullScrape
+from .full_scrape import FullScrape
 
 # Data master version on sharepoint - empty string if you haven't renamed the file
 version_string = "_v7.1"
 
 # Path to data master spreadsheet
 data_master_filename = '../2023-ATB-Data_Master' + version_string + '.xlsx'
+data_master_filename = '../20230719-ATB-Data_Master.xlsx'
 
 
 # Kick off scraper

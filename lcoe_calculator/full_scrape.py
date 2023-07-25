@@ -1,14 +1,9 @@
 import pandas as pd
 from typing import List, Union
 
-from tech_processors import OffShoreWindProc, LandBasedWindProc, DistributedWindProc,\
-    UtilityPvProc, CommPvProc, ResPvProc, UtilityPvPlusBatteryProc,\
-    CspProc, GeothermalProc, HydropowerProc, PumpedStorageHydroProc,\
-    CoalProc, NaturalGasProc, NuclearProc, BiopowerProc,\
-    UtilityBatteryProc, CommBatteryProc, ResBatteryProc,\
-    CoalRetrofitProc, NaturalGasRetrofitProc, NaturalGasFuelCellProc
-from base_processor import CRP_CHOICES
-from extractor import FIN_CASES
+from .tech_processors import ALL_TECHS
+from .base_processor import CRP_CHOICES
+from .extractor import FIN_CASES
 
 class FullScrape:
     """
@@ -21,14 +16,7 @@ class FullScrape:
         @param {list|None} techs - techs to run, all if None
         """
         if techs is None:
-            techs = [
-                OffShoreWindProc, LandBasedWindProc, DistributedWindProc,
-                UtilityPvProc, CommPvProc, ResPvProc, UtilityPvPlusBatteryProc,
-                CspProc, GeothermalProc, HydropowerProc, PumpedStorageHydroProc,
-                CoalProc, NaturalGasProc, NuclearProc, BiopowerProc,
-                UtilityBatteryProc, CommBatteryProc, ResBatteryProc,
-                CoalRetrofitProc, NaturalGasRetrofitProc, NaturalGasFuelCellProc
-            ]
+            techs = ALL_TECHS
 
         if not isinstance(techs, list):
             techs = [techs]

@@ -1,3 +1,5 @@
+from typing import List, Tuple
+from abc import ABC, abstractmethod
 import pandas as pd
 import numpy as np
 import xlwings as xw
@@ -15,21 +17,87 @@ TECH_DETAIL_SCENARIO_COL = 'tech_detail-scenario'  # Column name for combined
 NUM_WACC_PARMS = 24  # Number of rows of data for each tech in WACC Calc sheet
 
 
-class Extractor:
+class AbstractExtractor(ABC):
     """
-    Extract financial assumptions, metrics, and WACC from Excel datamaster.
+    Minimal interface required for a data extractor class
+    """
+
+    @abstractmethod
+    def __init__(self, data_master_fname: str, sheet_name: str, case: str, crp: str | int,
+                 scenarios: List[str], base_year: int | None = None):
+        """
+        @param data_master_fname - file name of data master
+        @param sheet_name - name of sheet to process
+        @param case - 'Market' or 'R&D'
+        @param crp - capital recovery period: 20, 30, or 'TechLife'
+        @param scenarios - scenarios, e.g. 'Advanced', 'Moderate', etc.
+        @param base_year - first year of data for this technology, min 2021, max 2050
+        """
+
+    @abstractmethod
+    def get_metric_values(self, metric: str, num_tds: int, split_metrics: bool = False)\
+          -> pd.DataFrame:
+        """
+        Grab metric values table.
+
+        @param metric - name of desired metric
+        @param num_tds - number of tech resource groups
+        @param split_metrics - metric has blanks in between tech details if True
+        @returns data frame for metric
+        """
+
+    @abstractmethod
+    def get_tax_credits(self) -> pd.DataFrame:
+        """ Get tax credit """
+
+    @abstractmethod
+    def get_cff(self, cff_name: str, rows: int) -> pd.DataFrame:
+        """
+        Pull CFF values
+
+        @param cff_name - name of CFF data in SS
+        @param rows - number of CFF rows to pull
+        @returns CFF data frame
+        """
+
+    @abstractmethod
+    def get_fin_assump(self) -> pd.DataFrame:
+        """
+        Dynamically search for financial assumptions in small table at top of tech sheet and return
+        as data frame.
+
+        @returns financial assumption data
+        """
+
+    @abstractmethod
+    def get_wacc(self, tech_name: str | None = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """
+        Extract values for tech and case from WACC sheet.
+
+        @param tech_name - name of tech to search for on WACC sheet. Use sheet name if None.
+
+        @returns df_wacc - all WACC values
+        @returns df_just_wacc - last six rows of wacc sheet, 'WACC Nominal - {scenario}' and 'WACC
+                                Real - {scenario}'
+        """
+
+
+class Extractor(AbstractExtractor):
+    """
+    Extract financial assumptions, metrics, and WACC from Excel data master.
     """
     wacc_sheet = 'WACC Calc'
     tax_credits_sheet = 'Tax Credits'
 
-    def __init__(self, data_master_fname, sheet_name, case, crp, scenarios, base_year = None):
+    def __init__(self, data_master_fname: str, sheet_name: str, case: str, crp: str|int,
+                 scenarios: List[str], base_year: int | None = None):
         """
-        @param {str} data_master_fname - file name of data master
-        @param {str} sheet_name - name of sheet to process
-        @param {str} case - 'Market' or 'R&D'
-        @param {int|str} crp - capital recovery period: 20, 30, or 'TechLife'
-        @param {list} scenarios - scenarios, e.g. 'Advanced', 'Moderate', etc.
-        @param {int} base_year - first year of data for this technology, min 2021, max 2050
+        @param data_master_fname - file name of data master
+        @param sheet_name - name of sheet to process
+        @param case - 'Market' or 'R&D'
+        @param crp - capital recovery period: 20, 30, or 'TechLife'
+        @param scenarios - scenarios, e.g. 'Advanced', 'Moderate', etc.
+        @param base_year - first year of data for this technology, min 2021, max 2050
         """
 
         self._dm_fname = data_master_fname
@@ -37,7 +105,7 @@ class Extractor:
         assert case in FIN_CASES, f'Financial case "{case}" is not known'
         self._case = case
         self.scenarios = scenarios
-        if base_year == None:
+        if base_year is None:
             self.base_year = BASE_YEAR
         else:
             self.base_year = base_year
@@ -61,15 +129,15 @@ class Extractor:
         tables_end_row, _ = self._find_cell(df, 'Data Sources for Default Inputs')
         self._df_tech_header = df.loc[0:tables_start_row]
         self._df_tech_full = df.loc[tables_start_row:tables_end_row]
-    
+
     @classmethod
     def get_tax_credits_sheet(cls, data_master_fname):
         """
         Pull tax credits from the Tax Credits sheet. It is assumed there is one empty row
-        between ITC and PTC data. 
+        between ITC and PTC data.
 
         @param {str} data_master_fname - file name of data master
-        @returns {pd.DataFrame, pd.DataFrame} df_itc, df_ptc - data frames of 
+        @returns {pd.DataFrame, pd.DataFrame} df_itc, df_ptc - data frames of
             itc and ptc data.
         """
         df_tc = pd.read_excel(data_master_fname, sheet_name=cls.tax_credits_sheet)
@@ -93,7 +161,7 @@ class Extractor:
         assert ptc_col + 2 == fy_col, 'Expected first data column for PTC does not line up '+\
             'with first year heading.'
         assert itc_col == ptc_col, 'ITC and PTC marker text are not in the same column'
-        
+
         # Pull years from tax credit sheet
         years = list(df_tc.loc[fy_row, fy_col:ly_col].astype(int).values)
         assert years == YEARS, f'Years in tax credit sheet ({years}) do not match ATB years ({YEARS})'
@@ -117,16 +185,15 @@ class Extractor:
 
         return df_itc, df_ptc
 
-    def get_wacc(self, tech_name=None):
+    def get_wacc(self, tech_name: str | None = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
         Extract values for tech and case from WACC sheet.
 
-        @param {str|None} tech_name - name of tech to search for on WACC sheet.
-            Use sheet name if None
+        @param tech_name - name of tech to search for on WACC sheet. Use sheet name if None.
 
-        @returns {pd.DataFrame} df_wacc - all WACC values
-        @returns {pd.DataFrame} df_just_wacc - last six rows of wacc sheet,
-            'WACC Nominal - {scenario}' and 'WACC Real - {scenario}'
+        @returns df_wacc - all WACC values
+        @returns df_just_wacc - last six rows of wacc sheet, 'WACC Nominal - {scenario}' and 'WACC
+                                Real - {scenario}'
         """
         df_wacc = pd.read_excel(self._dm_fname, self.wacc_sheet)
         case = 'Market Factors' if self._case == 'Market' else 'R&D'
@@ -149,6 +216,7 @@ class Extractor:
         # Drop empty columns and first row w/ years
         df_wacc = df_wacc.dropna(axis=1, how='any').drop(df_wacc.index[0])
         df_wacc.index.rename('WACC', inplace=True)
+        df_wacc.columns = df_wacc.columns.astype(int)
         df_wacc.columns.name = 'year'
 
         df_just_wacc = df_wacc.iloc[-6:]
@@ -170,12 +238,12 @@ class Extractor:
 
         return df_wacc, df_just_wacc
 
-    def get_fin_assump(self):
+    def get_fin_assump(self) -> pd.DataFrame:
         """
-        Dynamically search for financial assumptions in small table at top of
-        tech sheet and return as dataframe
+        Dynamically search for financial assumptions in small table at top of tech sheet and return
+        as data frame.
 
-        @returns {pd.DataFrame}
+        @returns financial assumption data
         """
         r1, c = self._find_cell(self._df, 'Financial Assumptions:')
         r2 = r1 + 1
@@ -200,22 +268,21 @@ class Extractor:
             f'Error loading financial assumptions. Found empty values: {df_fin_assump}'
         return df_fin_assump
 
-    def get_metric_values(self, metric, num_tds, split_metrics=False):
+    def get_metric_values(self, metric: str, num_tds: int, split_metrics: bool = False)\
+            -> pd.DataFrame:
         """
         Grab metric values table
 
-        @param {str} metric - name of desired metric
-        @param {int} num_tds - number of tech resource groups
-        @param {bool} split_metrics - metric has blanks in between tech details if True
-        @returns {pd.DataFrame}
+        @param metric - name of desired metric
+        @param num_tds - number of tech resource groups
+        @param split_metrics - metric has blanks in between tech details if True
+        @returns data frame for metric
         """
-
         num_rows = len(self.scenarios) * num_tds
         if split_metrics:
             num_rows += len(self.scenarios)
 
         df_met = self._get_metric_values(metric, num_rows)
-
         assert len(df_met) == num_tds * len(self.scenarios), \
             (f'{metric} of {self.sheet_name} '
             f'appears to be corrupt or the wrong number of tech details ({num_tds}) '
@@ -223,19 +290,19 @@ class Extractor:
 
         return df_met
 
-    def get_tax_credits(self):
+    def get_tax_credits(self) -> pd.DataFrame:
         # HACK - 30 is arbitrary, but works
         df_tc = self._get_metric_values('Tax Credit', 30)
         df_tc.index.name = 'Tax Credit'
         return df_tc
 
-    def get_cff(self, cff_name, rows):
+    def get_cff(self, cff_name: str, rows: int) -> pd.DataFrame:
         """
         Pull CFF values
 
-        @param {str} cff_name - name of CFF data in SS
-        @param {int} rows - number of CFF rows to pull
-        @returns {pd.DataFrame} - CFF dataframe
+        @param cff_name - name of CFF data in SS
+        @param rows - number of CFF rows to pull
+        @returns CFF data frame
         """
         df_cff = self._get_metric_values(cff_name, rows)
         df_cff.index.name = cff_name
@@ -304,7 +371,7 @@ class Extractor:
 
         # Extract data
         df_meta = self._df_tech_header.loc[first_row:end_row, first_col:end_col]
-        
+
         # Clean up
         df_meta = df_meta.reset_index(drop=True)
         df_meta = df_meta.fillna('')

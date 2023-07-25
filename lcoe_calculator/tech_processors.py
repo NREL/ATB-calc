@@ -3,9 +3,9 @@ Individual tech scrapers. See documentation in base_processor.py.
 """
 import pandas as pd
 
-from extractor import TECH_DETAIL_SCENARIO_COL, BASE_YEAR, MARKET_FIN_CASE, R_AND_D_FIN_CASE
-from macrs import MACRS_6, MACRS_16, MACRS_21
-from base_processor import TechProcessor
+from .extractor import MARKET_FIN_CASE
+from .macrs import MACRS_6, MACRS_16, MACRS_21
+from .base_processor import TechProcessor
 
 
 class OffShoreWindProc(TechProcessor):
@@ -145,92 +145,34 @@ class GeothermalProc(TechProcessor):
     default_tech_detail = 'Geothermal - Hydro / Flash'
     dscr = 1.45
 
-    def _load_cff(self, extractor, cff_name):
+    @classmethod
+    def load_cff(cls, extractor, cff_name: str, index: pd.Index, return_short_df=False):
         """
-        Special Geothermal code to load CFF and duplicate for tech details
+        Special Geothermal code to load CFF and duplicate for tech details. Geothermal has
+        6 rows of CFF instead of the normal 3.
 
         @param {Extractor} extractor - spreadsheet extractor instance
-        @param {str} cff_name - name of CFF data in SS
-        @returns {pd.DataFrame} - CFF dataframe
+        @param cff_name - name of CFF data in SS
+        @param index - Index of a "normal" data frame for this tech to use for df_cff
+        @param return_short_df - return original 6 row data frame if True
+        @returns - CFF data frame
         """
-        df_cff = extractor.get_cff(cff_name, len(self.scenarios) * 2)
-        assert len(df_cff) == len(self.scenarios * 2),\
-            (f'Wrong number of CFF rows found. Expected {len(self.scenarios) * 2}, '
+        df_cff = extractor.get_cff(cff_name, len(cls.scenarios) * 2)
+        assert len(df_cff) == len(cls.scenarios * 2),\
+            (f'Wrong number of CFF rows found. Expected {len(cls.scenarios) * 2}, '
             f'get {len(df_cff)}.')
+
+        if return_short_df:
+            return df_cff
 
         hydro = df_cff.iloc[0:3]
         egs = df_cff.iloc[3:6]
 
         full_df_cff = pd.concat([hydro, hydro, egs, egs, egs, egs])
-        full_df_cff.index = getattr(self, self.metrics[0][1]).index
-        assert len(full_df_cff) == self.num_tds * len(self.scenarios)
+        full_df_cff.index = index
+        assert len(full_df_cff) == cls.num_tds * len(cls.scenarios)
 
         return full_df_cff
-
-    def OLD_calc_cff(self):
-        """
-         For 2022 we are scraping CFF from the spreadsheet using the above
-         function (_load_cff). This function includes an implementation that
-         calculated CFF based on an old spreadsheet format. We may return these
-         calculations to Python in future years
-         """
-        # OLD_TODO: check these labels with Sertac, might need to update the year
-        df_fin = self.df_fin
-        import pdb; pdb.set_trace()
-
-        # OLD_TODO - fix the -Hydro typo in excel
-        cff_start_hydro = df_fin.loc['Construction Finance Factor (2018 -Hydro)','Value']
-        cff_end_mod_hydro = df_fin.loc['Construction Finance Factor (Moderate 2030 - Hydro)','Value']
-        cff_end_adv_hydro = df_fin.loc['Construction Finance Factor (Advanced 2030 - Hydro)','Value']
-        cff_start_egs = df_fin.loc['Construction Finance Factor (2018 - EGS)','Value']
-        cff_end_mod_egs = df_fin.loc['Construction Finance Factor (Moderate 2030 - EGS)','Value']
-        cff_end_adv_egs = df_fin.loc['Construction Finance Factor (Advanced 2030 - EGS)','Value']
-
-        # Programatically construct column names
-        tech_details = ['Hydro / Flash', 'Hydro / Binary', 'NF EGS / Flash',
-                        'NF EGS / Binary', 'Deep EGS / Flash', 'Deep EGS / Binary']
-
-        cff_end_dict_hydro = {
-            self.scenarios[0]: cff_end_adv_hydro,
-            self.scenarios[1]: cff_end_mod_hydro,
-            self.scenarios[2]: cff_start_hydro
-        }
-
-        cff_end_dict_egs = {
-            self.scenarios[0]: cff_end_adv_egs,
-            self.scenarios[1]: cff_end_mod_egs,
-            self.scenarios[2]: cff_start_egs
-        }
-
-        cols = []
-        start_data = []
-        end_data = []
-        for detail in tech_details:
-            for scenario in self.scenarios:
-                cols.append(detail + ' - ' + scenario)
-                if ('Hydro' in detail):
-                    start_data.append(cff_start_hydro)
-                    end_data.append(cff_end_dict_hydro[scenario])
-                elif ('EGS' in detail):
-                    start_data.append(cff_start_egs)
-                    end_data.append(cff_end_dict_egs[scenario])
-
-        # Create NaN columns to fill with interpolation later
-        early_years = range(BASE_YEAR-1, 2030, 1)
-        df_cff_linear = pd.DataFrame(index=cols, columns=early_years, dtype=float)
-        df_cff_linear.insert(0, 2018, start_data)
-        df_cff_linear.insert(len(early_years) + 1, 2030, end_data)
-        df_cff_linear.interpolate(inplace=True, axis=1)
-
-        # 2021 sheets still includes 2018 in CFF calculations, drop it for multiplication later
-        df_cff_linear.drop(2018, axis=1, inplace=True)
-
-        late_years = range(2031, 2051, 1)
-        for year in late_years:
-            df_cff_linear.insert(len(df_cff_linear.columns), year, end_data)
-
-        df_cff_linear.index.rename(TECH_DETAIL_SCENARIO_COL, inplace=True)
-        return df_cff_linear
 
 
 class HydropowerProc(TechProcessor):
@@ -259,6 +201,15 @@ class PumpedStorageHydroProc(TechProcessor):
     has_ptc = False
     has_itc = False
     has_tax_credit = False
+    has_lcoe = False
+
+    flat_attrs = [
+        ('df_occ', 'OCC'),
+        ('df_gcc', 'GCC'),
+        ('df_fom', 'Fixed O&M'),
+        ('df_vom', 'Variable O&M'),
+        ('df_cfc', 'CFC'),
+    ]
 
     metrics = [
         ('Overnight Capital Cost ($/kW)', 'df_occ'),
@@ -267,14 +218,6 @@ class PumpedStorageHydroProc(TechProcessor):
         ('Variable Operation and Maintenance Expenses ($/MWh)', 'df_vom'),
         ('Construction Finance Factor', 'df_cff'),
     ]
-
-    def run(self):
-        """ Run all calculations """
-        self.df_capex = self._calc_capex()
-        self.df_cfc = self._calc_con_fin_cost()
-
-    def test_lcoe(self):
-        pass
 
 
 class CoalProc(TechProcessor):
@@ -305,17 +248,11 @@ class CoalProc(TechProcessor):
     has_ptc = False
     has_itc = False
     has_tax_credit = False
+    has_lcoe = False
     default_tech_detail = 'Coal-95%-CCS'
     dscr = 1.45
     _depreciation_schedule = MACRS_21
 
-    def run(self):
-        """ Run all calculations except LCOE """
-        self.df_capex = self._calc_capex()
-        self.df_cfc = self._calc_con_fin_cost()
-
-    def test_lcoe(self):
-        pass
 
 class NaturalGasProc(TechProcessor):
     tech_name = 'NaturalGas_FE'
@@ -344,17 +281,11 @@ class NaturalGasProc(TechProcessor):
     has_ptc = False
     has_itc = False
     has_tax_credit = False
+    has_lcoe = False
     default_tech_detail = 'NG F-Frame CC 95% CCS'
     dscr = 1.45
     _depreciation_schedule = MACRS_21
 
-    def run(self):
-        """ Run all calculations except LCOE """
-        self.df_capex = self._calc_capex()
-        self.df_cfc = self._calc_con_fin_cost()
-
-    def test_lcoe(self):
-        pass
 
 class NaturalGasFuelCellProc(TechProcessor):
     tech_name = 'NaturalGas_FE'
@@ -383,7 +314,8 @@ class NaturalGasFuelCellProc(TechProcessor):
     has_ptc = False
     has_itc = False
     has_tax_credit = False
-    has_lcoe_and_wacc = False
+    has_wacc = False
+    has_lcoe = False
     has_fin_assump = False
     default_tech_detail = 'NG Fuel Cell Max CCS'
     dscr = 1.45
@@ -391,20 +323,14 @@ class NaturalGasFuelCellProc(TechProcessor):
     scenarios = ['Moderate', 'Advanced']
     base_year = 2035
 
-    def run(self):
-        """ Run all calculations except LCOE """
-        self.df_capex = self._calc_capex()
-        self.df_cfc = self._calc_con_fin_cost()
-
-    def test_lcoe(self):
-        pass
-
 
 class CoalRetrofitProc(TechProcessor):
     tech_name = 'Coal_Retrofits'
     tech_life = 75
 
-    has_lcoe_and_wacc = False
+    has_wacc = False
+    has_lcoe = False
+    has_capex = False
     has_fin_assump = False
     has_tax_credit = False
 
@@ -432,18 +358,14 @@ class CoalRetrofitProc(TechProcessor):
     has_itc = False
     has_tax_credit = False
 
-    def run(self):
-        """ No calcs needed for retrofits """
-        pass
-
-    def test_capex(self):
-        pass
 
 class NaturalGasRetrofitProc(TechProcessor):
     tech_name = 'NaturalGas_Retrofits'
     tech_life = 55
 
-    has_lcoe_and_wacc = False
+    has_wacc = False
+    has_lcoe = False
+    has_capex = False
     has_fin_assump = False
     has_tax_credit = False
 
@@ -471,52 +393,11 @@ class NaturalGasRetrofitProc(TechProcessor):
     has_itc = False
     has_tax_credit = False
 
-    def run(self):
-        """ No calcs needed for retrofits """
-        pass
-
-    def test_capex(self):
-        pass
 
 class NuclearProc(TechProcessor):
     tech_name = 'Nuclear'
     tech_life = 60
     sheet_name = 'Nuclear'
-    depreciation_schedule = { 
-        R_AND_D_FIN_CASE : MACRS_6, 
-        MARKET_FIN_CASE : { 
-            2021: MACRS_16,
-            2022: MACRS_16,
-            2023: MACRS_16,
-            2024: MACRS_16,
-            2025: MACRS_6,
-            2026: MACRS_6,
-            2027: MACRS_6,
-            2028: MACRS_6,
-            2029: MACRS_6,
-            2030: MACRS_6,
-            2031: MACRS_6,
-            2032: MACRS_6,
-            2033: MACRS_6,
-            2034: MACRS_6,
-            2035: MACRS_6,
-            2036: MACRS_6,
-            2037: MACRS_6,
-            2038: MACRS_6,
-            2039: MACRS_6,
-            2040: MACRS_6,
-            2041: MACRS_6,
-            2042: MACRS_6,
-            2043: MACRS_6,
-            2044: MACRS_6,
-            2045: MACRS_6,
-            2046: MACRS_16,
-            2047: MACRS_16,
-            2048: MACRS_16,
-            2049: MACRS_16,
-            2050: MACRS_16,
-        }
-    }
     num_tds = 2
     scenarios = ['Moderate', 'Conservative']
     has_ptc = True
@@ -571,6 +452,7 @@ class NuclearProc(TechProcessor):
         else:
             return MACRS_6
 
+
 class BiopowerProc(TechProcessor):
     tech_name = 'Biopower'
     tech_life = 45
@@ -612,75 +494,58 @@ class BiopowerProc(TechProcessor):
         return df_lcoe
 
 
-class UtilityBatteryProc(TechProcessor):
+# ------------------ Batteries --------------------
+class AbstractBatteryProc(TechProcessor):
+    """
+    Abstract tech processor for batteries w/o LCOE or CAPEX.
+    """
+    has_wacc = False
+    has_lcoe = False
+    has_capex = False
+    has_fin_assump = False
+    has_tax_credit = False
+    has_ptc = True
+    has_itc = True
+
+    metrics = [
+        ('Overnight Capital Cost ($/kW)', 'df_occ'),
+        ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
+        ('Variable Operation and Maintenance Expenses ($/MWh)', 'df_vom'),
+    ]
+
+    flat_attrs = [
+        ('df_occ', 'OCC'),
+        ('df_fom', 'Fixed O&M'),
+        ('df_vom', 'Variable O&M'),
+    ]
+
+
+class UtilityBatteryProc(AbstractBatteryProc):
     tech_name = 'Utility-Scale Battery Storage'
     tech_life = 30
     sheet_name = 'Utility-Scale Battery Storage'
     num_tds = 5
-    has_lcoe_and_wacc = False
-    has_fin_assump = False
-    has_tax_credit = False
-    has_ptc = True
-    has_itc = True
-
-    metrics = [
-        ('Overnight Capital Cost ($/kW)', 'df_occ'),
-        ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
-        ('Variable Operation and Maintenance Expenses ($/MWh)', 'df_vom'),
-    ]
-
-    def run(self):
-        """ No calcs needed for batteries """
-        pass
-
-    def test_capex(self):
-        pass
 
 
-class CommBatteryProc(TechProcessor):
+class CommBatteryProc(AbstractBatteryProc):
     tech_name = 'Commercial Battery Storage'
     tech_life = 30
     sheet_name = 'Commercial Battery Storage'
     num_tds = 5
-    has_lcoe_and_wacc = False
-    has_fin_assump = False
-    has_tax_credit = False
-    has_ptc = True
-    has_itc = True
 
-    metrics = [
-        ('Overnight Capital Cost ($/kW)', 'df_occ'),
-        ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
-        ('Variable Operation and Maintenance Expenses ($/MWh)', 'df_vom'),
-    ]
 
-    def run(self):
-        """ No calcs needed for batteries"""
-        pass
-    
-    def test_capex(self):
-        pass
-
-class ResBatteryProc(TechProcessor):
+class ResBatteryProc(AbstractBatteryProc):
     tech_name = 'Residential Battery Storage'
     tech_life = 30
     sheet_name = 'Residential Battery Storage'
     num_tds = 2
-    has_lcoe_and_wacc = False
-    has_fin_assump = False
-    has_tax_credit = False
-    has_ptc = True
-    has_itc = True
 
-    metrics = [
-        ('Overnight Capital Cost ($/kW)', 'df_occ'),
-        ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
-        ('Variable Operation and Maintenance Expenses ($/MWh)', 'df_vom'),
-    ]
 
-    def run(self):
-        """ No calcs needed for batteries"""
-        pass
-
-    def test_capex(self):
-        pass
+ALL_TECHS = [
+    OffShoreWindProc, LandBasedWindProc, DistributedWindProc,
+    UtilityPvProc, CommPvProc, ResPvProc, UtilityPvPlusBatteryProc,
+    CspProc, GeothermalProc, HydropowerProc, PumpedStorageHydroProc,
+    CoalProc, NaturalGasProc, NuclearProc, BiopowerProc,
+    UtilityBatteryProc, CommBatteryProc, ResBatteryProc,
+    CoalRetrofitProc, NaturalGasRetrofitProc, NaturalGasFuelCellProc
+]
