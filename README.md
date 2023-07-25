@@ -1,10 +1,11 @@
-# ATB Electricity Data Processing Pipeline
+# Annual Technology Baseline Electricity Data Processing Pipeline
 
-Python files and Jupyter notebooks for processing ATB electricity data and determining LCOE and other metrics. There are several generations of files in this repo.
+Python files and Jupyter notebooks for processing the Annual Technology Baseline (ATB) electricity data and determining LCOE and other metrics. All documentation and data for the ATB is available at the [ATB website](https://atb.nrel.gov).
 
-## Notable Files and Directories
-- `./lcoe_calculator` Extract technology metrics from the data master xlsx file and calculate LCOE using Python
-- `./debt_fraction_calculator` Given data and assumptions in the data master xlsx file, calculate debt fractions using PySAM
-- `./drop_down_scraping` Legacy scraper for 2022 data master. Has not been tested with 2023, but should work
-- `./vba_scraping` Legacy scrapers for data masters from 2021 and earlier
-- **TODO**: Describe all the other files
+## Installation and Requirements
+**TODO**
+
+## Notable Directories
+- `./lcoe_calculator` Extract technology metrics from the data master `xlsx` file and calculate LCOE using Python.
+- `./debt_fraction_calculator` Given data and assumptions in the data master xlsx file, calculate debt fractions using PySAM.
+- `./tests` Tests for code in this repository. 
