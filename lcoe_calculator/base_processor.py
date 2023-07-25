@@ -416,15 +416,15 @@ class TechProcessor:
 
         return df_crf
 
-    def _calc_itc(self, _type=''):
+    def _calc_itc(self, itc_type=''):
         """
         Calculate ITC if used
 
-        @param {str} _type - type of ITC to search for (used for utility PV + batt)
+        @param {str} itc_type - type of ITC to search for (used for utility PV + batt)
         @returns {np.ndarray|int} - array of ITC values or 0
         """
         if self.has_itc:
-            itc_index = f'ITC Schedule{_type}/*'
+            itc_index = f'ITC Schedule{itc_type}/*'
             assert itc_index in self.df_tc.index, ('ITC schedule not found in '
                 f'tax credit data. Looking for "{itc_index}" in:\n{self.df_tc}')
             df_itc_schedule = self.df_tc.loc[itc_index]
@@ -457,7 +457,7 @@ class TechProcessor:
                 df_pvd.loc['PVD - ' + scenario,year] = np.dot(MACRS_schedule,
                                                               df_depreciation_factor[year])
 
-        itc_schedule = self._calc_itc(type=itc_type)
+        itc_schedule = self._calc_itc(itc_type=itc_type)
 
         df_pff = (1 - df_tax_rate.values*df_pvd*(1-itc_schedule/2) - itc_schedule)/(1-df_tax_rate.values)
         df_pff.index = [f'PFF - {scenario}' for scenario in self.scenarios]
