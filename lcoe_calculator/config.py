@@ -1,7 +1,7 @@
 """
 Config and constants for the LCOE pipeline.
 """
-from typing import Literal
+from typing import Literal, List
 
 # Years of data predicted by ATB
 BASE_YEAR = 2021
@@ -13,8 +13,8 @@ R_AND_D_FIN_CASE = 'R&D'
 FINANCIAL_CASES = [MARKET_FIN_CASE, R_AND_D_FIN_CASE]
 
 # CRP choices and type hints
-CRP_CHOICES = [20, 30, 'TechLife']
 CrpChoiceType = Literal[20, 30, 'TechLife']
+CRP_CHOICES: List[CrpChoiceType] = [20, 30, 'TechLife']
 
 # Technology advancement scenarios
 SCENARIOS = ['Advanced', 'Moderate', 'Conservative']

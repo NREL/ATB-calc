@@ -13,7 +13,7 @@ from .data_finder import DataFinder, FIN_ASSUMP_FAKE_SS_NAME, WACC_FAKE_SS_NAME,
       JUST_WACC_FAKE_SS_NAME, TAX_CREDIT_FAKE_SS_NAME
 
 # Use extractor to pull values from data master and save as CSV
-def extract_data_for_crp_case(data_master_fname: str, tech: TechProcessor, case: str,
+def extract_data_for_crp_case(data_master_fname: str, tech: Type[TechProcessor], case: str,
                               crp: CrpChoiceType):
     """
     Extract data from ATB data master spreadsheet for a tech and save as CSV.
@@ -85,14 +85,14 @@ def extract(filename: str, tech: str|None):
     else:
         techs = [tech_map[tech]]
 
-    for tech in techs:
-        print(f'Extracting values for {tech.sheet_name}')
-        DataFinder.set_tech(tech)
+    for Tech in techs:
+        print(f'Extracting values for {Tech.sheet_name}')
+        DataFinder.set_tech(Tech)
 
         for case in FINANCIAL_CASES:
             for crp in CRP_CHOICES:
                 print(f'\tcrp={crp}, case={case}')
-                extract_data_for_crp_case(filename, tech, case, crp)
+                extract_data_for_crp_case(filename, Tech, case, crp)
 
     print('Done')
 

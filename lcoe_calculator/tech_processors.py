@@ -2,6 +2,7 @@
 Individual tech scrapers. See documentation in base_processor.py.
 """
 import pandas as pd
+from typing import List, Type
 
 from .config import MARKET_FIN_CASE
 from .macrs import MACRS_6, MACRS_16, MACRS_21
@@ -541,7 +542,7 @@ class ResBatteryProc(AbstractBatteryProc):
     num_tds = 2
 
 
-ALL_TECHS = [
+ALL_TECHS: List[Type[TechProcessor]]= [
     OffShoreWindProc, LandBasedWindProc, DistributedWindProc,
     UtilityPvProc, CommPvProc, ResPvProc, UtilityPvPlusBatteryProc,
     CspProc, GeothermalProc, HydropowerProc, PumpedStorageHydroProc,

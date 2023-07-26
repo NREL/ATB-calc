@@ -15,13 +15,13 @@ def test_lcoe_and_capex_calculations():
     """
     Test LCOE and CAPEX calculations using stored data
     """
-    for tech in ALL_TECHS:
-        print(f'----------- Testing {tech.sheet_name} -----------')
+    for Tech in ALL_TECHS:
+        print(f'----------- Testing {Tech.sheet_name} -----------')
         for case in FINANCIAL_CASES:
             for crp in CRP_CHOICES:
-                DataFinder.set_tech(tech)
+                DataFinder.set_tech(Tech)
 
-                proc: TechProcessor = tech('fake_path_to_data_master.xlsx', case=case, crp=crp,
+                proc: TechProcessor = Tech('fake_path_to_data_master.xlsx', case=case, crp=crp,
                                            extractor=MockExtractor)
                 proc.run()
 
@@ -51,6 +51,7 @@ def test_lcoe_and_capex_calculations():
                     assert not proc.ss_lcoe.isnull().any().any()
                     assert np.allclose(np.array(proc.df_lcoe, dtype=float),
                                     np.array(proc.ss_lcoe, dtype=float))
+
 
 if __name__ == '__main__':
     test_lcoe_and_capex_calculations()

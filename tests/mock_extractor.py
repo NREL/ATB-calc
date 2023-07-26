@@ -4,7 +4,7 @@ Mock data extractor for testing.
 from typing import List, Tuple
 import pandas as pd
 from lcoe_calculator.abstract_extractor import AbstractExtractor
-from lcoe_calculator.config import BASE_YEAR, CrpChoiceType
+from lcoe_calculator.config import CrpChoiceType
 from .data_finder import DataFinder, TAX_CREDIT_FAKE_SS_NAME, WACC_FAKE_SS_NAME,\
      JUST_WACC_FAKE_SS_NAME, FIN_ASSUMP_FAKE_SS_NAME
 
@@ -19,7 +19,7 @@ class MockExtractor(AbstractExtractor):
     """
 
     def __init__(self, _: str, __: str, case: str, crp: CrpChoiceType, ___: List[int],
-                 ____: int = BASE_YEAR):
+                 ____: int):
         """
         @param data_master_fname - IGNORED
         @param sheet_name - IGNORED

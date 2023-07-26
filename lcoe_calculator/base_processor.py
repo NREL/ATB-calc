@@ -1,7 +1,7 @@
 """
 Tech LCOE and CAPEX processor class. This is effectively an abstract class and must be subclassed.
 """
-from typing import List, Tuple
+from typing import List, Tuple, Type
 import pandas as pd
 import numpy as np
 
@@ -88,7 +88,7 @@ class TechProcessor:
     irr_target: float|None = None
 
     def __init__(self, data_master_fname: str, case: str = MARKET_FIN_CASE,
-                 crp: CrpChoiceType = 30, extractor: AbstractExtractor = Extractor):
+                 crp: CrpChoiceType = 30, extractor: Type[AbstractExtractor] = Extractor):
         """
         @param data_master_fname - name of spreadsheet
         @param case - financial case to run: 'Market' or 'R&D'

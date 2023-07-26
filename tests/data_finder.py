@@ -9,9 +9,10 @@ Find path to test data CSV files. General layout:
     ./data/{tech}/{case}/{crp}/df_occ.csv
     ./data/{tech}/{case}/{crp}/etc
 """
+from typing import Type
 import os
 from lcoe_calculator.base_processor import TechProcessor
-from lcoe_calculator.config import LCOE_SS_NAME, CAPEX_SS_NAME
+from lcoe_calculator.config import LCOE_SS_NAME, CAPEX_SS_NAME, CrpChoiceType
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
 
@@ -28,10 +29,10 @@ class DataFinder:
     Get path and file names for saving tech metric values to CSV. Note that set_tech() must
     be used before first use and before being used for a new tech.
     """
-    _tech: TechProcessor|None = None
+    _tech: Type[TechProcessor]|None = None
 
     @classmethod
-    def set_tech(cls, tech: TechProcessor):
+    def set_tech(cls, tech: Type[TechProcessor]):
         """
         Set the tech currently being processed. This must be run before using get_data_filename().
 
@@ -40,7 +41,7 @@ class DataFinder:
         cls._tech = tech
 
     @classmethod
-    def get_data_filename(cls, metric: str, case: str, crp: str|int):
+    def get_data_filename(cls, metric: str, case: str, crp: CrpChoiceType):
         """
         Get path and filename to test data.
 

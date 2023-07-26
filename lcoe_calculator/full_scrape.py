@@ -8,7 +8,7 @@ import pandas as pd
 
 from .tech_processors import ALL_TECHS
 from .base_processor import CRP_CHOICES, TechProcessor
-from .config import FINANCIAL_CASES
+from .config import FINANCIAL_CASES, CrpChoiceType
 
 class FullScrape:
     """
@@ -16,19 +16,16 @@ class FullScrape:
     scenarios.
     """
     def __init__(self, data_master_fname: str,
-                 techs: List[TechProcessor]|TechProcessor|None = None):
+                 techs: List[Type[TechProcessor]]|Type[TechProcessor]):
         """
         @param data_master_fname - name of spreadsheet
-        @param techs - one or more techs to run, all if None
+        @param techs - one or more techs to run
         """
-        if techs is None:
-            techs = ALL_TECHS
-
         if not isinstance(techs, list):
             techs = [techs]
 
-        self.data = None  # Flat data from scrape
-        self.meta = None  # Meta data from scrape
+        self.data = pd.DataFrame()  # Flat data from scrape
+        self.meta = pd.DataFrame()  # Meta data from scrape
 
         self._techs = techs
         self._fname = data_master_fname
@@ -38,16 +35,16 @@ class FullScrape:
         self.data = pd.DataFrame()  # Flat data from scrape
         self.meta = pd.DataFrame()  # Meta data from scrape
 
-        for i, tech in enumerate(self._techs):
-            print(f'##### Processing {tech.tech_name} ({i+1}/{len(self._techs)}) #####')
+        for i, Tech in enumerate(self._techs):
+            print(f'##### Processing {Tech.tech_name} ({i+1}/{len(self._techs)}) #####')
 
             for crp in CRP_CHOICES:
                 # skip TechLife if 20 or 30 so we don't duplicate effort
-                if crp == 'TechLife' and tech.tech_life in CRP_CHOICES:
+                if crp == 'TechLife' and Tech.tech_life in CRP_CHOICES:
                     continue
 
                 for case in FINANCIAL_CASES:
-                    proc = tech(self._fname, crp=crp, case=case)
+                    proc = Tech(self._fname, crp=crp, case=case)
                     proc.run()
 
                     if test_capex:
@@ -59,7 +56,7 @@ class FullScrape:
                     self.data = pd.concat([self.data, flat])
 
             meta = proc.get_meta_data()
-            meta['Tech Name'] = tech.tech_name
+            meta['Tech Name'] = Tech.tech_name
             self.meta = pd.concat([self.meta, meta])
 
         self.data = self.data.reset_index(drop=True)
@@ -96,7 +93,7 @@ class FullScrape:
         self.meta.to_csv(fname)
 
 
-tech_names = [tech.__name__ for tech in ALL_TECHS]
+tech_names = [Tech.__name__ for Tech in ALL_TECHS]
 
 @click.command
 @click.argument('data_master_filename', type=click.Path(exists=True))
@@ -117,11 +114,10 @@ def run_scrape(data_master_filename: str, tech: str|None, meta_file: str|None, f
     """
     tech_map: Dict[str, Type[TechProcessor]] = {tech.__name__: tech for tech in ALL_TECHS}
 
-    if tech is not None:
-        tech = tech_map[tech]
+    techs = ALL_TECHS if tech is None else tech_map[tech]
 
     start_dt = dt.now()
-    scraper = FullScrape(data_master_filename, tech)
+    scraper = FullScrape(data_master_filename, techs)
     scraper.scrape()
     click.echo(f'Scrape completed in {dt.now()-start_dt}.')
 
