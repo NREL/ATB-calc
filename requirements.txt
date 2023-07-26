@@ -1,4 +1,3 @@
-appscript==1.2.2
 click==8.1.6
 et-xmlfile==1.1.0
 exceptiongroup==1.1.2
@@ -9,7 +8,6 @@ openpyxl==3.1.2
 packaging==23.1
 pandas==2.0.3
 pluggy==1.2.0
-psutil==5.9.5
 pytest==7.4.0
 python-dateutil==2.8.2
 pytz==2023.3
