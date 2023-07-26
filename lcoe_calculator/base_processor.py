@@ -2,6 +2,7 @@
 Tech LCOE and CAPEX processor class. This is effectively an abstract class and must be subclassed.
 """
 from typing import List, Tuple, Type
+from abc import ABC, abstractmethod
 import pandas as pd
 import numpy as np
 
@@ -12,7 +13,7 @@ from .config import FINANCIAL_CASES, YEARS, TECH_DETAIL_SCENARIO_COL, MARKET_FIN
     SCENARIOS, LCOE_SS_NAME, CAPEX_SS_NAME, CFF_SS_NAME, CrpChoiceType, BASE_YEAR
 
 
-class TechProcessor:
+class TechProcessor(ABC):
     """
     Base abstract tech-processor class. This must be sub-classed to be used. See tech_processors.py
     for examples.  Various class vars like sheet_name must be over-written by sub-classes, things
@@ -29,8 +30,15 @@ class TechProcessor:
     """
 
     # ----------- These attributes must be set for each tech --------------
-    sheet_name: str|None = None  # Name of the sheet in the excel data master
-    tech_name: str|None = None  # Name of tech for flat file
+    @property
+    @abstractmethod
+    def sheet_name(self) -> str:
+        """ Name of the sheet in the excel data master """
+
+    @property
+    @abstractmethod
+    def tech_name(self) -> str:
+        """ Name of tech for flat file"""
 
     # For a consistent depreciation schedule, use one of the lists from the
     # macrs.py file as shown below. More complex schedules can be defined by
@@ -85,7 +93,6 @@ class TechProcessor:
     # has_lcoe = True
     default_tech_detail: str|None = None
     dscr: float|None = None
-    irr_target: float|None = None
 
     def __init__(self, data_master_fname: str, case: str = MARKET_FIN_CASE,
                  crp: CrpChoiceType = 30, extractor: Type[AbstractExtractor] = Extractor):
@@ -101,9 +108,11 @@ class TechProcessor:
             f' received {crp}')
         assert isinstance(self.scenarios, list), 'self.scenarios must be a list'
 
-        for attr in ['sheet_name', 'tech_name']:
-            assert getattr(self, attr) is not None, \
-                f'{attr} must be defined in tech sub-classes. Currently is None.'
+        if self.has_lcoe:
+            if self.default_tech_detail is None:
+                raise ValueError('default_tech_detail must be set if has_lcoe is True.')
+            if self.dscr is None:
+                raise ValueError('dscr must be set if has_lcoe is True.')
 
         self._data_master_fname = data_master_fname
         self._case = case
