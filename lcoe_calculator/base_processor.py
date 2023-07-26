@@ -9,15 +9,15 @@ from .macrs import MACRS_6
 from .extractor import Extractor
 from .abstract_extractor import AbstractExtractor
 from .config import FINANCIAL_CASES, YEARS, TECH_DETAIL_SCENARIO_COL, MARKET_FIN_CASE, CRP_CHOICES,\
-    SCENARIOS, LCOE_SS_NAME, CAPEX_SS_NAME, CFF_SS_NAME
+    SCENARIOS, LCOE_SS_NAME, CAPEX_SS_NAME, CFF_SS_NAME, CrpChoiceType, BASE_YEAR
 
 
 class TechProcessor:
     """
     Base abstract tech-processor class. This must be sub-classed to be used. See tech_processors.py
-    Various class vars like sheet_name must be over-written by sub-classes, things like tech_life
-    can be as needed. Functions for _capex(), _con_fin_cost(), etc can be over-written as needed,
-    e.g. Geothermal.
+    for examples.  Various class vars like sheet_name must be over-written by sub-classes, things
+    like tech_life can be as needed. Functions for _capex(), _con_fin_cost(), etc can be
+    over-written as needed, e.g. Geothermal.
 
     Notable methods:
 
@@ -52,7 +52,7 @@ class TechProcessor:
     tech_life = 30  # Tech lifespan in years
     num_tds = 10  # Number of technical resource groups
     scenarios = SCENARIOS
-    base_year: int|None = None
+    base_year: int = BASE_YEAR
 
     has_ptc = True  # Does the tech quality for a Production Tax Credit?
     has_itc = True  # Does the tech qualify for an Investment Tax Credit?
@@ -88,7 +88,7 @@ class TechProcessor:
     irr_target: float|None = None
 
     def __init__(self, data_master_fname: str, case: str = MARKET_FIN_CASE,
-                 crp: str|int = '30', extractor: AbstractExtractor = Extractor):
+                 crp: CrpChoiceType = 30, extractor: AbstractExtractor = Extractor):
         """
         @param data_master_fname - name of spreadsheet
         @param case - financial case to run: 'Market' or 'R&D'
@@ -97,7 +97,7 @@ class TechProcessor:
         """
         assert case in FINANCIAL_CASES, (f'Financial case must be one of {FINANCIAL_CASES},'
             f' received {case}')
-        assert str(crp) in CRP_CHOICES, (f'Financial case must be one of {CRP_CHOICES},'
+        assert crp in CRP_CHOICES, (f'Financial case must be one of {CRP_CHOICES},'
             f' received {crp}')
         assert isinstance(self.scenarios, list), 'self.scenarios must be a list'
 
@@ -107,8 +107,8 @@ class TechProcessor:
 
         self._data_master_fname = data_master_fname
         self._case = case
-        self._crp = crp  # 20, 30, or 'TechLife'
-        self._crp_years = self.tech_life if crp == 'TechLife' else int(crp)
+        self._crp = crp
+        self._crp_years = self.tech_life if crp == 'TechLife' else crp
 
         # These data frames are extracted from excel
         self.df_ncf = None  # Net capacity factor (%)
@@ -317,9 +317,9 @@ class TechProcessor:
 
     def _extract_data(self):
         """ Pull all data from spread sheet """
-        crp = self._crp if self._crp != 'TechLife' else  f'TechLife ({self.tech_life})'
+        crp_msg = self._crp if self._crp != 'TechLife' else  f'TechLife ({self.tech_life})'
 
-        print(f'Loading data from {self.sheet_name}, for {self._case} and {crp}')
+        print(f'Loading data from {self.sheet_name}, for {self._case} and {crp_msg}')
         extractor = self._ExtractorClass(self._data_master_fname, self.sheet_name,
                               self._case, self._crp, self.scenarios, self.base_year)
 

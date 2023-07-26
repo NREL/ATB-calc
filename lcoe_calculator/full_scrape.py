@@ -42,8 +42,8 @@ class FullScrape:
             print(f'##### Processing {tech.tech_name} ({i+1}/{len(self._techs)}) #####')
 
             for crp in CRP_CHOICES:
-                # skip TechLife if 20 or 30 so we don't dupliacte effort
-                if crp == 'TechLife' and str(tech.tech_life) in CRP_CHOICES:
+                # skip TechLife if 20 or 30 so we don't duplicate effort
+                if crp == 'TechLife' and tech.tech_life in CRP_CHOICES:
                     continue
 
                 for case in FINANCIAL_CASES:

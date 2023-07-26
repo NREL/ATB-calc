@@ -8,12 +8,13 @@ from lcoe_calculator.base_processor import TechProcessor
 from lcoe_calculator.tech_processors import ALL_TECHS
 from lcoe_calculator.extractor import Extractor
 from lcoe_calculator.config import FINANCIAL_CASES, LCOE_SS_NAME, CAPEX_SS_NAME, CFF_SS_NAME,\
-    CRP_CHOICES
+    CRP_CHOICES, CrpChoiceType
 from .data_finder import DataFinder, FIN_ASSUMP_FAKE_SS_NAME, WACC_FAKE_SS_NAME,\
       JUST_WACC_FAKE_SS_NAME, TAX_CREDIT_FAKE_SS_NAME
 
 # Use extractor to pull values from data master and save as CSV
-def extract_data_for_crp_case(data_master_fname: str, tech: TechProcessor, case: str, crp: str|int):
+def extract_data_for_crp_case(data_master_fname: str, tech: TechProcessor, case: str,
+                              crp: CrpChoiceType):
     """
     Extract data from ATB data master spreadsheet for a tech and save as CSV.
 

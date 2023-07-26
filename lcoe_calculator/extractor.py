@@ -9,7 +9,7 @@ import numpy as np
 import xlwings as xw
 
 from .abstract_extractor import AbstractExtractor
-from .config import FINANCIAL_CASES, BASE_YEAR, YEARS, TECH_DETAIL_SCENARIO_COL
+from .config import FINANCIAL_CASES, YEARS, TECH_DETAIL_SCENARIO_COL, CrpChoiceType
 
 
 FIN_ASSUMP_COL = 5  # Number of columns from fin assumption keys to values
@@ -23,15 +23,15 @@ class Extractor(AbstractExtractor):
     wacc_sheet = 'WACC Calc'
     tax_credits_sheet = 'Tax Credits'
 
-    def __init__(self, data_master_fname: str, sheet_name: str, case: str, crp: str|int,
-                 scenarios: List[str], base_year: int | None = None):
+    def __init__(self, data_master_fname: str, sheet_name: str, case: str, crp: CrpChoiceType,
+                 scenarios: List[str], base_year: int):
         """
         @param data_master_fname - file name of data master
         @param sheet_name - name of sheet to process
         @param case - 'Market' or 'R&D'
         @param crp - capital recovery period: 20, 30, or 'TechLife'
         @param scenarios - scenarios, e.g. 'Advanced', 'Moderate', etc.
-        @param base_year - first year of data for this technology, min 2021, max 2050
+        @param base_year - first year of data for this technology
         """
 
         self._dm_fname = data_master_fname
@@ -39,10 +39,7 @@ class Extractor(AbstractExtractor):
         assert case in FINANCIAL_CASES, f'Financial case "{case}" is not known'
         self._case = case
         self.scenarios = scenarios
-        if base_year is None:
-            self.base_year = BASE_YEAR
-        else:
-            self.base_year = base_year
+        self.base_year = base_year
 
         # Open spreadsheet, set fin case and CRP, and save
         wb = xw.Book(data_master_fname)

@@ -2,6 +2,8 @@ from typing import List, Tuple
 from abc import ABC, abstractmethod
 import pandas as pd
 
+from .config import CrpChoiceType, BASE_YEAR
+
 
 class AbstractExtractor(ABC):
     """
@@ -9,15 +11,15 @@ class AbstractExtractor(ABC):
     """
 
     @abstractmethod
-    def __init__(self, data_master_fname: str, sheet_name: str, case: str, crp: str | int,
-                 scenarios: List[str], base_year: int | None = None):
+    def __init__(self, data_master_fname: str, sheet_name: str, case: str, crp: CrpChoiceType,
+                 scenarios: List[str], base_year: int):
         """
         @param data_master_fname - file name of data master
         @param sheet_name - name of sheet to process
         @param case - 'Market' or 'R&D'
         @param crp - capital recovery period: 20, 30, or 'TechLife'
         @param scenarios - scenarios, e.g. 'Advanced', 'Moderate', etc.
-        @param base_year - first year of data for this technology, min 2021, max 2050
+        @param base_year - first year of data for this technology
         """
 
     @abstractmethod
