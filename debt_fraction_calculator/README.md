@@ -1,16 +1,12 @@
-Note that this code depends on the code in lcoe_calculator
+# Debt Fraction Calculator
+This code utilizes the scraping code of the lcoe_calculator module along with the [PySAM](https://nrel-pysam.readthedocs.io/en/main/)
+package to compute new debt fractions given the cost and tax credit assumptions in the ATB data master XLSX document.
 
-I recommend using `conda develop path_to_lcoe_calculator` to reference those files
-
-Additional dependencies
-- numpy
-- pandas
-- nrel-pysam
-
-To install pysam, run `conda install -c nrel nrel-pysam`
+For more on the financial assumptions used for these calculations see the [ATB documentation](https://atb.nrel.gov/electricity/2023/financial_cases_&_methods)
+and the [SAM documentation](https://sam.nrel.gov/financial-models/utility-scale-ppa.html).
 
 To run: 
-- set the path to the data master file in debt_fraction_calc.py
-- run `python debt_fraction_calc.py`
-- Copy values to the data master as appropriate
-    (I don't view setting up an automated write function as worth the time, since this script should only need to be run 3 or 4 times/year)
+- Open the datamaster Excel file and make your desired adjustments to the data
+- TODO: are we creating a cli for this or asking users to edit the file?
+- From the root repository folder (atb-calc) run `python -m debt_fraction_calculator.debt_fraction_calc`
+- Copy values to the WACC Calc tab of the data master as appropriate

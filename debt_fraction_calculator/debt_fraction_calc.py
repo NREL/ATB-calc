@@ -24,7 +24,7 @@ def calculate_debt_fraction(input_vals, debug=False):
         Fixed O&M - fixed operations and maintenance ($/kW-yr)
         Variable O&M - variable operations and maintenance ($/Mwh)
         DSCR - Debt service coverage ratio (unitless, typically 1-1.5)
-        IRR - internal rate of return (%, 0-100)
+        Rate of Return on Equity Nominal - internal rate of return (%, 0-1)
         Tax Rate (Federal and State) (%, 0-1)
         Inflation Rate (%, 0-1)
         Fuel - Fuel cost ($/MMBtu) - optional
@@ -33,6 +33,7 @@ def calculate_debt_fraction(input_vals, debug=False):
         Calculated Rate of Return on Equity Real (%, 0-1)
         ITC - Investment tax Credit, federal (%, 0-1)
         PTC - Production tax credit, federal ($/MWh)
+        MACRS - depreciation schedule from lcoe_processor.macrs
 
     Returns debt_fraction, float, (% 0-100)
     """
@@ -197,7 +198,7 @@ if __name__ == "__main__":
     version_string = "_v2.90"
 
     # Path to data master spreadsheet
-    data_master_filename = '../2023-ATB-Data_Master' + version_string + '.xlsx'
+    data_master_filename = "C:\\Users\\bmirletz\\Downloads\\2023_v2_Workbook_07_20_23_test.xlsx"
 
     # Techs will both be scraped and have debt fractions calculated
     techs = [
