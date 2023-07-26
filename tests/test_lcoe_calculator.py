@@ -6,7 +6,7 @@ import pandas as pd
 
 from lcoe_calculator.base_processor import CRP_CHOICES
 from lcoe_calculator.tech_processors import ALL_TECHS, TechProcessor
-from lcoe_calculator.extractor import FIN_CASES
+from lcoe_calculator.config import FINANCIAL_CASES
 
 from .mock_extractor import MockExtractor
 from .data_finder import DataFinder
@@ -17,7 +17,7 @@ def test_lcoe_and_capex_calculations():
     """
     for tech in ALL_TECHS:
         print(f'----------- Testing {tech.sheet_name} -----------')
-        for case in FIN_CASES:
+        for case in FINANCIAL_CASES:
             for crp in CRP_CHOICES:
                 DataFinder.set_tech(tech)
 

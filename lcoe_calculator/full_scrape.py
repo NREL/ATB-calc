@@ -8,7 +8,7 @@ import pandas as pd
 
 from .tech_processors import ALL_TECHS
 from .base_processor import CRP_CHOICES, TechProcessor
-from .extractor import FIN_CASES
+from .config import FINANCIAL_CASES
 
 class FullScrape:
     """
@@ -46,7 +46,7 @@ class FullScrape:
                 if crp == 'TechLife' and str(tech.tech_life) in CRP_CHOICES:
                     continue
 
-                for case in FIN_CASES:
+                for case in FINANCIAL_CASES:
                     proc = tech(self._fname, crp=crp, case=case)
                     proc.run()
 

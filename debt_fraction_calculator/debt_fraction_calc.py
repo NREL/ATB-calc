@@ -5,18 +5,15 @@ Developed against PySAM 4.0.0
 """
 
 import pandas as pd
-import numpy as np
+
 import PySAM.Levpartflip as levpartflip
 
-from extractor import Extractor, YEARS, FIN_CASES
-
-# Import processors that calculate LCOE
-from tech_processors import OffShoreWindProc, LandBasedWindProc, DistributedWindProc,\
-    UtilityPvProc, CommPvProc, ResPvProc, UtilityPvPlusBatteryProc,\
-    CspProc, GeothermalProc, HydropowerProc,\
-    NuclearProc, BiopowerProc
-
-from macrs import MACRS_6, MACRS_16, MACRS_21
+from lcoe_calculator.extractor import Extractor
+from lcoe_calculator.config import YEARS, FINANCIAL_CASES
+from lcoe_calculator.tech_processors import OffShoreWindProc, LandBasedWindProc,\
+    DistributedWindProc, UtilityPvProc, CommPvProc, ResPvProc, UtilityPvPlusBatteryProc,\
+    CspProc, GeothermalProc, HydropowerProc, NuclearProc, BiopowerProc
+from lcoe_calculator.macrs import MACRS_6, MACRS_16, MACRS_21
 
 def calculate_debt_fraction(input_vals, debug=False):
     """
@@ -36,7 +33,7 @@ def calculate_debt_fraction(input_vals, debug=False):
         Calculated Rate of Return on Equity Real (%, 0-1)
         ITC - Investment tax Credit, federal (%, 0-1)
         PTC - Production tax credit, federal ($/MWh)
-    
+
     Returns debt_fraction, float, (% 0-100)
     """
     model = levpartflip.default("GenericSystemLeveragedPartnershipFlip")
@@ -71,7 +68,7 @@ def calculate_debt_fraction(input_vals, debug=False):
     model.value("total_installed_cost", initial_investment)
 
     ## Single Owner will apply the O&M cost to each year, so no need to multiply by analysis period
-    model.value("om_capacity", [o_and_m] ) 
+    model.value("om_capacity", [o_and_m] )
     model.value("om_production", [v_o_and_m])
     if 'Fuel' in input_vals:
         model.value("om_fuel_cost", [input_vals['Fuel']])
@@ -80,7 +77,7 @@ def calculate_debt_fraction(input_vals, debug=False):
 
     # Specify length 1 so degradation is applied each year.
     # An array of 0.7 len(analysis_period) assumes degradation the first year, but not afterwards
-    model.value("degradation", [degradation]) 
+    model.value("degradation", [degradation])
     model.value("system_use_lifetime_output", 0) # Do degradation in the financial model
 
     model.value("debt_option", 1) # Use DSCR (alternative is to specify the debt fraction, which doesn't help)
@@ -88,7 +85,7 @@ def calculate_debt_fraction(input_vals, debug=False):
     model.value("inflation_rate", inflation)
     model.value("term_int_rate", input_vals['Interest Rate Nominal'] * 100)
     model.value("term_tenor", 18) # years
-    model.value("real_discount_rate", input_vals['Calculated Rate of Return on Equity Real'] * 100) 
+    model.value("real_discount_rate", input_vals['Calculated Rate of Return on Equity Real'] * 100)
     model.value("flip_target_percent", input_vals['Rate of Return on Equity Nominal'] * 100) ## "nominal equity rate"
     model.value("flip_target_year", 10) # Assume flip occurs when PTC expires
     model.value("ppa_escalation", 0.0)
@@ -123,7 +120,7 @@ def calculate_debt_fraction(input_vals, debug=False):
     model.value('itc_fed_percent_maxvalue', [1e38])
     model.value("itc_sta_amount", [0])
     model.value("ptc_fed_amount", [input_vals["PTC"] / 1000]) # Convert $/MWh to $/kWh
-    
+
     # Production based incentive code to test treating the tax credits as available for debt service
     model.value("pbi_fed_amount", [0])
     model.value("pbi_fed_term", 0)
@@ -168,9 +165,9 @@ def calculate_debt_fraction(input_vals, debug=False):
     model.value("ppa_soln_mode", 0)
     model.value("payment_option", 0)
 
-    # Required for calculate PPA price. 
-    # Default is $0.045/kWh. However given the way we've set up gen, this will never be used 
-    model.value('en_electricity_rates', 1 ) 
+    # Required for calculate PPA price.
+    # Default is $0.045/kWh. However given the way we've set up gen, this will never be used
+    model.value('en_electricity_rates', 1 )
 
     model.execute()
 
@@ -193,6 +190,7 @@ def calculate_debt_fraction(input_vals, debug=False):
 
     return model.Outputs.debt_fraction
 
+
 if __name__ == "__main__":
     # Start by running the scrape for relevant technologies
     # Data master version on sharepoint - empty string if you haven't renamed the file
@@ -203,10 +201,10 @@ if __name__ == "__main__":
 
     # Techs will both be scraped and have debt fractions calculated
     techs = [
-                    OffShoreWindProc, LandBasedWindProc, DistributedWindProc,
-                    UtilityPvProc, CommPvProc, ResPvProc, UtilityPvPlusBatteryProc,
-                    CspProc, GeothermalProc, HydropowerProc, NuclearProc, BiopowerProc
-                ]
+        OffShoreWindProc, LandBasedWindProc, DistributedWindProc, UtilityPvProc, CommPvProc,
+        ResPvProc, UtilityPvPlusBatteryProc, CspProc, GeothermalProc, HydropowerProc, NuclearProc,
+        BiopowerProc
+    ]
 
     df_itc, df_ptc = Extractor.get_tax_credits_sheet(data_master_filename)
 
@@ -217,30 +215,30 @@ if __name__ == "__main__":
     cols = ["Technology", "Case", *YEARS] # column structure of resulting data frame
 
     for tech in techs:
-        for fin_case in FIN_CASES:
+        for fin_case in FINANCIAL_CASES:
             print("Tech ", tech.tech_name, "Fin case " , fin_case)
             debt_fracs = [tech.tech_name, fin_case] # First two columns are metadata
-        
+
             proc = tech(data_master_filename, crp=crp, case=fin_case)
             proc.run()
-            
+
             d = proc.flat
 
             # Values that are specific to the representative tech detail
-            detail_vals = d[(d.DisplayName == tech.default_tech_detail) & (d.Case == fin_case) 
-                    & (d.Scenario == 'Moderate') & (d.CRPYears == 20) & 
-                    ((d.Parameter == 'Fixed O&M') | (d.Parameter == 'Variable O&M') 
+            detail_vals = d[(d.DisplayName == tech.default_tech_detail) & (d.Case == fin_case)
+                    & (d.Scenario == 'Moderate') & (d.CRPYears == 20) &
+                    ((d.Parameter == 'Fixed O&M') | (d.Parameter == 'Variable O&M')
                     | (d.Parameter == 'OCC') | (d.Parameter == 'CFC') | (d.Parameter == 'CF')
                     | (d.Parameter == 'Heat Rate') | (d.Parameter == 'Fuel'))]
 
             # Values that apply to entire technology
-            tech_vals = d[(d.Technology == tech.tech_name) & (d.CRPYears == 20) & (d.Case == fin_case) & 
-                    ((d.Parameter == 'Inflation Rate') | (d.Parameter == 'Tax Rate (Federal and State)') 
-                    | (d.Parameter == 'Calculated Rate of Return on Equity Real') 
-                    | (d.Parameter == 'Rate of Return on Equity Nominal') 
+            tech_vals = d[(d.Technology == tech.tech_name) & (d.CRPYears == 20) & (d.Case == fin_case) &
+                    ((d.Parameter == 'Inflation Rate') | (d.Parameter == 'Tax Rate (Federal and State)')
+                    | (d.Parameter == 'Calculated Rate of Return on Equity Real')
+                    | (d.Parameter == 'Rate of Return on Equity Nominal')
                     | (d.Parameter == 'Interest Rate Nominal'))]
 
-            for year in YEARS:            
+            for year in YEARS:
                 input_vals = detail_vals.set_index('Parameter')[year].to_dict()
 
                 gen_vals = tech_vals.set_index('Parameter')[year].to_dict()
@@ -252,7 +250,7 @@ if __name__ == "__main__":
                 else:
                     input_vals["PTC"] = 0
                     input_vals["ITC"] = 0
-                
+
                 # Financial parameters stored in tech processor
                 input_vals["DSCR"] = tech.dscr
 
@@ -263,9 +261,9 @@ if __name__ == "__main__":
                 #Calculate debt fraction using PySAM
                 debt_frac = calculate_debt_fraction(input_vals)
 
-                debt_frac /= 100.0                
+                debt_frac /= 100.0
                 debt_fracs.append(debt_frac)
-            
+
             debt_frac_dict[tech.tech_name + fin_case] = debt_fracs
 
     debt_frac_df = pd.DataFrame.from_dict(debt_frac_dict, orient='index', columns=cols)

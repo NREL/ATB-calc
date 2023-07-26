@@ -3,7 +3,7 @@ Individual tech scrapers. See documentation in base_processor.py.
 """
 import pandas as pd
 
-from .extractor import MARKET_FIN_CASE
+from .config import MARKET_FIN_CASE
 from .macrs import MACRS_6, MACRS_16, MACRS_21
 from .base_processor import TechProcessor
 

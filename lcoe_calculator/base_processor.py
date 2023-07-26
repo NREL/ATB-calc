@@ -6,30 +6,24 @@ import pandas as pd
 import numpy as np
 
 from .macrs import MACRS_6
-from .extractor import Extractor, FIN_CASES, YEARS, TECH_DETAIL_SCENARIO_COL, MARKET_FIN_CASE
-
-CRP_CHOICES = ['20', '30', 'TechLife']
-LCOE = 'Levelized Cost of Energy ($/MWh)'
-CAPEX = 'CAPEX ($/kW)'
-SCENARIOS = ['Advanced', 'Moderate', 'Conservative']
-CONSTRUCTION_FINANCE_FACTOR = 'Construction Finance Factor'
+from .extractor import Extractor
+from .abstract_extractor import AbstractExtractor
+from .config import FINANCIAL_CASES, YEARS, TECH_DETAIL_SCENARIO_COL, MARKET_FIN_CASE, CRP_CHOICES,\
+    SCENARIOS, LCOE_SS_NAME, CAPEX_SS_NAME, CFF_SS_NAME
 
 
 class TechProcessor:
     """
-    Base abstract tech-processor class. This must be sub-classed to be used. See
-    tech_processors.py Various class vars like sheet_name must be over-written
-    by sub-classes, things like tech_life can be as needed.  Functions for
-    _capex(), _con_fin_cost(), etc can be over-written as needed, e.g.
-    Geothermal.
+    Base abstract tech-processor class. This must be sub-classed to be used. See tech_processors.py
+    Various class vars like sheet_name must be over-written by sub-classes, things like tech_life
+    can be as needed. Functions for _capex(), _con_fin_cost(), etc can be over-written as needed,
+    e.g. Geothermal.
 
     Notable methods:
 
-    __init__() - Constructor. Various class attribute sanity checks and loads
-                 data from spreadsheet.
+    __init__() - Constructor. Various class attribute sanity checks and loads data from spreadsheet.
     run() - Perform all calcs to determine CAPEX and LCOE.
-    flat - (property) Convert fin assumptions and values in flat_attrs to a flat
-           DataFrame
+    flat - (property) Convert fin assumptions and values in flat_attrs to a flat DataFrame
     test_lcoe() - Compare calculated LCOE to LCOE in spreadsheet.
     test_capex() - Compare calculated CAPEX to CAPEX in spreadsheet.
     """
@@ -52,7 +46,7 @@ class TechProcessor:
         ('Grid Connection Costs (GCC) ($/kW)', 'df_gcc'),
         ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
         ('Variable Operation and Maintenance Expenses ($/MWh)', 'df_vom'),
-        (CONSTRUCTION_FINANCE_FACTOR, 'df_cff'),
+        (CFF_SS_NAME, 'df_cff'),
     ]
 
     tech_life = 30  # Tech lifespan in years
@@ -93,15 +87,15 @@ class TechProcessor:
     dscr: float|None = None
     irr_target: float|None = None
 
-    def __init__(self, data_master_fname, case=MARKET_FIN_CASE, crp=30, extractor=Extractor):
+    def __init__(self, data_master_fname: str, case: str = MARKET_FIN_CASE,
+                 crp: str|int = '30', extractor: AbstractExtractor = Extractor):
         """
-        @param {str} data_master_fname - name of spreadsheet
-        @param {str} case - financial case to run: 'Market' or 'R&D'
-        @param {int|str} crp - capital recovery period: 20, 30, or 'TechLife'
-        @param {Extractor} extractor - Extractor class to use to obtain source
-            data. Used for testing.
+        @param data_master_fname - name of spreadsheet
+        @param case - financial case to run: 'Market' or 'R&D'
+        @param crp - capital recovery period: 20, 30, or 'TechLife'
+        @param extractor - Extractor class to use to obtain source data.
         """
-        assert case in FIN_CASES, (f'Financial case must be one of {FIN_CASES},'
+        assert case in FINANCIAL_CASES, (f'Financial case must be one of {FINANCIAL_CASES},'
             f' received {case}')
         assert str(crp) in CRP_CHOICES, (f'Financial case must be one of {CRP_CHOICES},'
             f' received {crp}')
@@ -220,7 +214,7 @@ class TechProcessor:
             return
         assert self.df_lcoe is not None, 'Please run `run()` first to calculate LCOE.'
 
-        self.ss_lcoe = self._extractor.get_metric_values(LCOE, self.num_tds,
+        self.ss_lcoe = self._extractor.get_metric_values(LCOE_SS_NAME, self.num_tds,
                                                          self.split_metrics)
 
         assert not self.df_lcoe.isnull().any().any(),\
@@ -250,8 +244,8 @@ class TechProcessor:
             return
         assert self.df_capex is not None, 'Please run `run()` first to calculate CAPEX.'
 
-        self.ss_capex = self._extractor.get_metric_values(CAPEX, self.num_tds,
-                                                     self.split_metrics)
+        self.ss_capex = self._extractor.get_metric_values(CAPEX_SS_NAME, self.num_tds,
+                                                          self.split_metrics)
 
         assert not self.df_capex.isnull().any().any(),\
             f'Error in calculated CAPEX, found missing values: {self.df_capex}'

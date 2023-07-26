@@ -10,14 +10,17 @@ Find path to test data CSV files. General layout:
     ./data/{tech}/{case}/{crp}/etc
 """
 import os
-from lcoe_calculator.base_processor import TechProcessor, LCOE, CAPEX
+from lcoe_calculator.base_processor import TechProcessor
+from lcoe_calculator.config import LCOE_SS_NAME, CAPEX_SS_NAME
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
 
-FINANCIAL_ASSUMPTIONS = 'financial assumptions'
-WACC = 'wacc'
-JUST_WACC = 'just wacc'
-TAX_CREDIT = 'tax credit'
+# These metrics do not have real headers in the data master spreadsheet. Create fake ones so
+# data can be stored for testing purposes
+FIN_ASSUMP_FAKE_SS_NAME = 'financial assumptions'
+WACC_FAKE_SS_NAME = 'wacc'
+JUST_WACC_FAKE_SS_NAME = 'just wacc'
+TAX_CREDIT_FAKE_SS_NAME = 'tax credit'
 
 
 class DataFinder:
@@ -52,12 +55,12 @@ class DataFinder:
         # data files. This table partially borrows from the metrics list.
         metric_lookup = list(cls._tech.metrics)
         metric_lookup += [
-            (LCOE, 'df_lcoe'),
-            (CAPEX, 'df_capex'),
-            (FINANCIAL_ASSUMPTIONS, 'df_fin_assump'),
-            (WACC, 'df_wacc'),
-            (JUST_WACC, 'df_just_wacc'),
-            (TAX_CREDIT, 'df_tc'),
+            (LCOE_SS_NAME, 'df_lcoe'),
+            (CAPEX_SS_NAME, 'df_capex'),
+            (FIN_ASSUMP_FAKE_SS_NAME, 'df_fin_assump'),
+            (WACC_FAKE_SS_NAME, 'df_wacc'),
+            (JUST_WACC_FAKE_SS_NAME, 'df_just_wacc'),
+            (TAX_CREDIT_FAKE_SS_NAME, 'df_tc'),
         ]
         assert metric in [m[0] for m in metric_lookup],\
             f'metric {metric} is not known for sheet {cls._tech.sheet_name}'

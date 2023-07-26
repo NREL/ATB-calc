@@ -4,11 +4,13 @@ Extract values from the data master and save to the tests data directory.
 from typing import Dict, Type
 import click
 
-from lcoe_calculator.base_processor import TechProcessor, CRP_CHOICES, LCOE, CAPEX,\
-    CONSTRUCTION_FINANCE_FACTOR
+from lcoe_calculator.base_processor import TechProcessor
 from lcoe_calculator.tech_processors import ALL_TECHS
-from lcoe_calculator.extractor import Extractor, FIN_CASES
-from .data_finder import DataFinder, FINANCIAL_ASSUMPTIONS, WACC, JUST_WACC, TAX_CREDIT
+from lcoe_calculator.extractor import Extractor
+from lcoe_calculator.config import FINANCIAL_CASES, LCOE_SS_NAME, CAPEX_SS_NAME, CFF_SS_NAME,\
+    CRP_CHOICES
+from .data_finder import DataFinder, FIN_ASSUMP_FAKE_SS_NAME, WACC_FAKE_SS_NAME,\
+      JUST_WACC_FAKE_SS_NAME, TAX_CREDIT_FAKE_SS_NAME
 
 # Use extractor to pull values from data master and save as CSV
 def extract_data_for_crp_case(data_master_fname: str, tech: TechProcessor, case: str, crp: str|int):
@@ -26,14 +28,14 @@ def extract_data_for_crp_case(data_master_fname: str, tech: TechProcessor, case:
     metrics = list(tech.metrics)
 
     if tech.has_lcoe:
-        metrics.append((LCOE, ''))
+        metrics.append((LCOE_SS_NAME, ''))
 
     if tech.has_capex:
-        metrics.append((CAPEX, ''))
+        metrics.append((CAPEX_SS_NAME, ''))
 
     extract_cff = False
     for metric, _ in metrics :
-        if metric == CONSTRUCTION_FINANCE_FACTOR:
+        if metric == CFF_SS_NAME:
             extract_cff = True
             continue
 
@@ -43,26 +45,25 @@ def extract_data_for_crp_case(data_master_fname: str, tech: TechProcessor, case:
         df.to_csv(fname)
 
     if extract_cff:
-        df_cff = tech.load_cff(extractor, CONSTRUCTION_FINANCE_FACTOR, index, return_short_df=True)
-        fname = DataFinder.get_data_filename(CONSTRUCTION_FINANCE_FACTOR,
-                                  case, crp)
+        df_cff = tech.load_cff(extractor, CFF_SS_NAME, index, return_short_df=True)
+        fname = DataFinder.get_data_filename(CFF_SS_NAME, case, crp)
         df_cff.to_csv(fname)
 
     if tech.has_fin_assump:
         df_fin = extractor.get_fin_assump()
-        fname = DataFinder.get_data_filename(FINANCIAL_ASSUMPTIONS, case, crp)
+        fname = DataFinder.get_data_filename(FIN_ASSUMP_FAKE_SS_NAME, case, crp)
         df_fin.to_csv(fname)
 
     if tech.has_wacc:
         (df_wacc, df_just_wacc) = extractor.get_wacc(tech.wacc_name)
-        fname = DataFinder.get_data_filename(WACC, case, crp)
+        fname = DataFinder.get_data_filename(WACC_FAKE_SS_NAME, case, crp)
         df_wacc.to_csv(fname)
-        fname = DataFinder.get_data_filename(JUST_WACC, case, crp)
+        fname = DataFinder.get_data_filename(JUST_WACC_FAKE_SS_NAME, case, crp)
         df_just_wacc.to_csv(fname)
 
     if tech.has_tax_credit:
         df_tc = extractor.get_tax_credits()
-        fname = DataFinder.get_data_filename(TAX_CREDIT, case, crp)
+        fname = DataFinder.get_data_filename(TAX_CREDIT_FAKE_SS_NAME, case, crp)
         df_tc.to_csv(fname)
 
 
@@ -87,7 +88,7 @@ def extract(filename: str, tech: str|None):
         print(f'Extracting values for {tech.sheet_name}')
         DataFinder.set_tech(tech)
 
-        for case in FIN_CASES:
+        for case in FINANCIAL_CASES:
             for crp in CRP_CHOICES:
                 print(f'\tcrp={crp}, case={case}')
                 extract_data_for_crp_case(filename, tech, case, crp)

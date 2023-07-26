@@ -3,8 +3,9 @@ Mock data extractor for testing.
 """
 from typing import List, Tuple
 import pandas as pd
-from lcoe_calculator.extractor import AbstractExtractor
-from .data_finder import DataFinder, TAX_CREDIT, WACC, JUST_WACC, FINANCIAL_ASSUMPTIONS
+from lcoe_calculator.abstract_extractor import AbstractExtractor
+from .data_finder import DataFinder, TAX_CREDIT_FAKE_SS_NAME, WACC_FAKE_SS_NAME,\
+     JUST_WACC_FAKE_SS_NAME, FIN_ASSUMP_FAKE_SS_NAME
 
 class MockExtractor(AbstractExtractor):
     """
@@ -43,7 +44,7 @@ class MockExtractor(AbstractExtractor):
 
     def get_tax_credits(self) -> pd.DataFrame:
         """ Get tax credit """
-        fname = DataFinder.get_data_filename(TAX_CREDIT, self._case, self._crp)
+        fname = DataFinder.get_data_filename(TAX_CREDIT_FAKE_SS_NAME, self._case, self._crp)
         df = self.read_csv(fname)
         return df
 
@@ -64,7 +65,7 @@ class MockExtractor(AbstractExtractor):
         Dynamically search for financial assumptions in small table at top of
         tech sheet and return as data frame
         """
-        fname = DataFinder.get_data_filename(FINANCIAL_ASSUMPTIONS, self._case, self._crp)
+        fname = DataFinder.get_data_filename(FIN_ASSUMP_FAKE_SS_NAME, self._case, self._crp)
         df = pd.read_csv(fname, index_col=0)
         return df
 
@@ -77,9 +78,9 @@ class MockExtractor(AbstractExtractor):
         @returns {pd.DataFrame} df_just_wacc - last six rows of wacc sheet,
             'WACC Nominal - {scenario}' and 'WACC Real - {scenario}'
         """
-        fname = DataFinder.get_data_filename(WACC, self._case, self._crp)
+        fname = DataFinder.get_data_filename(WACC_FAKE_SS_NAME, self._case, self._crp)
         df_wacc = self.read_csv(fname)
-        fname = DataFinder.get_data_filename(JUST_WACC, self._case, self._crp)
+        fname = DataFinder.get_data_filename(JUST_WACC_FAKE_SS_NAME, self._case, self._crp)
         df_just_wacc = self.read_csv(fname)
         return (df_wacc, df_just_wacc)
 
