@@ -6,12 +6,12 @@ Tests and test data for the LCOE and debt fraction calculators.
 A CSV copy of the ATB data master XLSX data is stored in this directory to simplify running tests. Updates to the calculator code and the data master structure may require testing data to be updated. To update the test data for all technologies, financial cases, and CRPs, run the following in the root direcotry of the repo:
 
 ```
-python -m tests.extract_test_data {path-to-data-master}/ATB-Data_Master.xlsx
+python -m tests.extract_test_data {PATH-TO-DATA-MASTER}
 ```
 where `{path-to-data-master}` is the path to the desired version of the ATB data master. Technologies may also be updated individually, e.g.:
 
 ```
-python -m tests.extract_test_data --tech CommPvProc {path-to-data-master}/ATB-Data_Master.xlsx
+python -m tests.extract_test_data --tech CommPvProc {PATH-TO-DATA-MASTER}
 ```
 To see a list of all available technologies, run: 
 

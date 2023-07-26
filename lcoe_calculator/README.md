@@ -7,8 +7,7 @@ for all technologies as needed, and exports data in flat or flat + pivoted forma
 ## Files
 Files are listed in roughly descending order of importance and approachability.
 
- - `run_scrape_example.py` - Example file for running a full scrape, calculating LCOE and CAPEX, and exporting data to a CSV. If you don't know what you're doing, look at this file.
- - `full_scrape.py` - Class that performs full scrape.
+ - `full_scrape.py` - Class that performs full scrape with built in command line interface. See the README in the root of this repo for CLI examples.
  - `tech_processors.py` - Classes to scrape and process individual technologies. Any new ATB technologies should be added to this file.
  - `base_processor.py` - Base processor class that is subclassed to process individual technologies.
  - `extractor.py` - Code to pull values from the spreadsheet
@@ -21,10 +20,4 @@ Notebooks demonstrating how to use the the code in this directory.
  - `Test Tech processors.ipynb` - Jupyter notebook for testing individual techs. May not be up-to-date.
  - `Test Tax Credit Scrape.ipynb` - Jupyter notebook for testing and demonstrating the tax credit scraper.
 
-## Dependencies
-The scraper is known to work with Python 3.8.12 and 3.11.0. The following packages are required.
 
- - numpy
- - pandas
- - xlwings - OS agnostic Excel automator
- - openpyxl - required for xlwings
