@@ -1,3 +1,9 @@
+#
+# Copyright (c) Alliance for Sustainable Energy, LLC and Skye Analytics, Inc. See also https://github.com/NREL/ATB-calc/blob/main/LICENSE
+#
+# This file is part of ATB-calc
+# (see https://github.com/NREL/ATB-calc).
+#
 """
 Extract financial assumptions, metrics, and WACC from Excel data master. The xlwings package
 is used to change CRP and the financial case in the spreadsheet and rerun calculations before
