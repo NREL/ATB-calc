@@ -12,7 +12,7 @@ from .config import FINANCIAL_CASES, CrpChoiceType
 
 class FullScrape:
     """
-    Scrape datamaster and calculate LCOE for techs, CRPs, and financial
+    Scrape data master and calculate LCOE for techs, CRPs, and financial
     scenarios.
     """
     def __init__(self, data_master_fname: str,
@@ -114,7 +114,7 @@ def run_scrape(data_master_filename: str, tech: str|None, meta_file: str|None, f
     """
     tech_map: Dict[str, Type[TechProcessor]] = {tech.__name__: tech for tech in ALL_TECHS}
 
-    techs = ALL_TECHS if tech is None else tech_map[tech]
+    techs = ALL_TECHS if tech is None else [tech_map[tech]]
 
     start_dt = dt.now()
     scraper = FullScrape(data_master_filename, techs)
@@ -139,4 +139,4 @@ def run_scrape(data_master_filename: str, tech: str|None, meta_file: str|None, f
 
 
 if __name__ == '__main__':
-    run_scrape()
+    run_scrape()  # pylint: disable=no-value-for-parameter

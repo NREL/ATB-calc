@@ -443,6 +443,7 @@ class NuclearProc(TechProcessor):
 
     def _calc_lcoe(self):
         """ Include fuel costs in LCOE """
+        # pylint: disable=no-member,attribute-defined-outside-init
         self.df_fuel_costs_mwh = self.df_hr * self.df_fuel_costs_mmbtu
         df_lcoe = super()._calc_lcoe() + self.df_fuel_costs_mwh
         return df_lcoe
@@ -490,6 +491,7 @@ class BiopowerProc(TechProcessor):
 
     def _calc_lcoe(self):
         """ Include fuel costs in LCOE """
+        # pylint: disable=no-member,attribute-defined-outside-init
         self.df_fuel_costs_mwh = self.df_hr * self.df_fuel_costs_mmbtu
         df_lcoe = super()._calc_lcoe() + self.df_fuel_costs_mwh
         return df_lcoe
@@ -550,3 +552,7 @@ ALL_TECHS: List[Type[TechProcessor]]= [
     UtilityBatteryProc, CommBatteryProc, ResBatteryProc,
     CoalRetrofitProc, NaturalGasRetrofitProc, NaturalGasFuelCellProc
 ]
+
+
+# All technologies that have an LCOE
+LCOE_TECHS = [Tech for Tech in ALL_TECHS if Tech.has_lcoe]

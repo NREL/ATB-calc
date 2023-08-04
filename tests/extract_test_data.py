@@ -98,4 +98,4 @@ def extract(filename: str, tech: str|None):
 
 
 if __name__ == '__main__':
-    extract()
+    extract()  # pylint: disable=no-value-for-parameter

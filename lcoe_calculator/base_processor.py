@@ -89,10 +89,10 @@ class TechProcessor(ABC):
         ('df_capex', 'CAPEX'),
     ]
 
-    # Variables used by the debt fraction calculator. Should be filled out for any tech where
-    # has_lcoe = True
+    # Variables used by the debt fraction calculator. Should be filled out for any tech
+    # where self.has_lcoe == True.
     default_tech_detail: str|None = None
-    dscr: float|None = None
+    dscr: float|None = None # Debt service coverage ratio (unitless, typically 1-1.5)
 
     def __init__(self, data_master_fname: str, case: str = MARKET_FIN_CASE,
                  crp: CrpChoiceType = 30, extractor: Type[AbstractExtractor] = Extractor):
@@ -160,14 +160,14 @@ class TechProcessor(ABC):
 
 
     @property
-    def flat(self):
+    def flat(self) -> pd.DataFrame:
         """
         Return flattened data, joining all outputs. Split tech detail and
         scenario into separate columns and append tech, parameter name, case and
         crp. Include financial if present. Outputs are defined in self.flat_attrs,
         but are silently skipped if value attribute value is None.
 
-        @returns {pd.DataFrame} - flat data for tech
+        @returns Flat data for tech
         """
         df_flat = pd.DataFrame() if self.df_wacc is None else self._flat_fin_assump()
 

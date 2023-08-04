@@ -3,39 +3,47 @@ Workflow to calculate debt fractions based on scraped data
 
 Developed against PySAM 4.0.0
 """
-
+from typing import TypedDict, List, Dict, Type
 import pandas as pd
+import click
+
 
 import PySAM.Levpartflip as levpartflip
 
 from lcoe_calculator.extractor import Extractor
-from lcoe_calculator.config import YEARS, FINANCIAL_CASES
-from lcoe_calculator.tech_processors import OffShoreWindProc, LandBasedWindProc,\
-    DistributedWindProc, UtilityPvProc, CommPvProc, ResPvProc, UtilityPvPlusBatteryProc,\
-    CspProc, GeothermalProc, HydropowerProc, NuclearProc, BiopowerProc
+from lcoe_calculator.config import YEARS, FINANCIAL_CASES, CrpChoiceType
+from lcoe_calculator.tech_processors import LCOE_TECHS
+from lcoe_calculator.base_processor import TechProcessor
 from lcoe_calculator.macrs import MACRS_6, MACRS_16, MACRS_21
 
-def calculate_debt_fraction(input_vals, debug=False):
-    """
-    Expected fields for dict input_values. Required unless indicated otherwise:
-        CF - capacity factor (%, 0-1)
-        OCC - overnight capital cost ($/kW)
-        CFC - construction financing cost ($/kW)
-        Fixed O&M - fixed operations and maintenance ($/kW-yr)
-        Variable O&M - variable operations and maintenance ($/Mwh)
-        DSCR - Debt service coverage ratio (unitless, typically 1-1.5)
-        Rate of Return on Equity Nominal - internal rate of return (%, 0-1)
-        Tax Rate (Federal and State) (%, 0-1)
-        Inflation Rate (%, 0-1)
-        Fuel - Fuel cost ($/MMBtu) - optional
-        Heat Rate - (MMBtu/MWh) - optional
-        Interest Rate Nominal (%, 0-1)
-        Calculated Rate of Return on Equity Real (%, 0-1)
-        ITC - Investment tax Credit, federal (%, 0-1)
-        PTC - Production tax credit, federal ($/MWh)
-        MACRS - depreciation schedule from lcoe_processor.macrs
 
-    Returns debt_fraction, float, (% 0-100)
+InputVals = TypedDict('InputVals', {
+    'CF': float,  # Capacity factor (%, 0-1)
+    'OCC': float,  # Overnight capital cost ($/kW)
+    'CFC': float,  # Construction financing cost ($/kW)
+    'Fixed O&M': float,  # Fixed operations and maintenance ($/kW-yr)
+    'Variable O&M': float,  # Variable operations and maintenance ($/Mwh)
+    'DSCR': float,  # Debt service coverage ratio (unitless, typically 1-1.5)
+    'Rate of Return on Equity Nominal': float,  # Internal rate of return (%, 0-1)
+    'Tax Rate (Federal and State)': float,  # (%, 0-1)
+    'Inflation Rate': float,  # (%, 0-1)
+    'Fuel': float,  # Fuel cost ($/MMBtu) - optional
+    'Heat Rate': float,  # (MMBtu/MWh) - optional
+    'Interest Rate Nominal': float,  # (%, 0-1)
+    'Calculated Rate of Return on Equity Real': float,  # (%, 0-1)
+    'ITC': float,  # Investment tax Credit, federal (%, 0-1)
+    'PTC': float,  # Production tax credit, federal ($/MWh)
+    'MACRS': List[float],  # Depreciation schedule from lcoe_calculator.macrs
+}, total=False)
+
+
+def calculate_debt_fraction(input_vals: InputVals, debug=False) -> float:
+    """
+    Calculate debt fraction using a single PySAM run.
+
+    @param input_vals - Input values for PySAM
+    @param debug - Print PySAM model outputs if True
+    @returns debt_fraction - Calculated debt fraction (% 0-100)
     """
     model = levpartflip.default("GenericSystemLeveragedPartnershipFlip")
 
@@ -130,7 +138,8 @@ def calculate_debt_fraction(input_vals, debug=False):
     model.value("pbi_fed_tax_fed", False)
     model.value("pbi_fed_tax_sta", False)
 
-    # Convert ATB deprecation fields to SAM depreciation. Set ITC basis equal to 100% of CAPEX in all cases
+    # Convert ATB deprecation fields to SAM depreciation. Set ITC basis equal to 100% of CAPEX in
+    # all cases.
     if input_vals["MACRS"] == MACRS_6:
         model.value("depr_alloc_macrs_5_percent", 100)
         model.value("depr_itc_fed_macrs_5", 1)
@@ -149,6 +158,10 @@ def calculate_debt_fraction(input_vals, debug=False):
         model.value("depr_alloc_sl_20_percent", 100)
         model.value("depr_itc_fed_sl_20", 1)
         model.value("depr_itc_fed_sl_20", 1)
+    else:
+        raise ValueError('MACRS is expected to be one of MACRS_6, MACRS_16, or MACRS_21. '
+                         f'Unknown value provided: {input_vals["MACRS"]}')
+
     model.value("depr_alloc_custom_percent", 0)
     model.value("depr_alloc_sl_5_percent", 0)
     model.value("depr_alloc_sl_15_percent", 0)
@@ -173,8 +186,8 @@ def calculate_debt_fraction(input_vals, debug=False):
     model.execute()
 
     if debug:
-        print(f"LCOE: {model.Outputs.lcoe_real}") #Cents / kWh - multiply by 10 to get $ / MWh
-        print(f"NPV: {model.Outputs.project_return_aftertax_npv}")
+        print(f"LCOE: {model.Outputs.lcoe_real} cents/kWh")  # multiply by 10 to get $ / MWh
+        print(f"NPV: {model.Outputs.cf_project_return_aftertax_npv}")
         print()
         print(f"IRR in target year: {model.Outputs.flip_target_irr}")
         print(f"IRR at end of project: {model.Outputs.analysis_period_irr}")
@@ -188,84 +201,105 @@ def calculate_debt_fraction(input_vals, debug=False):
         print(f"ITC {model.Outputs.itc_total_fed}")
         print(f"PTC {model.Outputs.cf_ptc_fed}")
         print(f"Debt fraction {model.Outputs.debt_fraction}")
+        print()
 
     return model.Outputs.debt_fraction
 
 
-if __name__ == "__main__":
-    # Start by running the scrape for relevant technologies
-    # Data master version on sharepoint - empty string if you haven't renamed the file
-    version_string = "_v2.90"
+tech_names = [Tech.__name__ for Tech in LCOE_TECHS]
 
-    # Path to data master spreadsheet
-    data_master_filename = "C:\\Users\\bmirletz\\Downloads\\2023_v2_Workbook_07_20_23_test.xlsx"
+@click.command
+@click.argument('data_master_filename', type=click.Path(exists=True))
+@click.argument('output_filename', type=click.Path(exists=False))
+@click.option('-t', '--tech', type=click.Choice(tech_names),
+              help="Name of technology to calculate debt fraction for. Use all techs if none are "
+              "specified. Only technologies with an LCOE may be processed.")
+@click.option('-d', '--debug', is_flag=True, default=False, help="Print debug data." )
+def calculate_all_debt_fractions(data_master_filename: str, output_filename: str, tech: str|None,
+                                 debug: bool):
+    """
+    Calculate debt fractions for one or more technologies, and all financial cases and years.
 
-    # Techs will both be scraped and have debt fractions calculated
-    techs = [
-        OffShoreWindProc, LandBasedWindProc, DistributedWindProc, UtilityPvProc, CommPvProc,
-        ResPvProc, UtilityPvPlusBatteryProc, CspProc, GeothermalProc, HydropowerProc, NuclearProc,
-        BiopowerProc
-    ]
+    DATA_MASTER_FILENAME - Path and name of ATB data master xlxs file.
+    OUTPUT_FILENAME - File to save calculated debt fractions to. Should end with .csv
+    """
+    tech_map: Dict[str, Type[TechProcessor]] = {tech.__name__: tech for tech in LCOE_TECHS}
+    techs = LCOE_TECHS if tech is None else [tech_map[tech]]
 
     df_itc, df_ptc = Extractor.get_tax_credits_sheet(data_master_filename)
 
-    crp = 20
+    crp: CrpChoiceType = 20
 
     debt_frac_dict = {}
 
-    cols = ["Technology", "Case", *YEARS] # column structure of resulting data frame
+    # column structure of resulting data frame
+    cols = ["Technology", "Case"] + [str(year) for year in YEARS]
 
-    for tech in techs:
+    for Tech in techs:
         for fin_case in FINANCIAL_CASES:
-            print("Tech ", tech.tech_name, "Fin case " , fin_case)
-            debt_fracs = [tech.tech_name, fin_case] # First two columns are metadata
+            click.echo(f"Processing tech {Tech.tech_name} and financial case {fin_case}")
+            debt_fracs = [Tech.tech_name, fin_case] # First two columns are metadata
 
-            proc = tech(data_master_filename, crp=crp, case=fin_case)
+            proc = Tech(data_master_filename, crp=crp, case=fin_case)
             proc.run()
 
             d = proc.flat
 
             # Values that are specific to the representative tech detail
-            detail_vals = d[(d.DisplayName == tech.default_tech_detail) & (d.Case == fin_case)
-                    & (d.Scenario == 'Moderate') & (d.CRPYears == 20) &
-                    ((d.Parameter == 'Fixed O&M') | (d.Parameter == 'Variable O&M')
+            detail_vals = d[
+                (d.DisplayName == Tech.default_tech_detail) & (d.Case == fin_case)
+                & (d.Scenario == 'Moderate') & (d.CRPYears == 20) &
+                (
+                    (d.Parameter == 'Fixed O&M') | (d.Parameter == 'Variable O&M')
                     | (d.Parameter == 'OCC') | (d.Parameter == 'CFC') | (d.Parameter == 'CF')
-                    | (d.Parameter == 'Heat Rate') | (d.Parameter == 'Fuel'))]
+                    | (d.Parameter == 'Heat Rate') | (d.Parameter == 'Fuel')
+                )
+            ]
 
             # Values that apply to entire technology
-            tech_vals = d[(d.Technology == tech.tech_name) & (d.CRPYears == 20) & (d.Case == fin_case) &
-                    ((d.Parameter == 'Inflation Rate') | (d.Parameter == 'Tax Rate (Federal and State)')
+            tech_vals = d[
+                (d.Technology == Tech.tech_name) & (d.CRPYears == 20) & (d.Case == fin_case) &
+                (
+                    (d.Parameter == 'Inflation Rate')
+                    | (d.Parameter == 'Tax Rate (Federal and State)')
                     | (d.Parameter == 'Calculated Rate of Return on Equity Real')
                     | (d.Parameter == 'Rate of Return on Equity Nominal')
-                    | (d.Parameter == 'Interest Rate Nominal'))]
+                    | (d.Parameter == 'Interest Rate Nominal')
+                )
+            ]
 
             for year in YEARS:
+                if debug:
+                    click.echo(f"Processing tech {Tech.tech_name}, financial case {fin_case}, "
+                               f"and year {year}")
                 input_vals = detail_vals.set_index('Parameter')[year].to_dict()
-
                 gen_vals = tech_vals.set_index('Parameter')[year].to_dict()
 
                 # Tax credits
-                if tech.has_itc and tech.has_ptc and fin_case == 'Market':
-                    input_vals["PTC"] = df_ptc.loc[tech.sheet_name][year]
-                    input_vals["ITC"] = df_itc.loc[tech.sheet_name][year]
+                if Tech.has_itc and Tech.has_ptc and fin_case == 'Market':
+                    input_vals["PTC"] = df_ptc.loc[Tech.sheet_name][year]
+                    input_vals["ITC"] = df_itc.loc[Tech.sheet_name][year]
                 else:
                     input_vals["PTC"] = 0
                     input_vals["ITC"] = 0
 
                 # Financial parameters stored in tech processor
-                input_vals["DSCR"] = tech.dscr
+                input_vals["DSCR"] = Tech.dscr
 
                 input_vals["MACRS"] = proc.get_depreciation_schedule(year)
 
                 input_vals.update(gen_vals)
 
                 #Calculate debt fraction using PySAM
-                debt_frac = calculate_debt_fraction(input_vals)
-
+                debt_frac = calculate_debt_fraction(input_vals, debug)
                 debt_frac /= 100.0
                 debt_fracs.append(debt_frac)
 
-            debt_frac_dict[tech.tech_name + fin_case] = debt_fracs
+            debt_frac_dict[proc.tech_name + fin_case] = debt_fracs
 
     debt_frac_df = pd.DataFrame.from_dict(debt_frac_dict, orient='index', columns=cols)
-    debt_frac_df.to_csv("2023_debt_fractions" + version_string + ".csv")
+    debt_frac_df.to_csv(output_filename)
+
+
+if __name__ == "__main__":
+    calculate_all_debt_fractions() # pylint: disable=no-value-for-parameter
