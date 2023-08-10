@@ -11,6 +11,7 @@ import pandas as pd
 from typing import List, Type
 
 from .config import MARKET_FIN_CASE
+from .extractor import Extractor
 from .macrs import MACRS_6, MACRS_16, MACRS_21
 from .base_processor import TechProcessor
 
@@ -20,8 +21,6 @@ class OffShoreWindProc(TechProcessor):
     sheet_name = 'Offshore Wind'
     tech_life = 30
     num_tds = 14
-    has_ptc = True
-    has_itc = True
     default_tech_detail = 'Offshore Wind - Class 3'
     dscr = 1.4
 
@@ -31,8 +30,6 @@ class LandBasedWindProc(TechProcessor):
     sheet_name = 'Land-Based Wind'
     tech_life = 30
     num_tds = 10
-    has_ptc = True
-    has_itc = True
     default_tech_detail = 'Land-Based Wind - Class 4 - Technology 1'
     dscr = 1.4
 
@@ -42,8 +39,6 @@ class DistributedWindProc(TechProcessor):
     sheet_name = 'Distributed Wind'
     tech_life = 30
     num_tds = 40
-    has_ptc = True
-    has_itc = True
     default_tech_detail = 'Midsize DW - Class 4'
     dscr = 1.4
 
@@ -52,8 +47,6 @@ class UtilityPvProc(TechProcessor):
     tech_life = 30
     sheet_name = 'Solar - Utility PV'
     num_tds = 10
-    has_ptc = True
-    has_itc = True
     default_tech_detail = 'Utility PV - Class 5'
     dscr = 1.3
 
@@ -62,8 +55,6 @@ class CommPvProc(TechProcessor):
     tech_life = 30
     sheet_name = 'Solar - PV Dist. Comm'
     num_tds = 10
-    has_ptc = True
-    has_itc = True
     default_tech_detail = 'Commercial PV - Class 5'
     dscr = 1.3
 
@@ -73,8 +64,6 @@ class ResPvProc(TechProcessor):
     tech_life = 30
     sheet_name = 'Solar - PV Dist. Res'
     num_tds = 10
-    has_ptc = True
-    has_itc = True
     default_tech_detail = 'Residential PV - Class 5'
     dscr = 1.3
 
@@ -83,8 +72,6 @@ class UtilityPvPlusBatteryProc(TechProcessor):
     tech_life = 30
     sheet_name = 'Utility-Scale PV-Plus-Battery'
     num_tds = 10
-    has_ptc = True
-    has_itc = True
     default_tech_detail = 'PV+Storage - Class 5'
     dscr = 1.3
 
@@ -137,8 +124,6 @@ class CspProc(TechProcessor):
     tech_life = 30
     sheet_name = 'Solar - CSP'
     num_tds = 3
-    has_ptc = True
-    has_itc = True
     default_tech_detail = 'CSP - Class 2'
     dscr = 1.45
 
@@ -147,18 +132,17 @@ class GeothermalProc(TechProcessor):
     sheet_name = 'Geothermal'
     tech_life = 30
     num_tds = 6
-    has_ptc = True
-    has_itc = True
     default_tech_detail = 'Geothermal - Hydro / Flash'
     dscr = 1.45
 
     @classmethod
-    def load_cff(cls, extractor, cff_name: str, index: pd.Index, return_short_df=False):
+    def load_cff(cls, extractor: Extractor, cff_name: str, index: pd.Index,
+                 return_short_df=False) -> pd.DataFrame:
         """
         Special Geothermal code to load CFF and duplicate for tech details. Geothermal has
         6 rows of CFF instead of the normal 3.
 
-        @param {Extractor} extractor - spreadsheet extractor instance
+        @param extractor - workbook extractor instance
         @param cff_name - name of CFF data in SS
         @param index - Index of a "normal" data frame for this tech to use for df_cff
         @param return_short_df - return original 6 row data frame if True
@@ -187,8 +171,6 @@ class HydropowerProc(TechProcessor):
     sheet_name = 'Hydropower'
     tech_life = 100
     num_tds = 12
-    has_ptc = True
-    has_itc = True
     split_metrics = True
     default_tech_detail = 'Hydropower - NPD 1'
     dscr = 1.50
@@ -205,8 +187,6 @@ class PumpedStorageHydroProc(TechProcessor):
     wacc_name = 'Hydropower'  # Use hydropower WACC values for pumped storage
     tech_life = 100
     num_tds = 15
-    has_ptc = False
-    has_itc = False
     has_tax_credit = False
     has_lcoe = False
 
@@ -252,8 +232,6 @@ class CoalProc(TechProcessor):
 
     sheet_name = 'Coal_FE'
     num_tds = 4
-    has_ptc = False
-    has_itc = False
     has_tax_credit = False
     has_lcoe = False
     default_tech_detail = 'Coal-95%-CCS'
@@ -285,8 +263,6 @@ class NaturalGasProc(TechProcessor):
     ]
     sheet_name = 'Natural Gas_FE'
     num_tds = 7
-    has_ptc = False
-    has_itc = False
     has_tax_credit = False
     has_lcoe = False
     default_tech_detail = 'NG F-Frame CC 95% CCS'
@@ -318,8 +294,6 @@ class NaturalGasFuelCellProc(TechProcessor):
     ]
     sheet_name = 'Natural Gas Fuel Cell_FE'
     num_tds = 2
-    has_ptc = False
-    has_itc = False
     has_tax_credit = False
     has_wacc = False
     has_lcoe = False
@@ -339,7 +313,6 @@ class CoalRetrofitProc(TechProcessor):
     has_lcoe = False
     has_capex = False
     has_fin_assump = False
-    has_tax_credit = False
 
     metrics = [
         ('Heat Rate (MMBtu/MWh)', 'df_hr'),
@@ -361,8 +334,6 @@ class CoalRetrofitProc(TechProcessor):
 
     sheet_name = 'Coal_Retrofits'
     num_tds = 2
-    has_ptc = False
-    has_itc = False
     has_tax_credit = False
 
 
@@ -374,7 +345,6 @@ class NaturalGasRetrofitProc(TechProcessor):
     has_lcoe = False
     has_capex = False
     has_fin_assump = False
-    has_tax_credit = False
 
     metrics = [
         ('Heat Rate (MMBtu/MWh)', 'df_hr'),
@@ -396,8 +366,6 @@ class NaturalGasRetrofitProc(TechProcessor):
 
     sheet_name = 'Natural Gas_Retrofits'
     num_tds = 4
-    has_ptc = False
-    has_itc = False
     has_tax_credit = False
 
 
@@ -407,8 +375,6 @@ class NuclearProc(TechProcessor):
     sheet_name = 'Nuclear'
     num_tds = 2
     scenarios = ['Moderate', 'Conservative']
-    has_ptc = True
-    has_itc = True
     default_tech_detail = 'Nuclear - AP1000'
     dscr = 1.45
 
@@ -444,7 +410,8 @@ class NuclearProc(TechProcessor):
         # scenarios in TechProcessor._calc_crf()
         assert self.scenarios == ['Moderate', 'Conservative']
         df_crf = super()._calc_crf()
-        df_crf = df_crf[(df_crf.index == 'Capital Recovery Factor (CRF) Real - Moderate') | (df_crf.index == 'Capital Recovery Factor (CRF) Real - Conservative')]
+        df_crf = df_crf[(df_crf.index == 'Capital Recovery Factor (CRF) Real - Moderate')
+                        | (df_crf.index == 'Capital Recovery Factor (CRF) Real - Conservative')]
         return df_crf
 
     def _calc_lcoe(self):
@@ -466,8 +433,6 @@ class BiopowerProc(TechProcessor):
     tech_life = 45
     sheet_name = 'Biopower'
     num_tds = 1
-    has_ptc = True
-    has_itc = True
     default_tech_detail = 'Biopower - Dedicated'
     dscr = 1.45
 
@@ -512,9 +477,9 @@ class AbstractBatteryProc(TechProcessor):
     has_lcoe = False
     has_capex = False
     has_fin_assump = False
+
+    # This is false because the ATB does not calculate LCOS (batteries can receive the ITC).
     has_tax_credit = False
-    has_ptc = True
-    has_itc = True
 
     metrics = [
         ('Overnight Capital Cost ($/kW)', 'df_occ'),

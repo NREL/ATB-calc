@@ -5,7 +5,7 @@
 # (see https://github.com/NREL/ATB-calc).
 #
 """
-Extract values from the data master and save to the tests data directory.
+Extract values from the data workbook and save to the tests data directory.
 """
 from typing import Dict, Type
 import click
@@ -18,18 +18,18 @@ from lcoe_calculator.config import FINANCIAL_CASES, LCOE_SS_NAME, CAPEX_SS_NAME,
 from .data_finder import DataFinder, FIN_ASSUMP_FAKE_SS_NAME, WACC_FAKE_SS_NAME,\
       JUST_WACC_FAKE_SS_NAME, TAX_CREDIT_FAKE_SS_NAME
 
-# Use extractor to pull values from data master and save as CSV
-def extract_data_for_crp_case(data_master_fname: str, tech: Type[TechProcessor], case: str,
+# Use extractor to pull values from data workbook and save as CSV
+def extract_data_for_crp_case(data_workbook_fname: str, tech: Type[TechProcessor], case: str,
                               crp: CrpChoiceType):
     """
-    Extract data from ATB data master spreadsheet for a tech and save as CSV.
+    Extract data from ATB data workbook for a tech and save as CSV.
 
-    @param data_master_fname - file name and path to ATB data master
+    @param data_workbook_fname - file name and path to ATB data workbook
     @param tech - tech processor class to extract data for
     @param case - name of desired financial case
     @param crp - name of desired CRP
     """
-    extractor = Extractor(data_master_fname, tech.sheet_name, case, crp,
+    extractor = Extractor(data_workbook_fname, tech.sheet_name, case, crp,
                           tech.scenarios, base_year=tech.base_year)
 
     metrics = list(tech.metrics)
@@ -82,7 +82,7 @@ tech_names = [tech.__name__ for tech in ALL_TECHS]
 def extract(filename: str, tech: str|None):
     """
     Extract test data for one or more techs for all CRPs and financial cases. Data will be extracted
-    from the data master spreadsheet FILENAME and saved as CSV for testing.
+    from the Excel ATB data workbook FILENAME and saved as CSV for testing.
     """
     tech_map: Dict[str, Type[TechProcessor]] = {tech.__name__: tech for tech in ALL_TECHS}
 

@@ -23,23 +23,23 @@ class TechProcessor(ABC):
     """
     Base abstract tech-processor class. This must be sub-classed to be used. See tech_processors.py
     for examples.  Various class vars like sheet_name must be over-written by sub-classes, things
-    like tech_life can be as needed. Functions for _capex(), _con_fin_cost(), etc can be
+    like tech_life can be as needed. Functions for _calc_capex(), _con_fin_cost(), etc can be
     over-written as needed, e.g. Geothermal.
 
     Notable methods:
 
-    __init__() - Constructor. Various class attribute sanity checks and loads data from spreadsheet.
+    __init__() - Various class attribute sanity checks and loads data from the workbook.
     run() - Perform all calcs to determine CAPEX and LCOE.
     flat - (property) Convert fin assumptions and values in flat_attrs to a flat DataFrame
-    test_lcoe() - Compare calculated LCOE to LCOE in spreadsheet.
-    test_capex() - Compare calculated CAPEX to CAPEX in spreadsheet.
+    test_lcoe() - Compare calculated LCOE to LCOE in workbook.
+    test_capex() - Compare calculated CAPEX to CAPEX in workbook.
     """
 
     # ----------- These attributes must be set for each tech --------------
     @property
     @abstractmethod
     def sheet_name(self) -> str:
-        """ Name of the sheet in the excel data master """
+        """ Name of the sheet in the excel data workbook """
 
     @property
     @abstractmethod
@@ -68,11 +68,8 @@ class TechProcessor(ABC):
     scenarios = SCENARIOS
     base_year: int = BASE_YEAR
 
-    has_ptc = True  # Does the tech quality for a Production Tax Credit?
-    has_itc = True  # Does the tech qualify for an Investment Tax Credit?
-    has_tax_credit = True  # Does the tech have tax credits in spread sheet
-    has_fin_assump = True  # Does the tech have financial assumptions in spread sheet
-
+    has_tax_credit = True  # Does the tech have tax credits in the workbook
+    has_fin_assump = True  # Does the tech have financial assumptions in the workbook
 
     wacc_name: str|None = None  # Name of tech to look for on WACC sheet, use sheet name if None
     has_wacc = True  # If True, pull values from WACC sheet.
@@ -84,6 +81,7 @@ class TechProcessor(ABC):
     # Attributes to export in flat file, format: (attr name in class, value for
     # flat file). Any attributes that are None are silently ignored. Financial
     # assumptions values are added automatically.
+    # See https://atb.nrel.gov/electricity/2023/acronyms or below for acronym definitions
     flat_attrs: List[Tuple[str, str]] = [
         ('df_ncf', 'CF'),
         ('df_occ', 'OCC'),
@@ -98,12 +96,12 @@ class TechProcessor(ABC):
     # Variables used by the debt fraction calculator. Should be filled out for any tech
     # where self.has_lcoe == True.
     default_tech_detail: str|None = None
-    dscr: float|None = None # Debt service coverage ratio (unitless, typically 1-1.5)
+    dscr: float|None = None  # Debt service coverage ratio (unitless, typically 1-1.5)
 
-    def __init__(self, data_master_fname: str, case: str = MARKET_FIN_CASE,
+    def __init__(self, data_workbook_fname: str, case: str = MARKET_FIN_CASE,
                  crp: CrpChoiceType = 30, extractor: Type[AbstractExtractor] = Extractor):
         """
-        @param data_master_fname - name of spreadsheet
+        @param data_workbook_fname - name of workbook
         @param case - financial case to run: 'Market' or 'R&D'
         @param crp - capital recovery period: 20, 30, or 'TechLife'
         @param extractor - Extractor class to use to obtain source data.
@@ -120,7 +118,7 @@ class TechProcessor(ABC):
             if self.dscr is None:
                 raise ValueError('dscr must be set if has_lcoe is True.')
 
-        self._data_master_fname = data_master_fname
+        self._data_workbook_fname = data_workbook_fname
         self._case = case
         self._crp = crp
         self._crp_years = self.tech_life if crp == 'TechLife' else crp
@@ -221,7 +219,7 @@ class TechProcessor(ABC):
 
     def test_lcoe(self):
         """
-        Test calculated LCOE against values in spreadsheet. Raise exception
+        Test calculated LCOE against values in workbook. Raise exception
         if there is a discrepancy.
         """
         if not self.has_lcoe:
@@ -235,15 +233,15 @@ class TechProcessor(ABC):
         assert not self.df_lcoe.isnull().any().any(),\
             f'Error in calculated LCOE, found missing values: {self.df_lcoe}'
         assert not self.ss_lcoe.isnull().any().any(),\
-            f'Error in LCOE from spreadsheet, found missing values: {self.ss_lcoe}'
+            f'Error in LCOE from workbook, found missing values: {self.ss_lcoe}'
 
         if np.allclose(np.array(self.df_lcoe, dtype=float),
                        np.array(self.ss_lcoe, dtype=float)):
-            print('Calculated LCOE matches LCOE from spreadsheet')
+            print('Calculated LCOE matches LCOE from workbook')
         else:
-            msg = f'Calculated LCOE doesn\'t match LCOE from spreadsheet for {self.sheet_name}'
+            msg = f'Calculated LCOE doesn\'t match LCOE from workbook for {self.sheet_name}'
             print(msg)
-            print("Spreadsheet LCOE:")
+            print("Workbook LCOE:")
             print(self.ss_lcoe)
             print("DF LCOE:")
             print(self.df_lcoe)
@@ -251,7 +249,7 @@ class TechProcessor(ABC):
 
     def test_capex(self):
         """
-        Test calculated CAPEX against values in spreadsheet. Raise exception
+        Test calculated CAPEX against values in workbook. Raise exception
         if there is a discrepancy.
         """
         if not self.has_capex:
@@ -265,12 +263,12 @@ class TechProcessor(ABC):
         assert not self.df_capex.isnull().any().any(),\
             f'Error in calculated CAPEX, found missing values: {self.df_capex}'
         assert not self.ss_capex.isnull().any().any(),\
-            f'Error in CAPEX from spreadsheet, found missing values: {self.ss_capex}'
+            f'Error in CAPEX from workbook, found missing values: {self.ss_capex}'
         if np.allclose(np.array(self.df_capex, dtype=float),
                        np.array(self.ss_capex, dtype=float)):
-            print('Calculated CAPEX matches CAPEX from spreadsheet')
+            print('Calculated CAPEX matches CAPEX from workbook')
         else:
-            raise ValueError('Calculated CAPEX doesn\'t match CAPEX from spreadsheet')
+            raise ValueError('Calculated CAPEX doesn\'t match CAPEX from workbook')
 
     def _flat_fin_assump(self):
         """
@@ -331,11 +329,11 @@ class TechProcessor(ABC):
         return crf, fcr
 
     def _extract_data(self):
-        """ Pull all data from spread sheet """
+        """ Pull all data from the workbook """
         crp_msg = self._crp if self._crp != 'TechLife' else  f'TechLife ({self.tech_life})'
 
         print(f'Loading data from {self.sheet_name}, for {self._case} and {crp_msg}')
-        extractor = self._ExtractorClass(self._data_master_fname, self.sheet_name,
+        extractor = self._ExtractorClass(self._data_workbook_fname, self.sheet_name,
                               self._case, self._crp, self.scenarios, self.base_year)
 
         print('\tLoading metrics')
@@ -350,7 +348,7 @@ class TechProcessor(ABC):
             setattr(self, var_name, temp)
 
         if self.has_tax_credit:
-                self.df_tc = extractor.get_tax_credits()
+            self.df_tc = extractor.get_tax_credits()
 
         # Pull financial assumptions from small table at top of tech sheet
         print('\tLoading assumptions')
@@ -368,10 +366,10 @@ class TechProcessor(ABC):
     def load_cff(cls, extractor: Extractor, cff_name: str, index: pd.Index,
                  return_short_df=False) -> pd.DataFrame:
         """
-        Load CFF data from spreadsheet and duplicate for all tech details. This method is
+        Load CFF data from workbook and duplicate for all tech details. This method is
         a little weird due to testing needs.
 
-        @param extractor - spreadsheet extractor instance
+        @param extractor - workbook extractor instance
         @param cff_name - name of CFF data in SS
         @param index - Index of a "normal" data frame for this tech to use for df_cff
         @param return_short_df - return original 3 row data frame if True
@@ -432,7 +430,7 @@ class TechProcessor(ABC):
         @param {str} itc_type - type of ITC to search for (used for utility PV + batt)
         @returns {np.ndarray|int} - array of ITC values or 0
         """
-        if self.has_itc:
+        if self.has_tax_credit:
             itc_index = f'ITC Schedule{itc_type}/*'
             assert itc_index in self.df_tc.index, ('ITC schedule not found in '
                 f'tax credit data. Looking for "{itc_index}" in:\n{self.df_tc}')
@@ -498,7 +496,7 @@ class TechProcessor(ABC):
 
         @returns {np.ndarray|int} - array of PTC values or 0
         """
-        if self.has_ptc:
+        if self.has_tax_credit:
             df_tax_credit = self.df_tc.reset_index()
             df_ptc = df_tax_credit.loc[df_tax_credit['Tax Credit'].str.contains('PTC/', na=False)]
 

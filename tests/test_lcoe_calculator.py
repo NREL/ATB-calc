@@ -27,7 +27,7 @@ def test_lcoe_and_capex_calculations():
             for crp in CRP_CHOICES:
                 DataFinder.set_tech(Tech)
 
-                proc: TechProcessor = Tech('fake_path_to_data_master.xlsx', case=case, crp=crp,
+                proc: TechProcessor = Tech('fake_path_to_data_workbook.xlsx', case=case, crp=crp,
                                            extractor=MockExtractor)
                 proc.run()
 
@@ -44,7 +44,7 @@ def test_lcoe_and_capex_calculations():
                     assert not df.isnull().any().any()
 
                 # Compare python calculated CAPEX and LCOE to values originally calculated in the
-                # spreadsheet.
+                # workbook.
                 if proc.has_capex:
                     proc.test_capex()
                     assert not proc.df_capex.isnull().any().any()

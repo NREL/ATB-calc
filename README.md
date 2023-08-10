@@ -3,12 +3,14 @@
 Python files and Jupyter notebooks for processing the Annual Technology Baseline (ATB) electricity data and determining LCOE and other metrics. All documentation and data for the ATB is available at the [ATB website](https://atb.nrel.gov).
 
 ## Installation and Requirements
-The pipeline requires [Python](https://www.python.org) 3.10 or newer. Dependancies can be installed using `pip`: **TODO possibly include note about installing jupyter**
-
+The pipeline requires [Python](https://www.python.org) 3.10 or newer. Dependancies can be installed using `pip`: 
 
 ```
 $ pip install -r requirements.txt
 ```
+
+Note that some examples may require additional dependencies such as Jupyter. See the README files in individual
+directories for specifics.
 
 Once Python and all dependancies are installed the installation can be tested by running:
 
@@ -16,33 +18,33 @@ Once Python and all dependancies are installed the installation can be tested by
 $ pytest
 ```
 
-Tests take about a minute and should complete without errors. The ATB pipeline uses [xlwings](https://www.xlwings.org/) for accessing the ATB data spreadsheet and requires a copy of Microsoft Excel. Currently the full pipeline will only run on MacOS and Windows. Linux support may be added in the future.
+Tests take about a minute and should complete without errors. The ATB pipeline uses [xlwings](https://www.xlwings.org/) for accessing the ATB data workbook and requires a copy of Microsoft Excel. Currently the full pipeline will only run on MacOS and Windows. Linux support may be added in the future.
 
 ## Running the ATB Electricity Pipeline
 Running the pipeline requires downloaded the most current data in `xlsx` format from the
 [ATB website](https://atb.nrel.gov). The pipeline may be ran for one or all ATB electricity technologies.
 Data may be exported in several formats. Below are several example workflows. It is assumed that all
-commands are run from the root directory of the repository. In the examples `{PATH-TO-DATA-MASTER}`
-is the path and filename to the ATB electricity data master `xlsx` file.
+commands are run from the root directory of the repository. In the examples `{PATH-TO-DATA-WORKBOOK}`
+is the path and filename to the ATB electricity data workbook `xlsx` file.
 
 Process all techs and export to a flat file named `flat_file.csv`:
 
 ```
-$ python -m lcoe_calculator.full_scrape --save-flat flat_file.csv {PATH-TO-DATA-MASTER}
+$ python -m lcoe_calculator.full_scrape --save-flat flat_file.csv {PATH-TO-DATA-WORKBOOK}
 ```
 
 Process only land-based wind and export pivoted data and meta data:
 
 ```
 $ python -m lcoe_calculator.full_scrape --tech LandBasedWindProc \
-	--save-pivoted pivoted_file.csv --save-meta meta_file.csv {PATH-TO-DATA-MASTER}
+	--save-pivoted pivoted_file.csv --save-meta meta_file.csv {PATH-TO-DATA-WORKBOOK}
 ```
 
 Process only pumped storage hydropower and copy data to the clipboard so it may be pasted into a spreadsheet:
 
 ```
 $ python -m lcoe_calculator.full_scrape --tech PumpedStorageHydroProc \
-	--clipboard {PATH-TO-DATA-MASTER}
+	--clipboard {PATH-TO-DATA-WORKBOOK}
 ```
 
 Help for the scraper and the names of available technologies can be viewed by running:
@@ -57,11 +59,11 @@ debt fractions for one or all ATB technologies. To calculate debt fractions for 
 the following from the repository root directory:
 
 ```
-$ python -m  debt_fraction_calculator.debt_fraction_calc {PATH-TO-DATA-MASTER} \
+$ python -m  debt_fraction_calculator.debt_fraction_calc {PATH-TO-DATA-WORKBOOK} \
 	{OUTPUT-CSV-FILE}
 ```
 
-where `{PATH-TO-DATA-MASTER}` is the path and filename of the ATB data master spreadsheet, and
+where `{PATH-TO-DATA-WORKBOOK}` is the path and filename of the ATB data workbook, and
 `{OUTPUT-CSV-FILE}` is the name of the `csv` file to create with the calculated debt fractions.
 
 Debt fractions can also be calculated for a single ATB technology if desired. The below command will
@@ -69,7 +71,7 @@ calculate debt fractions for land-based wind:
 
 ```
 $ python -m debt_fraction_calculator.debt_fraction_calc --tech LandBasedWindProc \
-	{PATH-TO-DATA-MASTER} {OUTPUT-CSV-FILE}
+	{PATH-TO-DATA-WORKBOOK} {OUTPUT-CSV-FILE}
 ```
 
 All options for the debt calculator can be viewed with:
@@ -96,9 +98,9 @@ $ jupyter-notebook
 in the root repository directory.
 
 ## Notable Directories
-- `./lcoe_calculator` Extract technology metrics from the data master `xlsx` file and calculate LCOE
+- `./lcoe_calculator` Extract technology metrics from the data workbook `xlsx` file and calculate LCOE
 using Python.
-- `./debt_fraction_calculator` Given data and assumptions in the data master xlsx file, calculate
+- `./debt_fraction_calculator` Given data and assumptions in the data workbook xlsx file, calculate
 debt fractions using PySAM.
 - `./example_notebooks` Example Jupyter notebooks showing how to perform various operations.
 - `./tests` Tests for code in this repository.

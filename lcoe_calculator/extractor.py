@@ -5,8 +5,8 @@
 # (see https://github.com/NREL/ATB-calc).
 #
 """
-Extract financial assumptions, metrics, and WACC from Excel data master. The xlwings package
-is used to change CRP and the financial case in the spreadsheet and rerun calculations before
+Extract financial assumptions, metrics, and WACC from Excel data workbook. The xlwings package
+is used to change CRP and the financial case in the workbook and rerun calculations before
 pulling values.
 """
 from typing import List, Tuple
@@ -24,15 +24,15 @@ NUM_WACC_PARMS = 24  # Number of rows of data for each tech in WACC Calc sheet
 
 class Extractor(AbstractExtractor):
     """
-    Extract financial assumptions, metrics, and WACC from Excel data master.
+    Extract financial assumptions, metrics, and WACC from Excel data workbook.
     """
     wacc_sheet = 'WACC Calc'
     tax_credits_sheet = 'Tax Credits'
 
-    def __init__(self, data_master_fname: str, sheet_name: str, case: str, crp: CrpChoiceType,
+    def __init__(self, data_workbook_fname: str, sheet_name: str, case: str, crp: CrpChoiceType,
                  scenarios: List[str], base_year: int):
         """
-        @param data_master_fname - file name of data master
+        @param data_workbook_fname - file name of data workbook
         @param sheet_name - name of sheet to process
         @param case - 'Market' or 'R&D'
         @param crp - capital recovery period: 20, 30, or 'TechLife'
@@ -40,21 +40,21 @@ class Extractor(AbstractExtractor):
         @param base_year - first year of data for this technology
         """
 
-        self._dm_fname = data_master_fname
+        self._data_workbook_fname = data_workbook_fname
         self.sheet_name = sheet_name
         assert case in FINANCIAL_CASES, f'Financial case "{case}" is not known'
         self._case = case
         self.scenarios = scenarios
         self.base_year = base_year
 
-        # Open spreadsheet, set fin case and CRP, and save
-        wb = xw.Book(data_master_fname)
+        # Open workbook, set fin case and CRP, and save
+        wb = xw.Book(data_workbook_fname)
         sheet = wb.sheets['Financial and CRP Inputs']
         sheet.range('B5').value = case
         sheet.range('E5').value = crp
         wb.save()
 
-        df = pd.read_excel(data_master_fname, sheet_name=sheet_name)
+        df = pd.read_excel(data_workbook_fname, sheet_name=sheet_name)
         df = df.reset_index()
         # Give columns numerical names
         columns = {x:y for x,y in zip(df.columns,range(0,len(df.columns)))}
@@ -68,16 +68,16 @@ class Extractor(AbstractExtractor):
         self._df_tech_full = df.loc[tables_start_row:tables_end_row]
 
     @classmethod
-    def get_tax_credits_sheet(cls, data_master_fname):
+    def get_tax_credits_sheet(cls, data_workbook_fname):
         """
         Pull tax credits from the Tax Credits sheet. It is assumed there is one empty row
         between ITC and PTC data.
 
-        @param {str} data_master_fname - file name of data master
+        @param {str} data_workbook_fname - file name of data workbook
         @returns {pd.DataFrame, pd.DataFrame} df_itc, df_ptc - data frames of
             itc and ptc data.
         """
-        df_tc = pd.read_excel(data_master_fname, sheet_name=cls.tax_credits_sheet)
+        df_tc = pd.read_excel(data_workbook_fname, sheet_name=cls.tax_credits_sheet)
         df_tc = df_tc.reset_index()
 
         # Give columns numerical names
@@ -132,7 +132,7 @@ class Extractor(AbstractExtractor):
         @returns df_just_wacc - last six rows of wacc sheet, 'WACC Nominal - {scenario}' and 'WACC
                                 Real - {scenario}'
         """
-        df_wacc = pd.read_excel(self._dm_fname, self.wacc_sheet)
+        df_wacc = pd.read_excel(self._data_workbook_fname, self.wacc_sheet)
         case = 'Market Factors' if self._case == 'Market' else 'R&D'
         tech_name = self.sheet_name if tech_name is None else tech_name
         search = f'{tech_name} {case}'
@@ -148,7 +148,7 @@ class Extractor(AbstractExtractor):
         # Grab the rows, reset index and columns
         df_wacc = df_wacc.iloc[start_row:start_row + NUM_WACC_PARMS + 1]
         df_wacc = df_wacc.set_index('Unnamed: 1')
-        df_wacc.columns = df_wacc.iloc[0]
+        df_wacc.columns = pd.Index(df_wacc.iloc[0])
 
         # Drop empty columns and first row w/ years
         df_wacc = df_wacc.dropna(axis=1, how='any').drop(df_wacc.index[0])
@@ -163,8 +163,8 @@ class Extractor(AbstractExtractor):
         assert idx[0] == 'Inflation Rate' and idx[-1] == 'WACC Real - Conservative', \
             ('"Inflation Rate" should be the first row in the WACC table and '
              f'"WACC Real - Conservative" should be last, but "{idx[0]}" and '
-             f'"{idx[-1]}" were found instead. Please check the data master '
-             f'spreadsheet and NUM_WACC_PARAMS.')
+             f'"{idx[-1]}" were found instead. Please check the data workbook '
+             f'and NUM_WACC_PARAMS.')
 
         cols = df_wacc.columns
         assert cols[0] == YEARS[0], f'WACC: First year should be {YEARS[0]}, got {cols[0]} instead'
@@ -198,7 +198,7 @@ class Extractor(AbstractExtractor):
 
         df_fin_assump = pd.DataFrame(self._df.loc[r1 + 1:r2, c])
         df_fin_assump['Value'] = self._df.loc[r1 + 1:r2, c + FIN_ASSUMP_COL]
-        df_fin_assump.columns = headers
+        df_fin_assump.columns = pd.Index(headers)
         df_fin_assump = df_fin_assump.set_index('Financial Assumptions')
 
         assert not df_fin_assump.isnull().any().any(),\

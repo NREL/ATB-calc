@@ -51,9 +51,10 @@ def calculate_debt_fraction(input_vals: InputVals, debug=False) -> float:
     @param debug - Print PySAM model outputs if True
     @returns debt_fraction - Calculated debt fraction (% 0-100)
     """
+    # Partnership flip with debt (tax-equity financing)
     model = levpartflip.default("GenericSystemLeveragedPartnershipFlip")
 
-    # Values required for computation. Additional input values used directly in model.value calls
+    # Values required for computation. Set to pysam using model.value() calls below
     analysis_period = 20
     ac_capacity = 1000 # kW
     capacity_factor = input_vals["CF"]
@@ -74,12 +75,11 @@ def calculate_debt_fraction(input_vals: InputVals, debug=False) -> float:
 
     degradation = 0.0 # ATB presents average capactity factors, so zero out degradation
 
+    # Setting PySAM variables. See https://nrel-pysam.readthedocs.io/en/main/modules/Levpartflip.html for docs
     model.value("analysis_period", analysis_period)
     model.value("flip_target_year", analysis_period)
     model.value("gen", gen)
-    #model.value("system_pre_curtailment_kwac", gen)
     model.value("system_capacity", ac_capacity)
-    #model.value("cp_system_nameplate", ac_capacity / 1000)
     model.value("total_installed_cost", initial_investment)
 
     ## Single Owner will apply the O&M cost to each year, so no need to multiply by analysis period
@@ -136,7 +136,7 @@ def calculate_debt_fraction(input_vals: InputVals, debug=False) -> float:
     model.value("itc_sta_amount", [0])
     model.value("ptc_fed_amount", [input_vals["PTC"] / 1000]) # Convert $/MWh to $/kWh
 
-    # Production based incentive code to test treating the tax credits as available for debt service
+    # Production based incentive code to test treating the tax credits as available for debt service, currently unused
     model.value("pbi_fed_amount", [0])
     model.value("pbi_fed_term", 0)
     model.value("pbi_fed_escal", 2.5)
@@ -168,6 +168,7 @@ def calculate_debt_fraction(input_vals: InputVals, debug=False) -> float:
         raise ValueError('MACRS is expected to be one of MACRS_6, MACRS_16, or MACRS_21. '
                          f'Unknown value provided: {input_vals["MACRS"]}')
 
+    # Turn off unused depreciation features
     model.value("depr_alloc_custom_percent", 0)
     model.value("depr_alloc_sl_5_percent", 0)
     model.value("depr_alloc_sl_15_percent", 0)
@@ -182,8 +183,8 @@ def calculate_debt_fraction(input_vals: InputVals, debug=False) -> float:
     model.value("depr_fedbas_method", 0)
     model.value("depr_stabas_method", 0)
 
-    model.value("ppa_soln_mode", 0)
-    model.value("payment_option", 0)
+    model.value("ppa_soln_mode", 0) # Solve for PPA price given IRR
+    model.value("payment_option", 0) # Equal payments (standard amoritization)
 
     # Required for calculate PPA price.
     # Default is $0.045/kWh. However given the way we've set up gen, this will never be used
@@ -215,24 +216,24 @@ def calculate_debt_fraction(input_vals: InputVals, debug=False) -> float:
 tech_names = [Tech.__name__ for Tech in LCOE_TECHS]
 
 @click.command
-@click.argument('data_master_filename', type=click.Path(exists=True))
+@click.argument('data_workbook_filename', type=click.Path(exists=True))
 @click.argument('output_filename', type=click.Path(exists=False))
 @click.option('-t', '--tech', type=click.Choice(tech_names),
               help="Name of technology to calculate debt fraction for. Use all techs if none are "
               "specified. Only technologies with an LCOE may be processed.")
 @click.option('-d', '--debug', is_flag=True, default=False, help="Print debug data." )
-def calculate_all_debt_fractions(data_master_filename: str, output_filename: str, tech: str|None,
+def calculate_all_debt_fractions(data_workbook_filename: str, output_filename: str, tech: str|None,
                                  debug: bool):
     """
     Calculate debt fractions for one or more technologies, and all financial cases and years.
 
-    DATA_MASTER_FILENAME - Path and name of ATB data master xlxs file.
+    DATA_WORKBOOK_FILENAME - Path and name of ATB data workbook XLXS file.
     OUTPUT_FILENAME - File to save calculated debt fractions to. Should end with .csv
     """
     tech_map: Dict[str, Type[TechProcessor]] = {tech.__name__: tech for tech in LCOE_TECHS}
     techs = LCOE_TECHS if tech is None else [tech_map[tech]]
 
-    df_itc, df_ptc = Extractor.get_tax_credits_sheet(data_master_filename)
+    df_itc, df_ptc = Extractor.get_tax_credits_sheet(data_workbook_filename)
 
     crp: CrpChoiceType = 20
 
@@ -246,7 +247,7 @@ def calculate_all_debt_fractions(data_master_filename: str, output_filename: str
             click.echo(f"Processing tech {Tech.tech_name} and financial case {fin_case}")
             debt_fracs = [Tech.tech_name, fin_case] # First two columns are metadata
 
-            proc = Tech(data_master_filename, crp=crp, case=fin_case)
+            proc = Tech(data_workbook_filename, crp=crp, case=fin_case)
             proc.run()
 
             d = proc.flat
@@ -282,7 +283,7 @@ def calculate_all_debt_fractions(data_master_filename: str, output_filename: str
                 gen_vals = tech_vals.set_index('Parameter')[year].to_dict()
 
                 # Tax credits
-                if Tech.has_itc and Tech.has_ptc and fin_case == 'Market':
+                if Tech.has_tax_credit and fin_case == 'Market':
                     input_vals["PTC"] = df_ptc.loc[Tech.sheet_name][year]
                     input_vals["ITC"] = df_itc.loc[Tech.sheet_name][year]
                 else:

@@ -9,7 +9,7 @@ Config and constants for the LCOE pipeline.
 """
 from typing import Literal, List
 
-# Years of data predicted by ATB
+# Years of data projected by ATB
 BASE_YEAR = 2021
 YEARS = list(range(BASE_YEAR, 2051 , 1))
 
@@ -25,10 +25,10 @@ CRP_CHOICES: List[CrpChoiceType] = [20, 30, 'TechLife']
 # Technology advancement scenarios
 SCENARIOS = ['Advanced', 'Moderate', 'Conservative']
 
-# Column name for combined tech detail name and scenario, aka Column K in spreadsheet
+# Column name for combined tech detail name and scenario, aka Column K in the workbook
 TECH_DETAIL_SCENARIO_COL = 'tech_detail-scenario'
 
-# Metric header names in data master spreadsheet
+# Metric header names in ATB data workbook
 LCOE_SS_NAME = 'Levelized Cost of Energy ($/MWh)'
 CAPEX_SS_NAME = 'CAPEX ($/kW)'
 CFF_SS_NAME = 'Construction Finance Factor'

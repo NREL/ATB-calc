@@ -18,7 +18,7 @@ from .data_finder import DataFinder, TAX_CREDIT_FAKE_SS_NAME, WACC_FAKE_SS_NAME,
 class MockExtractor(AbstractExtractor):
     """
     Mock data extractor for testing. Loads all data from ./data directory instead of from data
-    master spreadsheet.
+    workbook.
 
     The DataFinder class must be initialized with DataFinder.set_tech() and the TechProcessor class
     before MockExtractor is used to to load data from the data directory.
@@ -27,7 +27,7 @@ class MockExtractor(AbstractExtractor):
     def __init__(self, _: str, __: str, case: str, crp: CrpChoiceType, ___: List[int],
                  ____: int):
         """
-        @param data_master_fname - IGNORED
+        @param data_workbook_fname - IGNORED
         @param sheet_name - IGNORED
         @param case - 'Market' or 'R&D'
         @param crp - capital recovery period: 20, 30, or 'TechLife'

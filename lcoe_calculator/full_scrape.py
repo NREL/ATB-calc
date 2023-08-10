@@ -5,7 +5,7 @@
 # (see https://github.com/NREL/ATB-calc).
 #
 """
-Scrape ATB data master and calculate all metrics.
+Scrape ATB data workbook and calculate all metrics.
 """
 from typing import List, Dict, Type
 from datetime import datetime as dt
@@ -13,18 +13,18 @@ import click
 import pandas as pd
 
 from .tech_processors import ALL_TECHS
-from .base_processor import CRP_CHOICES, TechProcessor
-from .config import FINANCIAL_CASES, CrpChoiceType
+from .base_processor import TechProcessor
+from .config import FINANCIAL_CASES, CRP_CHOICES, CrpChoiceType
 
 class FullScrape:
     """
-    Scrape data master and calculate LCOE for techs, CRPs, and financial
+    Scrape data workbook and calculate LCOE for techs, CRPs, and financial
     scenarios.
     """
-    def __init__(self, data_master_fname: str,
+    def __init__(self, data_workbook_fname: str,
                  techs: List[Type[TechProcessor]]|Type[TechProcessor]):
         """
-        @param data_master_fname - name of spreadsheet
+        @param data_workbook_fname - name of workbook
         @param techs - one or more techs to run
         """
         if not isinstance(techs, list):
@@ -34,7 +34,7 @@ class FullScrape:
         self.meta = pd.DataFrame()  # Meta data from scrape
 
         self._techs = techs
-        self._fname = data_master_fname
+        self._fname = data_workbook_fname
 
     def scrape(self, test_capex: bool = True, test_lcoe: bool = True):
         """ Scrap all techs """
@@ -102,7 +102,7 @@ class FullScrape:
 tech_names = [Tech.__name__ for Tech in ALL_TECHS]
 
 @click.command
-@click.argument('data_master_filename', type=click.Path(exists=True))
+@click.argument('data_workbook_filename', type=click.Path(exists=True))
 @click.option('-t', '--tech', type=click.Choice(tech_names),
               help="Name of tech to scrape. Scrape all techs if none are specified.")
 @click.option('-m', '--save-meta', 'meta_file', type=click.Path(),
@@ -113,17 +113,17 @@ tech_names = [Tech.__name__ for Tech in ALL_TECHS]
               help="Save data in pivoted format to CSV.")
 @click.option('-c', '--clipboard', is_flag=True, default=False,
               help="Copy data to system clipboard.")
-def run_scrape(data_master_filename: str, tech: str|None, meta_file: str|None, flat_file: str|None,
+def run_scrape(data_workbook_filename: str, tech: str|None, meta_file: str|None, flat_file: str|None,
                pivoted_file: str|None, clipboard: bool):
     """
-    CLI to scrape ATB data master spreadsheet and calculate metrics.
+    CLI to scrape ATB data workbook and calculate metrics.
     """
     tech_map: Dict[str, Type[TechProcessor]] = {tech.__name__: tech for tech in ALL_TECHS}
 
     techs = ALL_TECHS if tech is None else [tech_map[tech]]
 
     start_dt = dt.now()
-    scraper = FullScrape(data_master_filename, techs)
+    scraper = FullScrape(data_workbook_filename, techs)
     scraper.scrape()
     click.echo(f'Scrape completed in {dt.now()-start_dt}.')
 

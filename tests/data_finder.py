@@ -22,8 +22,8 @@ from lcoe_calculator.config import LCOE_SS_NAME, CAPEX_SS_NAME, CrpChoiceType
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
 
-# These metrics do not have real headers in the data master spreadsheet. Create fake ones so
-# data can be stored for testing purposes
+# These metrics do not have real headers in the data workbook. Create fake ones so data can be
+# stored for testing purposes.
 FIN_ASSUMP_FAKE_SS_NAME = 'financial assumptions'
 WACC_FAKE_SS_NAME = 'wacc'
 JUST_WACC_FAKE_SS_NAME = 'just wacc'
@@ -58,7 +58,7 @@ class DataFinder:
         """
         assert cls._tech is not None, 'The TechProcessor must be set first with set_tech().'
 
-        # Create a lookup table between fancy long names in the spreadsheet and names to use for the
+        # Create a lookup table between fancy long names in the workbook and names to use for the
         # data files. This table partially borrows from the metrics list.
         metric_lookup = list(cls._tech.metrics)
         metric_lookup += [
