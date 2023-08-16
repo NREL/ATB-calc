@@ -18,7 +18,7 @@ from .config import FINANCIAL_CASES, CRP_CHOICES
 
 class ProcessAll:
     """
-    Scrape data workbook and calculate LCOE for techs, CRPs, and financial
+    Extract data from ATB workbook and calculate LCOE for techs, CRPs, and financial
     scenarios.
     """
     def __init__(self, data_workbook_fname: str,
