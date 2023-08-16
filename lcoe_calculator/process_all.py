@@ -5,7 +5,7 @@
 # (see https://github.com/NREL/ATB-calc).
 #
 """
-Scrape ATB data workbook and calculate all metrics.
+Process all (or some) ATB technologies and calculate all metrics.
 """
 from typing import List, Dict, Type
 from datetime import datetime as dt
@@ -14,9 +14,9 @@ import pandas as pd
 
 from .tech_processors import ALL_TECHS
 from .base_processor import TechProcessor
-from .config import FINANCIAL_CASES, CRP_CHOICES, CrpChoiceType
+from .config import FINANCIAL_CASES, CRP_CHOICES
 
-class FullScrape:
+class ProcessAll:
     """
     Scrape data workbook and calculate LCOE for techs, CRPs, and financial
     scenarios.
@@ -30,16 +30,16 @@ class FullScrape:
         if not isinstance(techs, list):
             techs = [techs]
 
-        self.data = pd.DataFrame()  # Flat data from scrape
-        self.meta = pd.DataFrame()  # Meta data from scrape
+        self.data = pd.DataFrame()  # Flat data
+        self.meta = pd.DataFrame()  # Meta data
 
         self._techs = techs
         self._fname = data_workbook_fname
 
-    def scrape(self, test_capex: bool = True, test_lcoe: bool = True):
-        """ Scrap all techs """
-        self.data = pd.DataFrame()  # Flat data from scrape
-        self.meta = pd.DataFrame()  # Meta data from scrape
+    def process(self, test_capex: bool = True, test_lcoe: bool = True):
+        """ Process all techs """
+        self.data = pd.DataFrame()
+        self.meta = pd.DataFrame()
 
         for i, Tech in enumerate(self._techs):
             print(f'##### Processing {Tech.tech_name} ({i+1}/{len(self._techs)}) #####')
@@ -72,7 +72,7 @@ class FullScrape:
     def data_flattened(self):
         """ Get flat data pivoted with each year as a row """
         if self.data is None:
-            raise ValueError('Please run scrape() first')
+            raise ValueError('Please run process() first')
 
         melted = pd.melt(self.data, id_vars=['Parameter', 'Case', 'CRPYears',
                                              'Technology', 'DisplayName', 'Scenario'])
@@ -81,20 +81,20 @@ class FullScrape:
     def to_csv(self, fname: str):
         """ Write data to CSV """
         if self.data is None:
-            raise ValueError('Please run scrape() first')
+            raise ValueError('Please run process() first')
 
         self.data.to_csv(fname)
 
     def flat_to_csv(self, fname: str):
         """ Write pivoted data to CSV """
         if self.data is None:
-            raise ValueError('Please run scrape() first')
+            raise ValueError('Please run process() first')
         self.data_flattened.to_csv(fname)
 
     def meta_data_to_csv(self, fname: str):
         """ Write meta data to CSV """
         if self.data is None:
-            raise ValueError('Please run scrape() first')
+            raise ValueError('Please run process() first')
 
         self.meta.to_csv(fname)
 
@@ -104,7 +104,7 @@ tech_names = [Tech.__name__ for Tech in ALL_TECHS]
 @click.command
 @click.argument('data_workbook_filename', type=click.Path(exists=True))
 @click.option('-t', '--tech', type=click.Choice(tech_names),
-              help="Name of tech to scrape. Scrape all techs if none are specified.")
+              help="Name of tech to process. Process all techs if none are specified.")
 @click.option('-m', '--save-meta', 'meta_file', type=click.Path(),
               help="Save meta data to CSV.")
 @click.option('-f', '--save-flat', 'flat_file', type=click.Path(),
@@ -113,36 +113,36 @@ tech_names = [Tech.__name__ for Tech in ALL_TECHS]
               help="Save data in pivoted format to CSV.")
 @click.option('-c', '--clipboard', is_flag=True, default=False,
               help="Copy data to system clipboard.")
-def run_scrape(data_workbook_filename: str, tech: str|None, meta_file: str|None, flat_file: str|None,
+def process(data_workbook_filename: str, tech: str|None, meta_file: str|None, flat_file: str|None,
                pivoted_file: str|None, clipboard: bool):
     """
-    CLI to scrape ATB data workbook and calculate metrics.
+    CLI to process ATB data workbook and calculate metrics.
     """
     tech_map: Dict[str, Type[TechProcessor]] = {tech.__name__: tech for tech in ALL_TECHS}
 
     techs = ALL_TECHS if tech is None else [tech_map[tech]]
 
     start_dt = dt.now()
-    scraper = FullScrape(data_workbook_filename, techs)
-    scraper.scrape()
-    click.echo(f'Scrape completed in {dt.now()-start_dt}.')
+    processor = ProcessAll(data_workbook_filename, techs)
+    processor.process()
+    click.echo(f'Processing completed in {dt.now()-start_dt}.')
 
     if meta_file:
         click.echo(f'Writing meta data to {meta_file}.')
-        scraper.meta_data_to_csv(meta_file)
+        processor.meta_data_to_csv(meta_file)
 
     if flat_file:
         click.echo(f'Writing flat data to {flat_file}.')
-        scraper.flat_to_csv(flat_file)
+        processor.flat_to_csv(flat_file)
 
     if pivoted_file:
         click.echo(f'Writing pivoted data to {pivoted_file}.')
-        scraper.to_csv(pivoted_file)
+        processor.to_csv(pivoted_file)
 
     if clipboard:
         click.echo('Data was copied to clipboard.')
-        scraper.data.to_clipboard()
+        processor.data.to_clipboard()
 
 
 if __name__ == '__main__':
-    run_scrape()  # pylint: disable=no-value-for-parameter
+    process()  # pylint: disable=no-value-for-parameter

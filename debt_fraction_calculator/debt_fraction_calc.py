@@ -5,14 +5,13 @@
 # (see https://github.com/NREL/ATB-calc).
 #
 """
-Workflow to calculate debt fractions based on scraped data
+Workflow to calculate debt fractions based on ATB data
 
 Developed against PySAM 4.0.0
 """
 from typing import TypedDict, List, Dict, Type
 import pandas as pd
 import click
-
 
 import PySAM.Levpartflip as levpartflip
 
