@@ -3,7 +3,7 @@
 Python files and Jupyter notebooks for processing the Annual Technology Baseline (ATB) electricity data and determining LCOE and other metrics. All documentation and data for the ATB is available at the [ATB website](https://atb.nrel.gov).
 
 ## Installation and Requirements
-The pipeline requires [Python](https://www.python.org) 3.10 or newer. Dependancies can be installed using `pip`: 
+The pipeline requires [Python](https://www.python.org) 3.10 or newer. Dependancies can be installed using `pip`:
 
 ```
 $ pip install -r requirements.txt
@@ -30,27 +30,27 @@ is the path and filename to the ATB electricity data workbook `xlsx` file.
 Process all techs and export to a flat file named `flat_file.csv`:
 
 ```
-$ python -m lcoe_calculator.full_scrape --save-flat flat_file.csv {PATH-TO-DATA-WORKBOOK}
+$ python -m lcoe_calculator.process_all --save-flat flat_file.csv {PATH-TO-DATA-WORKBOOK}
 ```
 
 Process only land-based wind and export pivoted data and meta data:
 
 ```
-$ python -m lcoe_calculator.full_scrape --tech LandBasedWindProc \
+$ python -m lcoe_calculator.process_all --tech LandBasedWindProc \
 	--save-pivoted pivoted_file.csv --save-meta meta_file.csv {PATH-TO-DATA-WORKBOOK}
 ```
 
 Process only pumped storage hydropower and copy data to the clipboard so it may be pasted into a spreadsheet:
 
 ```
-$ python -m lcoe_calculator.full_scrape --tech PumpedStorageHydroProc \
+$ python -m lcoe_calculator.process_all --tech PumpedStorageHydroProc \
 	--clipboard {PATH-TO-DATA-WORKBOOK}
 ```
 
-Help for the scraper and the names of available technologies can be viewed by running:
+Help for the processor and the names of available technologies can be viewed by running:
 
 ```
-$ python -m lcoe_calculator.full_scrape --help
+$ python -m lcoe_calculator.process_all --help
 ```
 
 ## Debt Fraction Calculator

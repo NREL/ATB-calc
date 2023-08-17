@@ -5,10 +5,10 @@
 # (see https://github.com/NREL/ATB-calc).
 #
 """
-Individual tech scrapers. See documentation in base_processor.py.
+Individual tech processors. See documentation in base_processor.py.
 """
-import pandas as pd
 from typing import List, Type
+import pandas as pd
 
 from .config import MARKET_FIN_CASE
 from .extractor import Extractor
