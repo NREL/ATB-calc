@@ -15,6 +15,11 @@ The Jupyter server can then be started by running:
 $ jupyter-notebook
 ```
 
+The examples also require matplotlib which can be installed with 
+```
+$ pip install matplotlib
+```
+
 ## Notebooks
 * `Full work flow.ipynb` Run the ATB pipeline for multiple technologies and extract the data.
 * `Process ATB electricity technology.ipynb` Run the ATB pipeline for an individual technology.
