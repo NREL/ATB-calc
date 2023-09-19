@@ -104,3 +104,8 @@ using Python.
 debt fractions using PySAM.
 - `./example_notebooks` Example Jupyter notebooks showing how to perform various operations.
 - `./tests` Tests for code in this repository.
+
+## Citing this package
+Mirletz, Brian, Bannister, Michael, Vimmerstedt, Laura, Stright, Dana, and Heine, Matthew.
+"ATB-calc (Annual Technology Baseline Calculators) [SWR-23-60]." Computer software. August 02, 2023.
+https://github.com/NREL/ATB-calc. https://doi.org/10.11578/dc.20230914.2.
