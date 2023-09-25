@@ -1,4 +1,4 @@
-# Annual Technology Baseline Electricity Data Processing Pipeline
+# Annual Technology Baseline Calculators (ATB-calc)
 
 Python files and Jupyter notebooks for processing the Annual Technology Baseline (ATB) electricity data and determining LCOE and other metrics. All documentation and data for the ATB is available at the [ATB website](https://atb.nrel.gov).
 
