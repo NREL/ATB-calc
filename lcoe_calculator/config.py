@@ -10,7 +10,7 @@ Config and constants for the LCOE pipeline.
 from typing import Literal, List
 
 # Years of data projected by ATB
-BASE_YEAR = 2021
+BASE_YEAR = 2022
 YEARS = list(range(BASE_YEAR, 2051 , 1))
 
 # Financial cases
