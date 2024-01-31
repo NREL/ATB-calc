@@ -262,7 +262,7 @@ class NaturalGasProc(TechProcessor):
         ('df_capex', 'CAPEX'),
     ]
     sheet_name = 'Natural Gas_FE'
-    num_tds = 7
+    num_tds = 10
     has_tax_credit = False
     has_lcoe = False
     default_tech_detail = 'NG F-Frame CC 95% CCS'
@@ -374,7 +374,6 @@ class NuclearProc(TechProcessor):
     tech_life = 60
     sheet_name = 'Nuclear'
     num_tds = 2
-    scenarios = ['Moderate', 'Conservative']
     default_tech_detail = 'Nuclear - AP1000'
     dscr = 1.45
 
@@ -401,18 +400,6 @@ class NuclearProc(TechProcessor):
         ('df_fuel_costs_mwh', 'Fuel'),
         ('df_hr', 'Heat Rate'),
     ]
-
-    def _calc_crf(self):
-        """
-        Nuclear only has two scenarios, extract the correct CRF.
-        """
-        # TODO - automatically determine numeber of CRFs needed for tech
-        # scenarios in TechProcessor._calc_crf()
-        assert self.scenarios == ['Moderate', 'Conservative']
-        df_crf = super()._calc_crf()
-        df_crf = df_crf[(df_crf.index == 'Capital Recovery Factor (CRF) Real - Moderate')
-                        | (df_crf.index == 'Capital Recovery Factor (CRF) Real - Conservative')]
-        return df_crf
 
     def _calc_lcoe(self):
         """ Include fuel costs in LCOE """
