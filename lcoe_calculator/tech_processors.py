@@ -382,6 +382,18 @@ class NuclearProc(TechProcessor):
         ('df_hr', 'Heat Rate'),
     ]
 
+    def load_cff(cls, extractor: Extractor, cff_name: str, index: pd.Index,
+                 return_short_df=False) -> pd.DataFrame:
+        """
+        Load CFF data from workbook. Nuclear has a unique CFF for each tech detail,
+        so this function removes the tech detail duplication code from BaseProcessor.
+        """
+        df_cff = extractor.get_cff(cff_name, len(cls.scenarios) * cls.num_tds)
+        # Rename CFF index to match other tech details
+        df_cff.index = index
+
+        return df_cff
+
     def _calc_lcoe(self):
         """ Include fuel costs in LCOE """
         # pylint: disable=no-member,attribute-defined-outside-init
@@ -487,6 +499,7 @@ ALL_TECHS: List[Type[TechProcessor]]= [
     OffShoreWindProc, LandBasedWindProc, DistributedWindProc,
     UtilityPvProc, CommPvProc, ResPvProc, UtilityPvPlusBatteryProc,
     CspProc, GeothermalProc, HydropowerProc, PumpedStorageHydroProc,
+    PumpedStorageHydroOneResProc,
     CoalProc, NaturalGasProc, NuclearProc, BiopowerProc,
     UtilityBatteryProc, CommBatteryProc, ResBatteryProc,
     CoalRetrofitProc, NaturalGasRetrofitProc, NaturalGasFuelCellProc
