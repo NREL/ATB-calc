@@ -196,6 +196,7 @@ class PumpedStorageHydroProc(TechProcessor):
         ('df_fom', 'Fixed O&M'),
         ('df_vom', 'Variable O&M'),
         ('df_cfc', 'CFC'),
+        ('df_capex', 'CAPEX'),
     ]
 
     metrics = [
@@ -206,6 +207,9 @@ class PumpedStorageHydroProc(TechProcessor):
         ('Construction Finance Factor', 'df_cff'),
     ]
 
+class PumpedStorageHydroOneResProc(PumpedStorageHydroProc):
+    sheet_name = 'PSH One New Res.'
+    num_tds = 5
 
 class CoalProc(TechProcessor):
     tech_name = 'Coal_FE'
@@ -270,37 +274,14 @@ class NaturalGasProc(TechProcessor):
     _depreciation_schedule = MACRS_21
 
 
-class NaturalGasFuelCellProc(TechProcessor):
-    tech_name = 'NaturalGas_FE'
-    tech_life = 55
-
-    metrics = [
-        ('Heat Rate (MMBtu/MWh)', 'df_hr'),
-        ('Overnight Capital Cost ($/kW)', 'df_occ'),
-        ('Grid Connection Costs (GCC) ($/kW)', 'df_gcc'),
-        ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
-        ('Variable Operation and Maintenance Expenses ($/MWh)', 'df_vom'),
-        ('Construction Finance Factor', 'df_cff'),
-    ]
-
-    flat_attrs = [
-        ('df_hr', 'Heat Rate'),
-        ('df_occ', 'OCC'),
-        ('df_gcc', 'GCC'),
-        ('df_fom', 'Fixed O&M'),
-        ('df_vom', 'Variable O&M'),
-        ('df_cfc', 'CFC'),
-        ('df_capex', 'CAPEX'),
-    ]
+class NaturalGasFuelCellProc(NaturalGasProc):
     sheet_name = 'Natural Gas Fuel Cell_FE'
     num_tds = 2
-    has_tax_credit = False
     has_wacc = False
     has_lcoe = False
     has_fin_assump = False
     default_tech_detail = 'NG Fuel Cell Max CCS'
-    dscr = 1.45
-    _depreciation_schedule = MACRS_21
+    
     scenarios = ['Moderate', 'Advanced']
     base_year = 2035
 
