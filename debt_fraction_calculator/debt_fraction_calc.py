@@ -18,6 +18,7 @@ import PySAM.Levpartflip as levpartflip
 from lcoe_calculator.extractor import Extractor
 from lcoe_calculator.config import YEARS, FINANCIAL_CASES, CrpChoiceType
 from lcoe_calculator.tech_processors import LCOE_TECHS
+import lcoe_calculator.tech_processors
 from lcoe_calculator.base_processor import TechProcessor
 from lcoe_calculator.macrs import MACRS_6, MACRS_16, MACRS_21
 
@@ -230,7 +231,7 @@ def calculate_all_debt_fractions(data_workbook_filename: str, output_filename: s
     OUTPUT_FILENAME - File to save calculated debt fractions to. Should end with .csv
     """
     tech_map: Dict[str, Type[TechProcessor]] = {tech.__name__: tech for tech in LCOE_TECHS}
-    techs = LCOE_TECHS if tech is None else [tech_map[tech]]
+    techs = [lcoe_calculator.tech_processors.UtilityPvPlusBatteryProc]
 
     df_itc, df_ptc = Extractor.get_tax_credits_sheet(data_workbook_filename)
 
@@ -281,10 +282,25 @@ def calculate_all_debt_fractions(data_workbook_filename: str, output_filename: s
                 input_vals = detail_vals.set_index('Parameter')[year].to_dict()
                 gen_vals = tech_vals.set_index('Parameter')[year].to_dict()
 
-                # Tax credits
+                # Tax credits - assumes each tech has one PTC or one ITC
                 if Tech.has_tax_credit and fin_case == 'Market':
-                    input_vals["PTC"] = df_ptc.loc[Tech.sheet_name][year]
-                    input_vals["ITC"] = df_itc.loc[Tech.sheet_name][year]
+                    if Tech.sheet_name == "Utility-Scale PV-Plus-Battery":
+                        # TODO: figure out a way to read this out of the spreadsheet
+                        if False:
+                            
+                            ncf = proc.df_ncf.loc[Tech.default_tech_detail + '/Moderate'][year]
+                            pvcf = proc.df_pvcf.loc[Tech.default_tech_detail + '/Moderate'][year]
+
+                            batt_occ_percent = proc.df_batt_cost * proc.CO_LOCATION_SAVINGS / proc.df_occ
+
+                            input_vals["PTC"] = df_ptc.loc[Tech.sheet_name][year] * min(ncf / pvcf, 1.0)
+                            input_vals["ITC"] = df_itc.loc[Tech.sheet_name][year] * batt_occ_percent.loc[Tech.default_tech_detail + '/Moderate'][year]
+                        else:
+                            input_vals["PTC"] = 0
+                            input_vals["ITC"] = df_itc.loc[Tech.sheet_name][year]
+                    else:
+                        input_vals["PTC"] = df_ptc.loc[Tech.sheet_name][year]
+                        input_vals["ITC"] = df_itc.loc[Tech.sheet_name][year]
                 else:
                     input_vals["PTC"] = 0
                     input_vals["ITC"] = 0
