@@ -88,13 +88,18 @@ class UtilityPvPlusBatteryProc(TechProcessor):
         ('PV System Cost ($/kW)', 'df_pv_cost'),
         ('Battery Storage  Cost ($/kW)', 'df_batt_cost'),
         ('Construction Finance Factor', 'df_cff'),
+        ('PV-only Capacity Factor (%)','df_pvcf')
     ]
+
+# TODO: do you need to add flat_attrs here to get PV+Battery to export PV-only capacity factor for the debt faction calculator? 
 
     def _calc_lcoe(self):
         batt_charge_frac = self.df_fin.loc['Fraction of Battery Energy Charged from PV (75% to 100%)', 'Value']
         grid_charge_cost = self.df_fin.loc['Average Cost of Battery Energy Charged from Grid ($/MWh)', 'Value']
 
         ptc = self._calc_ptc()
+        ptc_cf_adj = self.df_pvcf / self.df_ncf
+        ptc_cf_adj = ptc_cf_adj.clip(upper=1.0) # account for RTE losses at 100% grid charging (might need to make equation above better)
 
         fcr_pv = pd.concat([self.df_crf.values * self.df_pff_pv] * self.num_tds).values
         fcr_batt = pd.concat([self.df_crf.values * self.df_pff_batt] * self.num_tds).values
@@ -104,7 +109,7 @@ class UtilityPvPlusBatteryProc(TechProcessor):
                        + self.df_fom
         df_lcoe = (df_lcoe_part * 1000 / self.df_aep)\
                   + self.df_vom\
-                  + (1 - batt_charge_frac) * grid_charge_cost / self.GRID_ROUNDTRIP_EFF - ptc
+                  + (1 - batt_charge_frac) * grid_charge_cost / self.GRID_ROUNDTRIP_EFF - ptc * ptc_cf_adj
 
         return df_lcoe
 

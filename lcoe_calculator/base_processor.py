@@ -134,6 +134,7 @@ class TechProcessor(ABC):
         self.df_just_wacc = None  # Last six rows of WACC table
         self.df_hrp = None # Heat Rate Penalty (% change), retrofits only
         self.df_nop = None # Net Output Penalty (% change), retrofits only
+        self.df_pvcf = None # PV-only capacity factor (%), PV-plus-battery only
 
         # These data frames are calculated and populated by object methods
         self.df_aep = None  # Annual energy production (kWh/kW)
