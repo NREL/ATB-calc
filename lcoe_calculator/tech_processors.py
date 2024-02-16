@@ -113,6 +113,9 @@ class UtilityPvPlusBatteryProc(TechProcessor):
 
         return df_lcoe
 
+    def _get_tax_credit_case(self):
+        return "PTC + ITC"
+
     def run(self):
         """ Run all calculations """
         self.df_aep = self._calc_aep()

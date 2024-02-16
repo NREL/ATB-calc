@@ -195,8 +195,9 @@ class TechProcessor(ABC):
         df_flat['Technology'] = self.tech_name
         df_flat['Case'] = case
         df_flat['CRPYears'] = self._crp_years
+        df_flat['TaxCreditCase'] = self._get_tax_credit_case()
 
-        new_cols = ['Parameter', 'Case', 'CRPYears', 'Technology', 'DisplayName',
+        new_cols = ['Parameter', 'Case', 'TaxCreditCase', 'CRPYears', 'Technology', 'DisplayName',
                     'Scenario'] + list(old_cols)
         df_flat = df_flat[new_cols]
         df_flat = df_flat.drop(TECH_DETAIL_SCENARIO_COL, axis=1).reset_index(drop=True)
@@ -526,3 +527,30 @@ class TechProcessor(ABC):
         df_lcoe = df_lcoe + self.df_vom.values - ptc
 
         return df_lcoe
+    
+    def _get_tax_credit_case(self):
+        if self.has_tax_credit:
+            assert len(self.df_tc) > 0, \
+                (f'Setup df_tc with extractor.get_tax_credits() before calling this function!')
+
+            ptc = self._calc_ptc()
+            itc = self._calc_itc()
+
+            # Trim the first year to eliminate pre-inflation reduction act confusion
+            ptc = ptc[:, 1:]
+            itc = itc[1:]
+            
+            ptc_sum = np.sum(ptc)
+            itc_sum = np.sum(itc)
+            
+            if ptc_sum > 0 and itc_sum > 0:
+                return "PTC + ITC"
+            elif ptc_sum > 0:
+                return "PTC"
+            elif itc_sum > 0:
+                return "ITC"
+            else:
+                return "None"
+
+        else:
+            return "None"

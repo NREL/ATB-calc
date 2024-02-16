@@ -286,7 +286,7 @@ def calculate_all_debt_fractions(data_workbook_filename: str, output_filename: s
                 if Tech.has_tax_credit and fin_case == 'Market':
                     if Tech.sheet_name == "Utility-Scale PV-Plus-Battery":
                         # TODO: figure out a way to read this out of the spreadsheet
-                        if False:
+                        if True and year > 2022:
                             
                             ncf = proc.df_ncf.loc[Tech.default_tech_detail + '/Moderate'][year]
                             pvcf = proc.df_pvcf.loc[Tech.default_tech_detail + '/Moderate'][year]
