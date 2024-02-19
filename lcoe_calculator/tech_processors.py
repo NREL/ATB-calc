@@ -243,7 +243,7 @@ class CoalProc(TechProcessor):
     ]
 
     sheet_name = 'Coal_FE'
-    num_tds = 4
+    num_tds = 5
     has_tax_credit = False
     has_lcoe = False
     default_tech_detail = 'Coal-95%-CCS'
