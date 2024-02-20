@@ -33,7 +33,7 @@ class MockExtractor(AbstractExtractor):
         @param crp - capital recovery period: 20, 30, or 'TechLife'
         @param scenarios - IGNORED
         @param base_year - IGNORED
-        @param tax_credit_case - IGNORED
+        @param tax_credit_case - IGNORED, only used by PV+Battery
         """
         self._case = case
         self._crp = crp
