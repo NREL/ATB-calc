@@ -14,7 +14,7 @@ import pandas as pd
 
 from .tech_processors import ALL_TECHS
 from .base_processor import TechProcessor
-from .config import FINANCIAL_CASES, CRP_CHOICES
+from .config import FINANCIAL_CASES, MARKET_FIN_CASE, CRP_CHOICES, CrpChoiceType, TAX_CREDIT_CASES
 
 class ProcessAll:
     """
@@ -36,6 +36,20 @@ class ProcessAll:
         self._techs = techs
         self._fname = data_workbook_fname
 
+    def _run_tech(self, Tech: TechProcessor, crp: CrpChoiceType, case : str, tcc: str, test_capex, test_lcoe):
+        proc = Tech(self._fname, crp=crp, case=case, tcc=tcc)
+        proc.run()
+
+        if test_capex:
+            proc.test_capex()
+        if test_lcoe:
+            proc.test_lcoe()
+
+        flat = proc.flat
+        self.data = pd.concat([self.data, flat])
+
+        return proc
+
     def process(self, test_capex: bool = True, test_lcoe: bool = True):
         """ Process all techs """
         self.data = pd.DataFrame()
@@ -44,22 +58,19 @@ class ProcessAll:
         for i, Tech in enumerate(self._techs):
             print(f'##### Processing {Tech.tech_name} ({i+1}/{len(self._techs)}) #####')
 
+            proc = None
             for crp in CRP_CHOICES:
                 # skip TechLife if 20 or 30 so we don't duplicate effort
                 if crp == 'TechLife' and Tech.tech_life in CRP_CHOICES:
                     continue
 
                 for case in FINANCIAL_CASES:
-                    proc = Tech(self._fname, crp=crp, case=case)
-                    proc.run()
-
-                    if test_capex:
-                        proc.test_capex()
-                    if test_lcoe:
-                        proc.test_lcoe()
-
-                    flat = proc.flat
-                    self.data = pd.concat([self.data, flat])
+                    if case is MARKET_FIN_CASE and Tech.tech_name in TAX_CREDIT_CASES:
+                        tax_cases = TAX_CREDIT_CASES[Tech.tech_name]
+                        for tc in tax_cases:
+                            proc = self._run_tech(Tech, crp, case, tc, test_capex, test_lcoe)
+                    else:
+                        proc = self._run_tech(Tech, crp, case, None, test_capex, test_lcoe)
 
             meta = proc.get_meta_data()
             meta['Tech Name'] = Tech.tech_name

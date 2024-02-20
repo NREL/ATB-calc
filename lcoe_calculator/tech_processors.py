@@ -8,10 +8,14 @@
 Individual tech processors. See documentation in base_processor.py.
 """
 from typing import List, Type
+import numpy as np
 import pandas as pd
 
-from .config import MARKET_FIN_CASE
+from lcoe_calculator.abstract_extractor import AbstractExtractor
+
+from .config import MARKET_FIN_CASE, CrpChoiceType
 from .extractor import Extractor
+from .tech_extractors import PVBatteryExtractor
 from .macrs import MACRS_6, MACRS_16, MACRS_21
 from .base_processor import TechProcessor
 
@@ -91,7 +95,8 @@ class UtilityPvPlusBatteryProc(TechProcessor):
         ('PV-only Capacity Factor (%)','df_pvcf')
     ]
 
-# TODO: do you need to add flat_attrs here to get PV+Battery to export PV-only capacity factor for the debt faction calculator? 
+    def __init__(self, data_workbook_fname: str, case: str = MARKET_FIN_CASE, crp: CrpChoiceType = 30, tcc : str = "PV PTC and Battery ITC", extractor: type[AbstractExtractor] = PVBatteryExtractor):
+        super().__init__(data_workbook_fname, case, crp, tcc, extractor)
 
     def _calc_lcoe(self):
         batt_charge_frac = self.df_fin.loc['Fraction of Battery Energy Charged from PV (75% to 100%)', 'Value']
@@ -113,8 +118,65 @@ class UtilityPvPlusBatteryProc(TechProcessor):
 
         return df_lcoe
 
+    def _extract_data(self):
+        """ Pull all data from the workbook """
+        crp_msg = self._crp if self._crp != 'TechLife' else  f'TechLife ({self.tech_life})'
+
+        print(f'Loading data from {self.sheet_name}, for {self._case} and {crp_msg}')
+        extractor = self._ExtractorClass(self._data_workbook_fname, self.sheet_name,
+                              self._case, self._crp, self.scenarios, self.base_year,
+                              self._tax_credit_case)
+
+        print('\tLoading metrics')
+        for metric, var_name in self.metrics:
+            if var_name == 'df_cff':
+                # Grab DF index from another value to use in full CFF DF
+                index = getattr(self, self.metrics[0][1]).index
+                self.df_cff = self.load_cff(extractor, metric, index)
+                continue
+
+            temp = extractor.get_metric_values(metric, self.num_tds, self.split_metrics)
+            setattr(self, var_name, temp)
+
+        if self.has_tax_credit:
+            self.df_tc = extractor.get_tax_credits()
+
+        # Pull financial assumptions from small table at top of tech sheet
+        print('\tLoading assumptions')
+        if self.has_fin_assump:
+            self.df_fin = extractor.get_fin_assump()
+
+        if self.has_wacc:
+            print('\tLoading WACC data')
+            self.df_wacc, self.df_just_wacc = extractor.get_wacc(self.wacc_name)
+
+        print('\tDone loading data')
+        return extractor
+
     def _get_tax_credit_case(self):
-        return "PTC + ITC"
+        assert len(self.df_tc) > 0, \
+            (f'Setup df_tc with extractor.get_tax_credits() before calling this function!')
+
+        ptc = self._calc_ptc()
+        # Battery always takes ITC, so PV determines the case
+        itc = self._calc_itc(itc_type=' - PV')
+
+        # Trim the first year to eliminate pre-inflation reduction act confusion
+        ptc = ptc[:, 1:]
+        itc = itc[1:]
+        
+        ptc_sum = np.sum(ptc)
+        itc_sum = np.sum(itc)
+        
+        if ptc_sum > 0 and itc_sum > 0:
+            return "PTC + ITC"
+        elif ptc_sum > 0:
+            return "PTC"
+        elif itc_sum > 0:
+            return "ITC"
+        else:
+            return "None"
+
 
     def run(self):
         """ Run all calculations """

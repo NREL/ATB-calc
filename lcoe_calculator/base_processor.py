@@ -99,7 +99,7 @@ class TechProcessor(ABC):
     dscr: float|None = None  # Debt service coverage ratio (unitless, typically 1-1.5)
 
     def __init__(self, data_workbook_fname: str, case: str = MARKET_FIN_CASE,
-                 crp: CrpChoiceType = 30, extractor: Type[AbstractExtractor] = Extractor):
+                 crp: CrpChoiceType = 30, tcc : str = None, extractor: Type[AbstractExtractor] = Extractor):
         """
         @param data_workbook_fname - name of workbook
         @param case - financial case to run: 'Market' or 'R&D'
@@ -122,6 +122,7 @@ class TechProcessor(ABC):
         self._case = case
         self._crp = crp
         self._crp_years = self.tech_life if crp == 'TechLife' else crp
+        self. _tax_credit_case = tcc
 
         # These data frames are extracted from excel
         self.df_ncf = None  # Net capacity factor (%)
