@@ -29,7 +29,7 @@ def extract_data_for_crp_case(data_workbook_fname: str, tech: Type[TechProcessor
     @param case - name of desired financial case
     @param crp - name of desired CRP
     """
-    extractor = Extractor(data_workbook_fname, tech.sheet_name, case, crp,
+    extractor = Extractor(data_workbook_fname, str(tech.sheet_name), case, crp,
                           tech.scenarios, base_year=tech.base_year)
 
     metrics = list(tech.metrics)
