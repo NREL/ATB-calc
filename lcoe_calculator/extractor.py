@@ -30,7 +30,7 @@ class Extractor(AbstractExtractor):
     tax_credits_sheet = 'Tax Credits'
 
     def __init__(self, data_workbook_fname: str, sheet_name: str, case: str, crp: CrpChoiceType,
-                 scenarios: List[str], base_year: int):
+                 scenarios: List[str], base_year: int, tax_credit_case : str = None):
         """
         @param data_workbook_fname - file name of data workbook
         @param sheet_name - name of sheet to process
@@ -38,6 +38,8 @@ class Extractor(AbstractExtractor):
         @param crp - capital recovery period: 20, 30, or 'TechLife'
         @param scenarios - scenarios, e.g. 'Advanced', 'Moderate', etc.
         @param base_year - first year of data for this technology
+        @param tax_credit_case - tax credits (investment versus production) used by a technology. 
+                                only used by subclasses in tech_extractors, not used by base extractor
         """
 
         self._data_workbook_fname = data_workbook_fname
