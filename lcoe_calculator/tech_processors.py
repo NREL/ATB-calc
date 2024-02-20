@@ -453,6 +453,7 @@ class NuclearProc(TechProcessor):
         ('df_hr', 'Heat Rate'),
     ]
 
+    @classmethod
     def load_cff(cls, extractor: Extractor, cff_name: str, index: pd.Index,
                  return_short_df=False) -> pd.DataFrame:
         """
