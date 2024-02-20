@@ -11,7 +11,8 @@ from typing import Literal, List
 
 # Years of data projected by ATB
 BASE_YEAR = 2022
-YEARS = list(range(BASE_YEAR, 2051 , 1))
+END_YEAR = 2050
+YEARS = list(range(BASE_YEAR, END_YEAR + 1 , 1))
 
 # Financial cases
 MARKET_FIN_CASE = 'Market'

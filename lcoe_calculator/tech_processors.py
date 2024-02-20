@@ -427,6 +427,7 @@ class NuclearProc(TechProcessor):
     num_tds = 2
     default_tech_detail = 'Nuclear - AP1000'
     dscr = 1.45
+    base_year = 2030
 
     metrics = [
         ('Heat Rate (MMBtu/MWh)', 'df_hr'),

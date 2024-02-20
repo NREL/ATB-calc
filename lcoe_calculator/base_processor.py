@@ -15,7 +15,7 @@ import numpy as np
 from .macrs import MACRS_6
 from .extractor import Extractor
 from .abstract_extractor import AbstractExtractor
-from .config import FINANCIAL_CASES, YEARS, TECH_DETAIL_SCENARIO_COL, MARKET_FIN_CASE, CRP_CHOICES,\
+from .config import FINANCIAL_CASES, END_YEAR, TECH_DETAIL_SCENARIO_COL, MARKET_FIN_CASE, CRP_CHOICES,\
     SCENARIOS, LCOE_SS_NAME, CAPEX_SS_NAME, CFF_SS_NAME, CrpChoiceType, BASE_YEAR
 
 
@@ -123,6 +123,7 @@ class TechProcessor(ABC):
         self._crp = crp
         self._crp_years = self.tech_life if crp == 'TechLife' else crp
         self. _tax_credit_case = tcc
+        self._tech_years = range(self.base_year, END_YEAR + 1, 1)
 
         # These data frames are extracted from excel
         self.df_ncf = None  # Net capacity factor (%)
@@ -454,9 +455,9 @@ class TechProcessor(ABC):
         df_tax_rate = self.df_wacc.loc['Tax Rate (Federal and State)']
         inflation = self.df_wacc.loc['Inflation Rate']
 
-        df_pvd = pd.DataFrame(columns=YEARS)
+        df_pvd = pd.DataFrame(columns=self._tech_years)
         for scenario in self.scenarios:
-            for year in YEARS:
+            for year in self._tech_years:
 
                 MACRS_schedule = self.get_depreciation_schedule(year)
 
@@ -485,7 +486,7 @@ class TechProcessor(ABC):
             depreciation years.
         """
         dep_years = len(MACRS_schedule)
-        df_depreciation_factor = pd.DataFrame(columns=YEARS)
+        df_depreciation_factor = pd.DataFrame(columns=self._tech_years)
         wacc_real = self.df_wacc.loc['WACC Real - ' + scenario]
 
         for dep_year in range(dep_years):
