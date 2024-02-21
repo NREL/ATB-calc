@@ -29,6 +29,7 @@ class PVBatteryExtractor(Extractor):
         @param crp - capital recovery period: 20, 30, or 'TechLife'
         @param scenarios - scenarios, e.g. 'Advanced', 'Moderate', etc.
         @param base_year - first year of data for this technology
+        @param tax_credit_case - tax credit case: "PV PTC and Battery ITC" or "ITC only"
         """
         self._data_workbook_fname = data_workbook_fname
         self.sheet_name = sheet_name
