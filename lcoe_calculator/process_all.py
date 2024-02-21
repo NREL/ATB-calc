@@ -96,7 +96,7 @@ class ProcessAll:
         if self.data is None:
             raise ValueError('Please run process() first')
 
-        melted = pd.melt(self.data, id_vars=['Parameter', 'Case', 'CRPYears',
+        melted = pd.melt(self.data, id_vars=['Parameter', 'Case', 'TaxCreditCase', 'CRPYears',
                                              'Technology', 'DisplayName', 'Scenario'])
         return melted
 

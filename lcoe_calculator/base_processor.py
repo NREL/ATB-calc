@@ -309,6 +309,7 @@ class TechProcessor(ABC):
         df.loc[df.Scenario == 'Nominal', 'Parameter'] = 'Interest During Construction - Nominal'
         df.loc[df.Scenario == 'Nominal', 'Scenario'] = '*'
         df['DisplayName'] = '*'
+        df['TaxCreditCase'] = self._get_tax_credit_case()
 
         return df
 
