@@ -11,12 +11,18 @@ from typing import Literal, List
 
 # Years of data projected by ATB
 BASE_YEAR = 2022
-YEARS = list(range(BASE_YEAR, 2051 , 1))
+END_YEAR = 2050
+YEARS = list(range(BASE_YEAR, END_YEAR + 1 , 1))
 
 # Financial cases
 MARKET_FIN_CASE = 'Market'
 R_AND_D_FIN_CASE = 'R&D'
 FINANCIAL_CASES = [MARKET_FIN_CASE, R_AND_D_FIN_CASE]
+
+# Tax credit cases
+ITC_ONLY_CASE = 'ITC only'
+PTC_PLUS_ITC_CASE_PVB = 'PV PTC and Battery ITC'
+TAX_CREDIT_CASES = {'Utility-Scale PV-Plus-Battery' : [ITC_ONLY_CASE, PTC_PLUS_ITC_CASE_PVB]}
 
 # CRP choices and type hints
 CrpChoiceType = Literal[20, 30, 'TechLife']

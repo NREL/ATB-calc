@@ -7,7 +7,7 @@
 """
 Tech LCOE and CAPEX processor class. This is effectively an abstract class and must be subclassed.
 """
-from typing import List, Tuple, Type
+from typing import List, Tuple, Type, Optional
 from abc import ABC, abstractmethod
 import pandas as pd
 import numpy as np
@@ -15,7 +15,7 @@ import numpy as np
 from .macrs import MACRS_6
 from .extractor import Extractor
 from .abstract_extractor import AbstractExtractor
-from .config import FINANCIAL_CASES, YEARS, TECH_DETAIL_SCENARIO_COL, MARKET_FIN_CASE, CRP_CHOICES,\
+from .config import FINANCIAL_CASES, END_YEAR, TECH_DETAIL_SCENARIO_COL, MARKET_FIN_CASE, CRP_CHOICES,\
     SCENARIOS, LCOE_SS_NAME, CAPEX_SS_NAME, CFF_SS_NAME, CrpChoiceType, BASE_YEAR
 
 
@@ -99,7 +99,7 @@ class TechProcessor(ABC):
     dscr: float|None = None  # Debt service coverage ratio (unitless, typically 1-1.5)
 
     def __init__(self, data_workbook_fname: str, case: str = MARKET_FIN_CASE,
-                 crp: CrpChoiceType = 30, extractor: Type[AbstractExtractor] = Extractor):
+                 crp: CrpChoiceType = 30, tcc : Optional[str] = None, extractor: Type[AbstractExtractor] = Extractor):
         """
         @param data_workbook_fname - name of workbook
         @param case - financial case to run: 'Market' or 'R&D'
@@ -122,6 +122,9 @@ class TechProcessor(ABC):
         self._case = case
         self._crp = crp
         self._crp_years = self.tech_life if crp == 'TechLife' else crp
+        self._tech_years = range(self.base_year, END_YEAR + 1, 1)
+
+        self.tax_credit_case = tcc
 
         # These data frames are extracted from excel
         self.df_ncf = None  # Net capacity factor (%)
@@ -134,6 +137,7 @@ class TechProcessor(ABC):
         self.df_just_wacc = None  # Last six rows of WACC table
         self.df_hrp = None # Heat Rate Penalty (% change), retrofits only
         self.df_nop = None # Net Output Penalty (% change), retrofits only
+        self.df_pvcf = None # PV-only capacity factor (%), PV-plus-battery only
 
         # These data frames are calculated and populated by object methods
         self.df_aep = None  # Annual energy production (kWh/kW)
@@ -194,8 +198,9 @@ class TechProcessor(ABC):
         df_flat['Technology'] = self.tech_name
         df_flat['Case'] = case
         df_flat['CRPYears'] = self._crp_years
+        df_flat['TaxCreditCase'] = self._get_tax_credit_case()
 
-        new_cols = ['Parameter', 'Case', 'CRPYears', 'Technology', 'DisplayName',
+        new_cols = ['Parameter', 'Case', 'TaxCreditCase', 'CRPYears', 'Technology', 'DisplayName',
                     'Scenario'] + list(old_cols)
         df_flat = df_flat[new_cols]
         df_flat = df_flat.drop(TECH_DETAIL_SCENARIO_COL, axis=1).reset_index(drop=True)
@@ -304,6 +309,7 @@ class TechProcessor(ABC):
         df.loc[df.Scenario == 'Nominal', 'Parameter'] = 'Interest During Construction - Nominal'
         df.loc[df.Scenario == 'Nominal', 'Scenario'] = '*'
         df['DisplayName'] = '*'
+        df['TaxCreditCase'] = self._get_tax_credit_case()
 
         return df
 
@@ -451,9 +457,9 @@ class TechProcessor(ABC):
         df_tax_rate = self.df_wacc.loc['Tax Rate (Federal and State)']
         inflation = self.df_wacc.loc['Inflation Rate']
 
-        df_pvd = pd.DataFrame(columns=YEARS)
+        df_pvd = pd.DataFrame(columns=self._tech_years)
         for scenario in self.scenarios:
-            for year in YEARS:
+            for year in self._tech_years:
 
                 MACRS_schedule = self.get_depreciation_schedule(year)
 
@@ -482,7 +488,7 @@ class TechProcessor(ABC):
             depreciation years.
         """
         dep_years = len(MACRS_schedule)
-        df_depreciation_factor = pd.DataFrame(columns=YEARS)
+        df_depreciation_factor = pd.DataFrame(columns=self._tech_years)
         wacc_real = self.df_wacc.loc['WACC Real - ' + scenario]
 
         for dep_year in range(dep_years):
@@ -525,3 +531,36 @@ class TechProcessor(ABC):
         df_lcoe = df_lcoe + self.df_vom.values - ptc
 
         return df_lcoe
+    
+    def _get_tax_credit_case(self):
+        """
+        Uses ptc and itc data from the tech sheet to determine which tax credits are active for the 
+        current financial case and tax credit case
+
+        @returns String, one of "None", "PTC", "ITC", "ITC + PTC"
+        """
+        if self.has_tax_credit:
+            assert len(self.df_tc) > 0, \
+                (f'Setup df_tc with extractor.get_tax_credits() before calling this function!')
+
+            ptc = self._calc_ptc()
+            itc = self._calc_itc()
+
+            # Trim the 2022 to eliminate pre-inflation reduction act confusion (consider removing in future years)
+            ptc = ptc[:, 1:]
+            itc = itc[1:]
+            
+            ptc_sum = np.sum(ptc)
+            itc_sum = np.sum(itc)
+            
+            if ptc_sum > 0 and itc_sum > 0:
+                return "PTC + ITC"
+            elif ptc_sum > 0:
+                return "PTC"
+            elif itc_sum > 0:
+                return "ITC"
+            else:
+                return "None"
+
+        else:
+            return "None"

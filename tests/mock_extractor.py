@@ -25,7 +25,7 @@ class MockExtractor(AbstractExtractor):
     """
 
     def __init__(self, _: str, __: str, case: str, crp: CrpChoiceType, ___: List[int],
-                 ____: int):
+                 ____: int, _____ : str = None):
         """
         @param data_workbook_fname - IGNORED
         @param sheet_name - IGNORED
@@ -33,6 +33,7 @@ class MockExtractor(AbstractExtractor):
         @param crp - capital recovery period: 20, 30, or 'TechLife'
         @param scenarios - IGNORED
         @param base_year - IGNORED
+        @param tax_credit_case - IGNORED, only used by PV+Battery
         """
         self._case = case
         self._crp = crp
