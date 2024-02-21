@@ -37,6 +37,17 @@ class ProcessAll:
         self._fname = data_workbook_fname
 
     def _run_tech(self, Tech: TechProcessor, crp: CrpChoiceType, case : str, tcc: str, test_capex, test_lcoe):
+        """
+        Runs the specified Tech with the specified parameters
+        @param Tech - TechProcessor to be processed
+        @param crp - cost recovery period, one of CrpChoiceType
+        @param case - financial case
+        @param tcc - tax credit case
+        @param test_capex - boolean. True runs a comparison of the CAPEX to the spreadsheet
+        @param test_lcoe - boolean. True runs a comparison of the LCOE to the spreadsheet
+
+        @returns TechProcessor with processed data from the other inputs
+        """
         proc = Tech(self._fname, crp=crp, case=case, tcc=tcc)
         proc.run()
 

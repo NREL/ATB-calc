@@ -125,7 +125,7 @@ class UtilityPvPlusBatteryProc(TechProcessor):
         print(f'Loading data from {self.sheet_name}, for {self._case} and {crp_msg}')
         extractor = self._ExtractorClass(self._data_workbook_fname, self.sheet_name,
                               self._case, self._crp, self.scenarios, self.base_year,
-                              self._tax_credit_case)
+                              self.tax_credit_case)
 
         print('\tLoading metrics')
         for metric, var_name in self.metrics:
@@ -425,7 +425,7 @@ class NuclearProc(TechProcessor):
     tech_life = 60
     sheet_name = 'Nuclear'
     num_tds = 2
-    default_tech_detail = 'Nuclear - AP1000'
+    default_tech_detail = 'Nuclear - Large'
     dscr = 1.45
     base_year = 2030
 

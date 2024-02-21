@@ -7,7 +7,7 @@
 """
 Tech LCOE and CAPEX processor class. This is effectively an abstract class and must be subclassed.
 """
-from typing import List, Tuple, Type
+from typing import List, Tuple, Type, Optional
 from abc import ABC, abstractmethod
 import pandas as pd
 import numpy as np
@@ -99,7 +99,7 @@ class TechProcessor(ABC):
     dscr: float|None = None  # Debt service coverage ratio (unitless, typically 1-1.5)
 
     def __init__(self, data_workbook_fname: str, case: str = MARKET_FIN_CASE,
-                 crp: CrpChoiceType = 30, tcc : str = None, extractor: Type[AbstractExtractor] = Extractor):
+                 crp: CrpChoiceType = 30, tcc : Optional[str] = None, extractor: Type[AbstractExtractor] = Extractor):
         """
         @param data_workbook_fname - name of workbook
         @param case - financial case to run: 'Market' or 'R&D'
@@ -122,8 +122,9 @@ class TechProcessor(ABC):
         self._case = case
         self._crp = crp
         self._crp_years = self.tech_life if crp == 'TechLife' else crp
-        self. _tax_credit_case = tcc
         self._tech_years = range(self.base_year, END_YEAR + 1, 1)
+
+        self.tax_credit_case = tcc
 
         # These data frames are extracted from excel
         self.df_ncf = None  # Net capacity factor (%)
@@ -531,6 +532,12 @@ class TechProcessor(ABC):
         return df_lcoe
     
     def _get_tax_credit_case(self):
+        """
+        Uses ptc and itc data from the tech sheet to determine which tax credits are active for the 
+        current financial case and tax credit case
+
+        @returns String, one of "None", "PTC", "ITC", "ITC + PTC"
+        """
         if self.has_tax_credit:
             assert len(self.df_tc) > 0, \
                 (f'Setup df_tc with extractor.get_tax_credits() before calling this function!')
@@ -538,7 +545,7 @@ class TechProcessor(ABC):
             ptc = self._calc_ptc()
             itc = self._calc_itc()
 
-            # Trim the first year to eliminate pre-inflation reduction act confusion
+            # Trim the 2022 to eliminate pre-inflation reduction act confusion (consider removing in future years)
             ptc = ptc[:, 1:]
             itc = itc[1:]
             
