@@ -278,7 +278,7 @@ class PumpedStorageHydroProc(TechProcessor):
     ]
 
 class PumpedStorageHydroOneResProc(PumpedStorageHydroProc):
-    sheet_name = 'PSH One New Res.'
+    sheet_name = 'PSH One New Res'
     num_tds = 5
 
 class CoalProc(TechProcessor):
