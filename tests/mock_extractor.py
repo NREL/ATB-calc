@@ -7,7 +7,7 @@
 """
 Mock data extractor for testing.
 """
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 import pandas as pd
 from lcoe_calculator.abstract_extractor import AbstractExtractor
 from lcoe_calculator.config import CrpChoiceType
@@ -25,7 +25,7 @@ class MockExtractor(AbstractExtractor):
     """
 
     def __init__(self, _: str, __: str, case: str, crp: CrpChoiceType, ___: List[int],
-                 ____: int, _____ : str = None):
+                 ____: int, _____: Optional[str] = None):
         """
         @param data_workbook_fname - IGNORED
         @param sheet_name - IGNORED

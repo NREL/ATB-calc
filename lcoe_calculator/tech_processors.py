@@ -103,11 +103,11 @@ class UtilityPvPlusBatteryProc(TechProcessor):
         tcc: str = "PV PTC and Battery ITC",
         extractor: type[AbstractExtractor] = PVBatteryExtractor
     ):
-        super().__init__(data_workbook_fname, case, crp, tcc, extractor)
-
         # Additional data frames pulled from excel
         self.df_pv_cost: Optional[pd.DataFrame] = None
         self.df_batt_cost: Optional[pd.DataFrame] = None
+
+        super().__init__(data_workbook_fname, case, crp, tcc, extractor)
 
     def _calc_lcoe(self):
         batt_charge_frac = self.df_fin.loc['Fraction of Battery Energy Charged from PV (75% to 100%)', 'Value']
