@@ -7,7 +7,7 @@
 """
 Individual tech processors. See documentation in base_processor.py.
 """
-from typing import List, Type
+from typing import List, Optional, Type
 import numpy as np
 import pandas as pd
 
@@ -95,8 +95,19 @@ class UtilityPvPlusBatteryProc(TechProcessor):
         ('PV-only Capacity Factor (%)','df_pvcf')
     ]
 
-    def __init__(self, data_workbook_fname: str, case: str = MARKET_FIN_CASE, crp: CrpChoiceType = 30, tcc : str = "PV PTC and Battery ITC", extractor: type[AbstractExtractor] = PVBatteryExtractor):
+    def __init__(
+        self,
+        data_workbook_fname: str,
+        case: str = MARKET_FIN_CASE,
+        crp: CrpChoiceType = 30,
+        tcc: str = "PV PTC and Battery ITC",
+        extractor: type[AbstractExtractor] = PVBatteryExtractor
+    ):
         super().__init__(data_workbook_fname, case, crp, tcc, extractor)
+
+        # Additional data frames pulled from excel
+        self.df_pv_cost: Optional[pd.DataFrame] = None
+        self.df_batt_cost: Optional[pd.DataFrame] = None
 
     def _calc_lcoe(self):
         batt_charge_frac = self.df_fin.loc['Fraction of Battery Energy Charged from PV (75% to 100%)', 'Value']
@@ -155,7 +166,7 @@ class UtilityPvPlusBatteryProc(TechProcessor):
 
     def _get_tax_credit_case(self):
         assert len(self.df_tc) > 0, \
-            (f'Setup df_tc with extractor.get_tax_credits() before calling this function!')
+            ('Setup df_tc with extractor.get_tax_credits() before calling this function!')
 
         ptc = self._calc_ptc()
         # Battery always takes ITC, so PV determines the case
@@ -164,10 +175,10 @@ class UtilityPvPlusBatteryProc(TechProcessor):
         # Trim the first year to eliminate pre-inflation reduction act confusion
         ptc = ptc[:, 1:]
         itc = itc[1:]
-        
+
         ptc_sum = np.sum(ptc)
         itc_sum = np.sum(itc)
-        
+
         if ptc_sum > 0 and itc_sum > 0:
             return "PTC + ITC"
         elif ptc_sum > 0:
@@ -351,7 +362,7 @@ class NaturalGasFuelCellProc(NaturalGasProc):
     has_lcoe = False
     has_fin_assump = False
     default_tech_detail = 'NG Fuel Cell Max CCS'
-    
+
     scenarios = ['Moderate', 'Advanced']
     base_year = 2035
 

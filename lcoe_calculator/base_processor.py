@@ -71,7 +71,7 @@ class TechProcessor(ABC):
     has_tax_credit = True  # Does the tech have tax credits in the workbook
     has_fin_assump = True  # Does the tech have financial assumptions in the workbook
 
-    wacc_name: str|None = None  # Name of tech to look for on WACC sheet, use sheet name if None
+    wacc_name: Optional[str] = None  # Name of tech to look for on WACC sheet, use sheet name if None
     has_wacc = True  # If True, pull values from WACC sheet.
     has_capex = True # If True, calculate CAPEX
     has_lcoe = True  # If True, calculate CRF, PFF, & LCOE.
@@ -95,11 +95,17 @@ class TechProcessor(ABC):
 
     # Variables used by the debt fraction calculator. Should be filled out for any tech
     # where self.has_lcoe == True.
-    default_tech_detail: str|None = None
-    dscr: float|None = None  # Debt service coverage ratio (unitless, typically 1-1.5)
+    default_tech_detail: Optional[str] = None
+    dscr: Optional[float] = None  # Debt service coverage ratio (unitless, typically 1-1.5)
 
-    def __init__(self, data_workbook_fname: str, case: str = MARKET_FIN_CASE,
-                 crp: CrpChoiceType = 30, tcc : Optional[str] = None, extractor: Type[AbstractExtractor] = Extractor):
+    def __init__(
+        self,
+        data_workbook_fname: str,
+        case: str = MARKET_FIN_CASE,
+        crp: CrpChoiceType = 30,
+        tcc : Optional[str] = None,
+        extractor: Type[AbstractExtractor] = Extractor
+    ):
         """
         @param data_workbook_fname - name of workbook
         @param case - financial case to run: 'Market' or 'R&D'
@@ -531,10 +537,10 @@ class TechProcessor(ABC):
         df_lcoe = df_lcoe + self.df_vom.values - ptc
 
         return df_lcoe
-    
+
     def _get_tax_credit_case(self):
         """
-        Uses ptc and itc data from the tech sheet to determine which tax credits are active for the 
+        Uses ptc and itc data from the tech sheet to determine which tax credits are active for the
         current financial case and tax credit case
 
         @returns String, one of "None", "PTC", "ITC", "ITC + PTC"
@@ -549,10 +555,10 @@ class TechProcessor(ABC):
             # Trim the 2022 to eliminate pre-inflation reduction act confusion (consider removing in future years)
             ptc = ptc[:, 1:]
             itc = itc[1:]
-            
+
             ptc_sum = np.sum(ptc)
             itc_sum = np.sum(itc)
-            
+
             if ptc_sum > 0 and itc_sum > 0:
                 return "PTC + ITC"
             elif ptc_sum > 0:
