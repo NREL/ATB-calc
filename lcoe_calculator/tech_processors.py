@@ -538,22 +538,25 @@ class AbstractBatteryProc(TechProcessor):
     """
     has_wacc = False
     has_lcoe = False
-    has_capex = False
-    has_fin_assump = False
 
     # This is false because the ATB does not calculate LCOS (batteries can receive the ITC).
     has_tax_credit = False
 
     metrics = [
         ('Overnight Capital Cost ($/kW)', 'df_occ'),
+        ('Grid Connection Costs (GCC) ($/kW)', 'df_gcc'),
         ('Fixed Operation and Maintenance Expenses ($/kW-yr)', 'df_fom'),
         ('Variable Operation and Maintenance Expenses ($/MWh)', 'df_vom'),
+        ('Construction Finance Factor', 'df_cff'),
     ]
 
     flat_attrs = [
         ('df_occ', 'OCC'),
+        ('df_gcc', 'GCC'),
         ('df_fom', 'Fixed O&M'),
         ('df_vom', 'Variable O&M'),
+        ('df_cfc', 'CFC'),
+        ('df_capex', 'CAPEX'),
     ]
 
 
@@ -562,7 +565,6 @@ class UtilityBatteryProc(AbstractBatteryProc):
     tech_life = 30
     sheet_name = 'Utility-Scale Battery Storage'
     num_tds = 5
-
 
 class CommBatteryProc(AbstractBatteryProc):
     tech_name = 'Commercial Battery Storage'
