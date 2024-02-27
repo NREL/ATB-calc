@@ -566,6 +566,7 @@ class UtilityBatteryProc(AbstractBatteryProc):
     sheet_name = 'Utility-Scale Battery Storage'
     num_tds = 5
 
+
 class CommBatteryProc(AbstractBatteryProc):
     tech_name = 'Commercial Battery Storage'
     tech_life = 30
