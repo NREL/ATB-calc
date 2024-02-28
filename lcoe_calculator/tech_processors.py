@@ -170,21 +170,24 @@ class UtilityPvPlusBatteryProc(TechProcessor):
 
         ptc = self._calc_ptc()
         # Battery always takes ITC, so PV determines the case
-        itc = self._calc_itc(itc_type=' - PV')
+        pv_itc = self._calc_itc(itc_type=' - PV')
+        batt_itc = self._calc_itc(itc_type= ' - Battery')
 
         # Trim the first year to eliminate pre-inflation reduction act confusion
         ptc = ptc[:, 1:]
-        itc = itc[1:]
+        pv_itc = pv_itc[1:]
+        batt_itc = batt_itc[1:]
 
         ptc_sum = np.sum(ptc)
-        itc_sum = np.sum(itc)
+        pv_itc_sum = np.sum(pv_itc)
+        batt_itc_sum = np.sum(batt_itc)
 
-        if ptc_sum > 0 and itc_sum > 0:
+        if ptc_sum > 0 and batt_itc_sum > 0:
             return "PTC + ITC"
+        elif pv_itc_sum > 0 and batt_itc_sum > 0:
+            return "ITC"
         elif ptc_sum > 0:
             return "PTC"
-        elif itc_sum > 0:
-            return "ITC"
         else:
             return "None"
 
