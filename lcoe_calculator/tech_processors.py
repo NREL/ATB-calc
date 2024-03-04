@@ -26,7 +26,7 @@ class OffShoreWindProc(TechProcessor):
     tech_life = 30
     num_tds = 14
     default_tech_detail = 'Offshore Wind - Class 3'
-    dscr = 1.4
+    dscr = 1.35
 
 
 class LandBasedWindProc(TechProcessor):
@@ -35,7 +35,7 @@ class LandBasedWindProc(TechProcessor):
     tech_life = 30
     num_tds = 10
     default_tech_detail = 'Land-Based Wind - Class 4 - Technology 1'
-    dscr = 1.4
+    dscr = 1.35
 
 
 class DistributedWindProc(TechProcessor):
@@ -44,7 +44,7 @@ class DistributedWindProc(TechProcessor):
     tech_life = 30
     num_tds = 40
     default_tech_detail = 'Midsize DW - Class 4'
-    dscr = 1.4
+    dscr = 1.35
 
 class UtilityPvProc(TechProcessor):
     tech_name = 'UtilityPV'
@@ -52,7 +52,7 @@ class UtilityPvProc(TechProcessor):
     sheet_name = 'Solar - Utility PV'
     num_tds = 10
     default_tech_detail = 'Utility PV - Class 5'
-    dscr = 1.3
+    dscr = 1.25
 
 class CommPvProc(TechProcessor):
     tech_name = 'CommPV'
@@ -60,7 +60,7 @@ class CommPvProc(TechProcessor):
     sheet_name = 'Solar - PV Dist. Comm'
     num_tds = 10
     default_tech_detail = 'Commercial PV - Class 5'
-    dscr = 1.3
+    dscr = 1.25
 
 
 class ResPvProc(TechProcessor):
@@ -69,7 +69,7 @@ class ResPvProc(TechProcessor):
     sheet_name = 'Solar - PV Dist. Res'
     num_tds = 10
     default_tech_detail = 'Residential PV - Class 5'
-    dscr = 1.3
+    dscr = 1.25
 
 class UtilityPvPlusBatteryProc(TechProcessor):
     tech_name = 'Utility-Scale PV-Plus-Battery'
@@ -77,7 +77,7 @@ class UtilityPvPlusBatteryProc(TechProcessor):
     sheet_name = 'Utility-Scale PV-Plus-Battery'
     num_tds = 10
     default_tech_detail = 'PV+Storage - Class 5'
-    dscr = 1.3
+    dscr = 1.25
 
     GRID_ROUNDTRIP_EFF = 0.85 # Roundtrip Efficiency (Grid charging)
     CO_LOCATION_SAVINGS = 0.9228
@@ -217,7 +217,7 @@ class GeothermalProc(TechProcessor):
     tech_life = 30
     num_tds = 6
     default_tech_detail = 'Geothermal - Hydro / Flash'
-    dscr = 1.45
+    dscr = 1.35
 
     @classmethod
     def load_cff(cls, extractor: Extractor, cff_name: str, index: pd.Index,
@@ -257,7 +257,7 @@ class HydropowerProc(TechProcessor):
     num_tds = 12
     split_metrics = True
     default_tech_detail = 'Hydropower - NPD 1'
-    dscr = 1.50
+    dscr = 1.35
 
     def get_depreciation_schedule(self, year):
         if self._case is MARKET_FIN_CASE and (year < 2025 or year > 2045):
