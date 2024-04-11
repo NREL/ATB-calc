@@ -247,7 +247,7 @@ def calculate_all_debt_fractions(data_workbook_filename: str, output_filename: s
             click.echo(f"Processing tech {Tech.tech_name} and financial case {fin_case}")
             debt_fracs = [Tech.tech_name, fin_case] # First two columns are metadata
 
-            proc = Tech(data_workbook_filename, crp=crp, case=fin_case)
+            proc = Tech(data_workbook_filename, crp=crp, case=fin_case, tcc=PTC_PLUS_ITC_CASE_PVB)
             proc.run()
 
             d = proc.flat
@@ -290,7 +290,6 @@ def calculate_all_debt_fractions(data_workbook_filename: str, output_filename: s
                 if Tech.has_tax_credit and fin_case == 'Market':
                     if Tech.sheet_name == "Utility-Scale PV-Plus-Battery":
                         if proc.tax_credit_case is PTC_PLUS_ITC_CASE_PVB and year > 2022:
-                            
                             ncf = proc.df_ncf.loc[Tech.default_tech_detail + '/Moderate'][year]
                             pvcf = proc.df_pvcf.loc[Tech.default_tech_detail + '/Moderate'][year]
 

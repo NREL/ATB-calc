@@ -260,7 +260,7 @@ class HydropowerProc(TechProcessor):
     dscr = 1.35
 
     def get_depreciation_schedule(self, year):
-        if self._case is MARKET_FIN_CASE and (year < 2025 or year > 2045):
+        if self._case is MARKET_FIN_CASE and (year < 2025):
             return MACRS_21
         else:
             return MACRS_6
@@ -488,7 +488,7 @@ class NuclearProc(TechProcessor):
         return df_lcoe
 
     def get_depreciation_schedule(self, year):
-        if self._case is MARKET_FIN_CASE and (year < 2025 or year > 2045):
+        if self._case is MARKET_FIN_CASE and (year < 2025):
             return MACRS_16
         else:
             return MACRS_6
