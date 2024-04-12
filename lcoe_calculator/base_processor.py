@@ -110,6 +110,7 @@ class TechProcessor(ABC):
         @param data_workbook_fname - name of workbook
         @param case - financial case to run: 'Market' or 'R&D'
         @param crp - capital recovery period: 20, 30, or 'TechLife'
+        @param tcc - tax credit case: 'ITC only' or 'PV PTC and Battery ITC' Only required for the PV plus battery technology.
         @param extractor - Extractor class to use to obtain source data.
         """
         assert case in FINANCIAL_CASES, (f'Financial case must be one of {FINANCIAL_CASES},'
