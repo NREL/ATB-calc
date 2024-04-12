@@ -131,11 +131,12 @@ class UtilityPvPlusBatteryProc(TechProcessor):
 
     def _extract_data(self):
         """ Pull all data from the workbook """
-        crp_msg = self._crp if self._crp != 'TechLife' else  f'TechLife ({self.tech_life})'
+        crp_msg = self._requested_crp if self._requested_crp != 'TechLife' \
+            else f'TechLife ({self.tech_life})'
 
         print(f'Loading data from {self.sheet_name}, for {self._case} and {crp_msg}')
         extractor = self._ExtractorClass(self._data_workbook_fname, self.sheet_name,
-                              self._case, self._crp, self.scenarios, self.base_year,
+                              self._case, self._requested_crp, self.scenarios, self.base_year,
                               self.tax_credit_case)
 
         print('\tLoading metrics')
@@ -260,7 +261,7 @@ class HydropowerProc(TechProcessor):
     dscr = 1.35
 
     def get_depreciation_schedule(self, year):
-        if self._case is MARKET_FIN_CASE and (year < 2025 or year > 2045):
+        if self._case is MARKET_FIN_CASE and (year < 2025):
             return MACRS_21
         else:
             return MACRS_6
@@ -488,7 +489,7 @@ class NuclearProc(TechProcessor):
         return df_lcoe
 
     def get_depreciation_schedule(self, year):
-        if self._case is MARKET_FIN_CASE and (year < 2025 or year > 2045):
+        if self._case is MARKET_FIN_CASE and (year < 2025):
             return MACRS_16
         else:
             return MACRS_6

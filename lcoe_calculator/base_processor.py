@@ -110,6 +110,7 @@ class TechProcessor(ABC):
         @param data_workbook_fname - name of workbook
         @param case - financial case to run: 'Market' or 'R&D'
         @param crp - capital recovery period: 20, 30, or 'TechLife'
+        @param tcc - tax credit case: 'ITC only' or 'PV PTC and Battery ITC' Only required for the PV plus battery technology.
         @param extractor - Extractor class to use to obtain source data.
         """
         assert case in FINANCIAL_CASES, (f'Financial case must be one of {FINANCIAL_CASES},'
@@ -126,7 +127,7 @@ class TechProcessor(ABC):
 
         self._data_workbook_fname = data_workbook_fname
         self._case = case
-        self._crp = crp
+        self._requested_crp = crp
         self._crp_years = self.tech_life if crp == 'TechLife' else crp
         self._tech_years = range(self.base_year, END_YEAR + 1, 1)
 
@@ -342,11 +343,12 @@ class TechProcessor(ABC):
 
     def _extract_data(self):
         """ Pull all data from the workbook """
-        crp_msg = self._crp if self._crp != 'TechLife' else  f'TechLife ({self.tech_life})'
+        crp_msg = self._requested_crp if self._requested_crp != 'TechLife' \
+            else f'TechLife ({self.tech_life})'
 
         print(f'Loading data from {self.sheet_name}, for {self._case} and {crp_msg}')
         extractor = self._ExtractorClass(self._data_workbook_fname, self.sheet_name,
-                              self._case, self._crp, self.scenarios, self.base_year)
+                              self._case, self._requested_crp, self.scenarios, self.base_year)
 
         print('\tLoading metrics')
         for metric, var_name in self.metrics:
@@ -421,11 +423,7 @@ class TechProcessor(ABC):
         return df_cfc
 
     def _calc_crf(self):
-        crp = self.df_fin.loc['Capital Recovery Period (Years)', 'Value']
-        assert isinstance(crp, (int, float, np.number)) and not np.isnan(crp),\
-            f'CRP must be a number, got "{crp}"'
-
-        df_crf = self.df_just_wacc/(1-(1/(1+self.df_just_wacc))**crp)
+        df_crf = self.df_just_wacc/(1-(1/(1+self.df_just_wacc))**self.crp)
 
         # Relabel WACC index as CRF
         df_crf = df_crf.reset_index()
@@ -434,6 +432,26 @@ class TechProcessor(ABC):
         df_crf = df_crf.set_index('WACC Type')
 
         return df_crf
+
+    @property
+    def crp(self) -> float:
+        """
+        Get CRP value from financial assumptions
+
+        @returns: CRP
+        """
+        raw_crp = self.df_fin.loc['Capital Recovery Period (Years)', 'Value']
+
+        try:
+            crp = float(raw_crp)
+        except ValueError as err:
+            msg = f'Error converting CRP value ({raw_crp}) to a float: {err}.'
+            print(f'{msg} self.df_fin is:')
+            print(self.df_fin)
+            raise ValueError(msg) from err
+
+        assert not np.isnan(crp), f'CRP must be a number, got "{crp}", type is "{type(crp)}"'
+        return crp
 
     def _calc_itc(self, itc_type=''):
         """
@@ -478,7 +496,8 @@ class TechProcessor(ABC):
 
         itc_schedule = self._calc_itc(itc_type=itc_type)
 
-        df_pff = (1 - df_tax_rate.values*df_pvd*(1-itc_schedule/2) - itc_schedule)/(1-df_tax_rate.values)
+        df_pff = (1 - df_tax_rate.values*df_pvd*(1-itc_schedule/2)
+                  - itc_schedule)/(1-df_tax_rate.values)
         df_pff.index = [f'PFF - {scenario}' for scenario in self.scenarios]
         return df_pff
 
