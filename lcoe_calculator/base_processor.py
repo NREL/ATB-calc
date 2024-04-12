@@ -126,7 +126,7 @@ class TechProcessor(ABC):
 
         self._data_workbook_fname = data_workbook_fname
         self._case = case
-        self._crp = crp
+        self._requested_crp = crp
         self._crp_years = self.tech_life if crp == 'TechLife' else crp
         self._tech_years = range(self.base_year, END_YEAR + 1, 1)
 
@@ -342,11 +342,12 @@ class TechProcessor(ABC):
 
     def _extract_data(self):
         """ Pull all data from the workbook """
-        crp_msg = self._crp if self._crp != 'TechLife' else  f'TechLife ({self.tech_life})'
+        crp_msg = self._requested_crp if self._requested_crp != 'TechLife' \
+            else f'TechLife ({self.tech_life})'
 
         print(f'Loading data from {self.sheet_name}, for {self._case} and {crp_msg}')
         extractor = self._ExtractorClass(self._data_workbook_fname, self.sheet_name,
-                              self._case, self._crp, self.scenarios, self.base_year)
+                              self._case, self._requested_crp, self.scenarios, self.base_year)
 
         print('\tLoading metrics')
         for metric, var_name in self.metrics:
