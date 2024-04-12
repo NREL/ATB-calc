@@ -421,11 +421,7 @@ class TechProcessor(ABC):
         return df_cfc
 
     def _calc_crf(self):
-        crp = self.df_fin.loc['Capital Recovery Period (Years)', 'Value']
-        assert isinstance(crp, (int, float, np.number)) and not np.isnan(crp),\
-            f'CRP must be a number, got "{crp}"'
-
-        df_crf = self.df_just_wacc/(1-(1/(1+self.df_just_wacc))**crp)
+        df_crf = self.df_just_wacc/(1-(1/(1+self.df_just_wacc))**self.crp)
 
         # Relabel WACC index as CRF
         df_crf = df_crf.reset_index()
@@ -434,6 +430,26 @@ class TechProcessor(ABC):
         df_crf = df_crf.set_index('WACC Type')
 
         return df_crf
+
+    @property
+    def crp(self) -> float:
+        """
+        Get CRP value from financial assumptions
+
+        @returns: CRP
+        """
+        raw_crp = self.df_fin.loc['Capital Recovery Period (Years)', 'Value']
+
+        try:
+            crp = float(raw_crp)
+        except ValueError as err:
+            msg = f'Error converting CRP value ({raw_crp}) to a float: {err}.'
+            print(f'{msg} self.df_fin is:')
+            print(self.df_fin)
+            raise ValueError(msg) from err
+
+        assert not np.isnan(crp), f'CRP must be a number, got "{crp}", type is "{type(crp)}"'
+        return crp
 
     def _calc_itc(self, itc_type=''):
         """
@@ -478,7 +494,8 @@ class TechProcessor(ABC):
 
         itc_schedule = self._calc_itc(itc_type=itc_type)
 
-        df_pff = (1 - df_tax_rate.values*df_pvd*(1-itc_schedule/2) - itc_schedule)/(1-df_tax_rate.values)
+        df_pff = (1 - df_tax_rate.values*df_pvd*(1-itc_schedule/2)
+                  - itc_schedule)/(1-df_tax_rate.values)
         df_pff.index = [f'PFF - {scenario}' for scenario in self.scenarios]
         return df_pff
 
