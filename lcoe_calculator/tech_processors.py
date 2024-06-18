@@ -21,13 +21,22 @@ from .base_processor import TechProcessor
 
 
 class OffShoreWindProc(TechProcessor):
+    #Abstract class, sheet name is not defined. See Fixed and Floating OSW proc
     tech_name = 'OffShoreWind'
-    sheet_name = 'Offshore Wind'
     tech_life = 30
-    num_tds = 14
     default_tech_detail = 'Offshore Wind - Class 3'
     dscr = 1.35
 
+class FixedOffShoreWindProc(OffShoreWindProc):
+    sheet_name = 'Fixed Offshore Wind'
+    num_tds = 7
+    wacc_name = 'Offshore Wind'
+
+class FloatingOffShoreWindProc(OffShoreWindProc):
+    sheet_name = 'Floating Offshore Wind'
+    num_tds = 7
+    base_year = 2030
+    wacc_name = 'Offshore Wind'
 
 class LandBasedWindProc(TechProcessor):
     tech_name = 'LandbasedWind'
@@ -586,7 +595,7 @@ class ResBatteryProc(AbstractBatteryProc):
 
 
 ALL_TECHS: List[Type[TechProcessor]]= [
-    OffShoreWindProc, LandBasedWindProc, DistributedWindProc,
+    FixedOffShoreWindProc, FloatingOffShoreWindProc, LandBasedWindProc, DistributedWindProc,
     UtilityPvProc, CommPvProc, ResPvProc, UtilityPvPlusBatteryProc,
     CspProc, GeothermalProc, HydropowerProc, PumpedStorageHydroProc,
     PumpedStorageHydroOneResProc,
