@@ -21,7 +21,9 @@ from .base_processor import TechProcessor
 
 
 class OffShoreWindProc(TechProcessor):
-    #Abstract class, sheet name is not defined. See Fixed and Floating OSW proc
+    """
+    Abstract class, sheet name is not defined. See Fixed and Floating OSW proc
+    """
     tech_name = 'OffShoreWind'
     tech_life = 30
     default_tech_detail = 'Offshore Wind - Class 3'
