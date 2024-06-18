@@ -30,7 +30,7 @@ class OffShoreWindProc(TechProcessor):
     dscr = 1.35
 
 class FixedOffShoreWindProc(OffShoreWindProc):
-    sheet_name = 'Fixed Offshore Wind'
+    sheet_name = 'Fixed-Bottom Offshore Wind'
     num_tds = 7
     wacc_name = 'Offshore Wind'
 
