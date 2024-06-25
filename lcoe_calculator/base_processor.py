@@ -564,28 +564,26 @@ class TechProcessor(ABC):
 
         @returns String, one of "None", "PTC", "ITC", "ITC + PTC"
         """
-        if self.has_tax_credit:
-            assert len(self.df_tc) > 0, \
-                (f'Setup df_tc with extractor.get_tax_credits() before calling this function!')
+        if not self.has_tax_credit:
+            return "None"
+        assert len(self.df_tc) > 0, \
+            (f'Setup df_tc with extractor.get_tax_credits() before calling this function!')
 
-            ptc = self._calc_ptc()
-            itc = self._calc_itc()
+        ptc = self._calc_ptc()
+        itc = self._calc_itc()
 
-            # Trim the 2022 to eliminate pre-inflation reduction act confusion (consider removing in future years)
-            ptc = ptc[:, 1:]
-            itc = itc[1:]
+        # Trim the 2022 to eliminate pre-inflation reduction act confusion (consider removing in future years)
+        ptc = ptc[:, 1:]
+        itc = itc[1:]
 
-            ptc_sum = np.sum(ptc)
-            itc_sum = np.sum(itc)
+        ptc_sum = np.sum(ptc)
+        itc_sum = np.sum(itc)
 
-            if ptc_sum > 0 and itc_sum > 0:
-                return "PTC + ITC"
-            elif ptc_sum > 0:
-                return "PTC"
-            elif itc_sum > 0:
-                return "ITC"
-            else:
-                return "None"
-
+        if ptc_sum > 0 and itc_sum > 0:
+            return "PTC + ITC"
+        if ptc_sum > 0:
+            return "PTC"
+        if itc_sum > 0:
+            return "ITC"
         else:
             return "None"

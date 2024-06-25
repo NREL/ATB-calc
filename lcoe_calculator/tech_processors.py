@@ -91,7 +91,7 @@ class UtilityPvPlusBatteryProc(TechProcessor):
     dscr = 1.25
 
     GRID_ROUNDTRIP_EFF = 0.85 # Roundtrip Efficiency (Grid charging)
-    CO_LOCATION_SAVINGS = 0.9228
+    CO_LOCATION_SAVINGS = 0.9228 # Reduction in OCC from co-locating the PV and battery system on the same site
     BATT_PV_RATIO = 60.0 / 100.0 # Modifier for $/kW to get everything on the same basis
 
     metrics = [
@@ -177,6 +177,11 @@ class UtilityPvPlusBatteryProc(TechProcessor):
         return extractor
 
     def _get_tax_credit_case(self):
+        """
+        Incorporates additional code required to handle different tax credits for 
+        different components. PV plus Battery worksheet has additional lines for 
+        battery ITC.
+        """
         assert len(self.df_tc) > 0, \
             ('Setup df_tc with extractor.get_tax_credits() before calling this function!')
 
