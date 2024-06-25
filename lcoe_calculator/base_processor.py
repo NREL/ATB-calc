@@ -7,7 +7,7 @@
 """
 Tech LCOE and CAPEX processor class. This is effectively an abstract class and must be subclassed.
 """
-from typing import List, Tuple, Type
+from typing import List, Tuple, Type, Optional
 from abc import ABC, abstractmethod
 import pandas as pd
 import numpy as np
@@ -15,7 +15,7 @@ import numpy as np
 from .macrs import MACRS_6
 from .extractor import Extractor
 from .abstract_extractor import AbstractExtractor
-from .config import FINANCIAL_CASES, YEARS, TECH_DETAIL_SCENARIO_COL, MARKET_FIN_CASE, CRP_CHOICES,\
+from .config import FINANCIAL_CASES, END_YEAR, TECH_DETAIL_SCENARIO_COL, MARKET_FIN_CASE, CRP_CHOICES,\
     SCENARIOS, LCOE_SS_NAME, CAPEX_SS_NAME, CFF_SS_NAME, CrpChoiceType, BASE_YEAR
 
 
@@ -71,7 +71,7 @@ class TechProcessor(ABC):
     has_tax_credit = True  # Does the tech have tax credits in the workbook
     has_fin_assump = True  # Does the tech have financial assumptions in the workbook
 
-    wacc_name: str|None = None  # Name of tech to look for on WACC sheet, use sheet name if None
+    wacc_name: Optional[str] = None  # Name of tech to look for on WACC sheet, use sheet name if None
     has_wacc = True  # If True, pull values from WACC sheet.
     has_capex = True # If True, calculate CAPEX
     has_lcoe = True  # If True, calculate CRF, PFF, & LCOE.
@@ -95,15 +95,22 @@ class TechProcessor(ABC):
 
     # Variables used by the debt fraction calculator. Should be filled out for any tech
     # where self.has_lcoe == True.
-    default_tech_detail: str|None = None
-    dscr: float|None = None  # Debt service coverage ratio (unitless, typically 1-1.5)
+    default_tech_detail: Optional[str] = None
+    dscr: Optional[float] = None  # Debt service coverage ratio (unitless, typically 1-1.5)
 
-    def __init__(self, data_workbook_fname: str, case: str = MARKET_FIN_CASE,
-                 crp: CrpChoiceType = 30, extractor: Type[AbstractExtractor] = Extractor):
+    def __init__(
+        self,
+        data_workbook_fname: str,
+        case: str = MARKET_FIN_CASE,
+        crp: CrpChoiceType = 30,
+        tcc : Optional[str] = None,
+        extractor: Type[AbstractExtractor] = Extractor
+    ):
         """
         @param data_workbook_fname - name of workbook
         @param case - financial case to run: 'Market' or 'R&D'
         @param crp - capital recovery period: 20, 30, or 'TechLife'
+        @param tcc - tax credit case: 'ITC only' or 'PV PTC and Battery ITC' Only required for the PV plus battery technology.
         @param extractor - Extractor class to use to obtain source data.
         """
         assert case in FINANCIAL_CASES, (f'Financial case must be one of {FINANCIAL_CASES},'
@@ -120,8 +127,11 @@ class TechProcessor(ABC):
 
         self._data_workbook_fname = data_workbook_fname
         self._case = case
-        self._crp = crp
+        self._requested_crp = crp
         self._crp_years = self.tech_life if crp == 'TechLife' else crp
+        self._tech_years = range(self.base_year, END_YEAR + 1, 1)
+
+        self.tax_credit_case = tcc
 
         # These data frames are extracted from excel
         self.df_ncf = None  # Net capacity factor (%)
@@ -134,6 +144,7 @@ class TechProcessor(ABC):
         self.df_just_wacc = None  # Last six rows of WACC table
         self.df_hrp = None # Heat Rate Penalty (% change), retrofits only
         self.df_nop = None # Net Output Penalty (% change), retrofits only
+        self.df_pvcf = None # PV-only capacity factor (%), PV-plus-battery only
 
         # These data frames are calculated and populated by object methods
         self.df_aep = None  # Annual energy production (kWh/kW)
@@ -194,8 +205,9 @@ class TechProcessor(ABC):
         df_flat['Technology'] = self.tech_name
         df_flat['Case'] = case
         df_flat['CRPYears'] = self._crp_years
+        df_flat['TaxCreditCase'] = self._get_tax_credit_case()
 
-        new_cols = ['Parameter', 'Case', 'CRPYears', 'Technology', 'DisplayName',
+        new_cols = ['Parameter', 'Case', 'TaxCreditCase', 'CRPYears', 'Technology', 'DisplayName',
                     'Scenario'] + list(old_cols)
         df_flat = df_flat[new_cols]
         df_flat = df_flat.drop(TECH_DETAIL_SCENARIO_COL, axis=1).reset_index(drop=True)
@@ -304,6 +316,7 @@ class TechProcessor(ABC):
         df.loc[df.Scenario == 'Nominal', 'Parameter'] = 'Interest During Construction - Nominal'
         df.loc[df.Scenario == 'Nominal', 'Scenario'] = '*'
         df['DisplayName'] = '*'
+        df['TaxCreditCase'] = self._get_tax_credit_case()
 
         return df
 
@@ -330,11 +343,12 @@ class TechProcessor(ABC):
 
     def _extract_data(self):
         """ Pull all data from the workbook """
-        crp_msg = self._crp if self._crp != 'TechLife' else  f'TechLife ({self.tech_life})'
+        crp_msg = self._requested_crp if self._requested_crp != 'TechLife' \
+            else f'TechLife ({self.tech_life})'
 
         print(f'Loading data from {self.sheet_name}, for {self._case} and {crp_msg}')
         extractor = self._ExtractorClass(self._data_workbook_fname, self.sheet_name,
-                              self._case, self._crp, self.scenarios, self.base_year)
+                              self._case, self._requested_crp, self.scenarios, self.base_year)
 
         print('\tLoading metrics')
         for metric, var_name in self.metrics:
@@ -409,11 +423,7 @@ class TechProcessor(ABC):
         return df_cfc
 
     def _calc_crf(self):
-        crp = self.df_fin.loc['Capital Recovery Period (Years)', 'Value']
-        assert isinstance(crp, (int, float, np.number)) and not np.isnan(crp),\
-            f'CRP must be a number, got "{crp}"'
-
-        df_crf = self.df_just_wacc/(1-(1/(1+self.df_just_wacc))**crp)
+        df_crf = self.df_just_wacc/(1-(1/(1+self.df_just_wacc))**self.crp)
 
         # Relabel WACC index as CRF
         df_crf = df_crf.reset_index()
@@ -422,6 +432,26 @@ class TechProcessor(ABC):
         df_crf = df_crf.set_index('WACC Type')
 
         return df_crf
+
+    @property
+    def crp(self) -> float:
+        """
+        Get CRP value from financial assumptions
+
+        @returns: CRP
+        """
+        raw_crp = self.df_fin.loc['Capital Recovery Period (Years)', 'Value']
+
+        try:
+            crp = float(raw_crp)
+        except ValueError as err:
+            msg = f'Error converting CRP value ({raw_crp}) to a float: {err}.'
+            print(f'{msg} self.df_fin is:')
+            print(self.df_fin)
+            raise ValueError(msg) from err
+
+        assert not np.isnan(crp), f'CRP must be a number, got "{crp}", type is "{type(crp)}"'
+        return crp
 
     def _calc_itc(self, itc_type=''):
         """
@@ -451,9 +481,9 @@ class TechProcessor(ABC):
         df_tax_rate = self.df_wacc.loc['Tax Rate (Federal and State)']
         inflation = self.df_wacc.loc['Inflation Rate']
 
-        df_pvd = pd.DataFrame(columns=YEARS)
+        df_pvd = pd.DataFrame(columns=self._tech_years)
         for scenario in self.scenarios:
-            for year in YEARS:
+            for year in self._tech_years:
 
                 MACRS_schedule = self.get_depreciation_schedule(year)
 
@@ -466,7 +496,8 @@ class TechProcessor(ABC):
 
         itc_schedule = self._calc_itc(itc_type=itc_type)
 
-        df_pff = (1 - df_tax_rate.values*df_pvd*(1-itc_schedule/2) - itc_schedule)/(1-df_tax_rate.values)
+        df_pff = (1 - df_tax_rate.values*df_pvd*(1-itc_schedule/2)
+                  - itc_schedule)/(1-df_tax_rate.values)
         df_pff.index = [f'PFF - {scenario}' for scenario in self.scenarios]
         return df_pff
 
@@ -482,7 +513,7 @@ class TechProcessor(ABC):
             depreciation years.
         """
         dep_years = len(MACRS_schedule)
-        df_depreciation_factor = pd.DataFrame(columns=YEARS)
+        df_depreciation_factor = pd.DataFrame(columns=self._tech_years)
         wacc_real = self.df_wacc.loc['WACC Real - ' + scenario]
 
         for dep_year in range(dep_years):
@@ -525,3 +556,34 @@ class TechProcessor(ABC):
         df_lcoe = df_lcoe + self.df_vom.values - ptc
 
         return df_lcoe
+
+    def _get_tax_credit_case(self):
+        """
+        Uses ptc and itc data from the tech sheet to determine which tax credits are active for the
+        current financial case and tax credit case
+
+        @returns String, one of "None", "PTC", "ITC", "ITC + PTC"
+        """
+        if not self.has_tax_credit:
+            return "None"
+        assert len(self.df_tc) > 0, \
+            (f'Setup df_tc with extractor.get_tax_credits() before calling this function!')
+
+        ptc = self._calc_ptc()
+        itc = self._calc_itc()
+
+        # Trim the 2022 to eliminate pre-inflation reduction act confusion (consider removing in future years)
+        ptc = ptc[:, 1:]
+        itc = itc[1:]
+
+        ptc_sum = np.sum(ptc)
+        itc_sum = np.sum(itc)
+
+        if ptc_sum > 0 and itc_sum > 0:
+            return "PTC + ITC"
+        if ptc_sum > 0:
+            return "PTC"
+        if itc_sum > 0:
+            return "ITC"
+        else:
+            return "None"

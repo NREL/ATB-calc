@@ -170,6 +170,10 @@ class Extractor(AbstractExtractor):
         assert cols[0] == YEARS[0], f'WACC: First year should be {YEARS[0]}, got {cols[0]} instead'
         assert cols[-1] == YEARS[-1], f'WACC: Last year should be {YEARS[-1]}, got {cols[-1]} instead'
 
+        if self.base_year != YEARS[0]:
+            df_wacc = df_wacc.loc[:, self.base_year:YEARS[-1]]
+            df_just_wacc = df_just_wacc.loc[:, self.base_year:YEARS[-1]]
+
         assert not df_wacc.isnull().any().any(),\
             f'Error loading WACC for {tech_name}. Found empty values: {df_wacc}'
 
