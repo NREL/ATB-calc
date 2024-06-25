@@ -112,7 +112,7 @@ class UtilityPvPlusBatteryProc(TechProcessor):
         case: str = MARKET_FIN_CASE,
         crp: CrpChoiceType = 30,
         tcc: str = "PV PTC and Battery ITC",
-        extractor: type[AbstractExtractor] = PVBatteryExtractor
+        extractor: Type[PVBatteryExtractor] = PVBatteryExtractor
     ):
         # Additional data frames pulled from excel
         self.df_pv_cost: Optional[pd.DataFrame] = None
