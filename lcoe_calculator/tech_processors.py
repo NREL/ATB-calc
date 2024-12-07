@@ -26,18 +26,19 @@ class OffShoreWindProc(TechProcessor):
     """
     tech_name = 'OffShoreWind'
     tech_life = 30
-    default_tech_detail = 'Offshore Wind - Class 3'
     dscr = 1.35
 
 class FixedOffShoreWindProc(OffShoreWindProc):
     sheet_name = 'Fixed-Bottom Offshore Wind'
     num_tds = 7
+    default_tech_detail = 'Offshore Wind - Class 3'
     wacc_name = 'Offshore Wind'
 
 class FloatingOffShoreWindProc(OffShoreWindProc):
     sheet_name = 'Floating Offshore Wind'
     num_tds = 7
     base_year = 2030
+    default_tech_detail = 'Offshore Wind - Class 12'
     wacc_name = 'Offshore Wind'
 
 class LandBasedWindProc(TechProcessor):
