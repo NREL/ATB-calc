@@ -16,7 +16,7 @@ import click
 import PySAM.Levpartflip as levpartflip
 
 from lcoe_calculator.extractor import Extractor
-from lcoe_calculator.config import YEARS, FINANCIAL_CASES, CrpChoiceType, PTC_PLUS_ITC_CASE_PVB
+from lcoe_calculator.config import YEARS, END_YEAR, FINANCIAL_CASES, CrpChoiceType, PTC_PLUS_ITC_CASE_PVB
 from lcoe_calculator.tech_processors import LCOE_TECHS
 import lcoe_calculator.tech_processors
 from lcoe_calculator.base_processor import TechProcessor
@@ -236,13 +236,14 @@ def calculate_all_debt_fractions(data_workbook_filename: str, output_filename: s
     df_itc, df_ptc = Extractor.get_tax_credits_sheet(data_workbook_filename)
 
     crp: CrpChoiceType = 20
-
     debt_frac_dict = {}
 
-    # column structure of resulting data frame
-    cols = ["Technology", "Case"] + [str(year) for year in YEARS]
-
     for Tech in techs:
+        tech_years = range(Tech.base_year, END_YEAR + 1)
+
+        # column structure of resulting data frame
+        cols = ["Technology", "Case"] + [str(year) for year in tech_years]
+
         for fin_case in FINANCIAL_CASES:
             click.echo(f"Processing tech {Tech.tech_name} and financial case {fin_case}")
             debt_fracs = [Tech.tech_name, fin_case] # First two columns are metadata
@@ -275,19 +276,23 @@ def calculate_all_debt_fractions(data_workbook_filename: str, output_filename: s
                 )
             ]
 
-            for year in YEARS:
+            for year in tech_years:
                 if debug:
                     click.echo(f"Processing tech {Tech.tech_name}, financial case {fin_case}, "
                                f"and year {year}")
                 if not year in detail_vals or not year in tech_vals:
                     debt_fracs.append(None)
                     continue
-                   
+
                 input_vals = detail_vals.set_index('Parameter')[year].to_dict()
                 gen_vals = tech_vals.set_index('Parameter')[year].to_dict()
 
                 # Tax credits - assumes each tech has one PTC or one ITC
                 if Tech.has_tax_credit and fin_case == 'Market':
+                    name = str(Tech.sheet_name)
+                    if Tech.wacc_name:
+                        name = Tech.wacc_name
+
                     if Tech.sheet_name == "Utility-Scale PV-Plus-Battery":
                         if proc.tax_credit_case is PTC_PLUS_ITC_CASE_PVB and year > 2022:
                             ncf = proc.df_ncf.loc[Tech.default_tech_detail + '/Moderate'][year]
@@ -295,14 +300,14 @@ def calculate_all_debt_fractions(data_workbook_filename: str, output_filename: s
 
                             batt_occ_percent = proc.df_batt_cost * proc.CO_LOCATION_SAVINGS / proc.df_occ
 
-                            input_vals["PTC"] = df_ptc.loc[Tech.sheet_name][year] * min(ncf / pvcf, 1.0)
-                            input_vals["ITC"] = df_itc.loc[Tech.sheet_name][year] * batt_occ_percent.loc[Tech.default_tech_detail + '/Moderate'][year]
+                            input_vals["PTC"] = df_ptc.loc[name][year] * min(ncf / pvcf, 1.0)
+                            input_vals["ITC"] = df_itc.loc[name][year] * batt_occ_percent.loc[Tech.default_tech_detail + '/Moderate'][year]
                         else:
                             input_vals["PTC"] = 0
-                            input_vals["ITC"] = df_itc.loc[Tech.sheet_name][year]
+                            input_vals["ITC"] = df_itc.loc[name][year]
                     else:
-                        input_vals["PTC"] = df_ptc.loc[Tech.sheet_name][year]
-                        input_vals["ITC"] = df_itc.loc[Tech.sheet_name][year]
+                        input_vals["PTC"] = df_ptc.loc[name][year]
+                        input_vals["ITC"] = df_itc.loc[name][year]
                 else:
                     input_vals["PTC"] = 0
                     input_vals["ITC"] = 0
