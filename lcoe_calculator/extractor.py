@@ -26,11 +26,19 @@ class Extractor(AbstractExtractor):
     """
     Extract financial assumptions, metrics, and WACC from Excel data workbook.
     """
-    wacc_sheet = 'WACC Calc'
-    tax_credits_sheet = 'Tax Credits'
 
-    def __init__(self, data_workbook_fname: str, sheet_name: str, case: str, crp: CrpChoiceType,
-                 scenarios: List[str], base_year: int):
+    wacc_sheet = "WACC Calc"
+    tax_credits_sheet = "Tax Credits"
+
+    def __init__(
+        self,
+        data_workbook_fname: str,
+        sheet_name: str,
+        case: str,
+        crp: CrpChoiceType,
+        scenarios: List[str],
+        base_year: int,
+    ):
         """
         @param data_workbook_fname - file name of data workbook
         @param sheet_name - name of sheet to process
@@ -49,21 +57,21 @@ class Extractor(AbstractExtractor):
 
         # Open workbook, set fin case and CRP, and save
         wb = xw.Book(data_workbook_fname)
-        sheet = wb.sheets['Financial and CRP Inputs']
-        sheet.range('B5').value = case
-        sheet.range('E5').value = crp
+        sheet = wb.sheets["Financial and CRP Inputs"]
+        sheet.range("B5").value = case
+        sheet.range("E5").value = crp
         wb.save()
 
         df = pd.read_excel(data_workbook_fname, sheet_name=sheet_name)
         df = df.reset_index()
         # Give columns numerical names
-        columns = {x:y for x,y in zip(df.columns,range(0,len(df.columns)))}
+        columns = {x: y for x, y in zip(df.columns, range(0, len(df.columns)))}
         df = df.rename(columns=columns)
         self._df = df
 
         # Grab tech values and header
-        tables_start_row, _ = self._find_cell(df, 'Future Projections')
-        tables_end_row, _ = self._find_cell(df, 'Data Sources for Default Inputs')
+        tables_start_row, _ = self._find_cell(df, "Future Projections")
+        tables_end_row, _ = self._find_cell(df, "Data Sources for Default Inputs")
         self._df_tech_header = df.loc[0:tables_start_row]
         self._df_tech_full = df.loc[tables_start_row:tables_end_row]
 
@@ -81,48 +89,60 @@ class Extractor(AbstractExtractor):
         df_tc = df_tc.reset_index()
 
         # Give columns numerical names
-        columns = {x:y for x,y in zip(df_tc.columns,range(0,len(df_tc.columns)))}
+        columns = {x: y for x, y in zip(df_tc.columns, range(0, len(df_tc.columns)))}
         df_tc = df_tc.rename(columns=columns)
 
-        #First and last year locations in header
+        # First and last year locations in header
         fy_row, fy_col = cls._find_cell(df_tc, YEARS[0])
         ly_row, ly_col = cls._find_cell(df_tc, YEARS[-1])
-        assert fy_row == ly_row, 'First and last year headings were not found on the same row '+\
-            'on the tax credit sheet.'
+        assert fy_row == ly_row, (
+            "First and last year headings were not found on the same row "
+            + "on the tax credit sheet."
+        )
 
         # Figure out location of data
-        itc_row, itc_col = cls._find_cell(df_tc, 'ITC (%)')
-        ptc_row, ptc_col = cls._find_cell(df_tc, 'PTC ($/MWh)')
-        assert itc_col + 2 == fy_col, 'Expected first data column for ITC does not line up '+\
-            'with first year heading.'
-        assert ptc_col + 2 == fy_col, 'Expected first data column for PTC does not line up '+\
-            'with first year heading.'
-        assert itc_col == ptc_col, 'ITC and PTC marker text are not in the same column'
+        itc_row, itc_col = cls._find_cell(df_tc, "ITC (%)")
+        ptc_row, ptc_col = cls._find_cell(df_tc, "PTC ($/MWh)")
+        assert itc_col + 2 == fy_col, (
+            "Expected first data column for ITC does not line up "
+            + "with first year heading."
+        )
+        assert ptc_col + 2 == fy_col, (
+            "Expected first data column for PTC does not line up "
+            + "with first year heading."
+        )
+        assert itc_col == ptc_col, "ITC and PTC marker text are not in the same column"
 
         # Pull years from tax credit sheet
         years = list(df_tc.loc[fy_row, fy_col:ly_col].astype(int).values)
-        assert years == YEARS, f'Years in tax credit sheet ({years}) do not match ATB years ({YEARS})'
+        assert (
+            years == YEARS
+        ), f"Years in tax credit sheet ({years}) do not match ATB years ({YEARS})"
 
         # Pull ITC and PTC values
-        df_itc = df_tc.loc[itc_row:ptc_row-2, itc_col+1:ly_col]
-        df_itc.columns = ['Technology'] + years
+        df_itc = df_tc.loc[itc_row : ptc_row - 2, itc_col + 1 : ly_col]
+        df_itc.columns = ["Technology"] + years
         df_itc.index = df_itc.Technology
-        df_itc.drop('Technology', axis=1, inplace=True)
+        df_itc.drop("Technology", axis=1, inplace=True)
 
-        df_ptc = df_tc.loc[ptc_row:, ptc_col+1:ly_col]
-        df_ptc.columns = ['Technology'] + years
+        df_ptc = df_tc.loc[ptc_row:, ptc_col + 1 : ly_col]
+        df_ptc.columns = ["Technology"] + years
         df_ptc.index = df_ptc.Technology
-        df_ptc.drop('Technology', axis=1, inplace=True)
+        df_ptc.drop("Technology", axis=1, inplace=True)
         df_ptc = df_ptc.dropna()
 
-        assert not df_itc.isnull().any().any(),\
-            f'Error loading ITC. Found empty values: {df_itc}'
-        assert not df_ptc.isnull().any().any(),\
-            f'Error loading PTC. Found empty values: {df_ptc}'
+        assert (
+            not df_itc.isnull().any().any()
+        ), f"Error loading ITC. Found empty values: {df_itc}"
+        assert (
+            not df_ptc.isnull().any().any()
+        ), f"Error loading PTC. Found empty values: {df_ptc}"
 
         return df_itc, df_ptc
 
-    def get_wacc(self, tech_name: str | None = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def get_wacc(
+        self, tech_name: str | None = None
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
         Extract values for tech and case from WACC sheet.
 
@@ -133,49 +153,59 @@ class Extractor(AbstractExtractor):
                                 Real - {scenario}'
         """
         df_wacc = pd.read_excel(self._data_workbook_fname, self.wacc_sheet)
-        case = 'Market Factors' if self._case == 'Market' else 'R&D'
+        case = "Market Factors" if self._case == "Market" else "R&D"
         tech_name = self.sheet_name if tech_name is None else tech_name
-        search = f'{tech_name} {case}'
+        search = f"{tech_name} {case}"
 
         count = (df_wacc == search).sum().sum()
         if count != 1:
             assert count != 0, f'Unable to find "{search}" on {self.wacc_sheet} sheet.'
-            assert count <= 1, f'"{search}" found more than once in {self.wacc_sheet} sheet.'
+            assert (
+                count <= 1
+            ), f'"{search}" found more than once in {self.wacc_sheet} sheet.'
 
         start_row, c = self._find_cell(df_wacc, search)
-        assert c == 'Unnamed: 0', f'WACC Calc tech search string ("{search}") found in wrong column'
+        assert (
+            c == "Unnamed: 0"
+        ), f'WACC Calc tech search string ("{search}") found in wrong column'
 
         # Grab the rows, reset index and columns
-        df_wacc = df_wacc.iloc[start_row:start_row + NUM_WACC_PARMS + 1]
-        df_wacc = df_wacc.set_index('Unnamed: 1')
+        df_wacc = df_wacc.iloc[start_row : start_row + NUM_WACC_PARMS + 1]
+        df_wacc = df_wacc.set_index("Unnamed: 1")
         df_wacc.columns = pd.Index(df_wacc.iloc[0])
 
         # Drop empty columns and first row w/ years
-        df_wacc = df_wacc.dropna(axis=1, how='any').drop(df_wacc.index[0])
-        df_wacc.index.rename('WACC', inplace=True)
+        df_wacc = df_wacc.dropna(axis=1, how="any").drop(df_wacc.index[0])
+        df_wacc.index.rename("WACC", inplace=True)
         df_wacc.columns = df_wacc.columns.astype(int)
-        df_wacc.columns.name = 'year'
+        df_wacc.columns.name = "year"
 
         df_just_wacc = df_wacc.iloc[-6:]
-        df_just_wacc.index.rename('WACC Type', inplace=True)
+        df_just_wacc.index.rename("WACC Type", inplace=True)
 
         idx = df_wacc.index
-        assert idx[0] == 'Inflation Rate' and idx[-1] == 'WACC Real - Conservative', \
-            ('"Inflation Rate" should be the first row in the WACC table and '
-             f'"WACC Real - Conservative" should be last, but "{idx[0]}" and '
-             f'"{idx[-1]}" were found instead. Please check the data workbook '
-             f'and NUM_WACC_PARAMS.')
+        assert idx[0] == "Inflation Rate" and idx[-1] == "WACC Real - Conservative", (
+            '"Inflation Rate" should be the first row in the WACC table and '
+            f'"WACC Real - Conservative" should be last, but "{idx[0]}" and '
+            f'"{idx[-1]}" were found instead. Please check the data workbook '
+            f"and NUM_WACC_PARAMS."
+        )
 
         cols = df_wacc.columns
-        assert cols[0] == YEARS[0], f'WACC: First year should be {YEARS[0]}, got {cols[0]} instead'
-        assert cols[-1] == YEARS[-1], f'WACC: Last year should be {YEARS[-1]}, got {cols[-1]} instead'
+        assert (
+            cols[0] == YEARS[0]
+        ), f"WACC: First year should be {YEARS[0]}, got {cols[0]} instead"
+        assert (
+            cols[-1] == YEARS[-1]
+        ), f"WACC: Last year should be {YEARS[-1]}, got {cols[-1]} instead"
 
         if self.base_year != YEARS[0]:
-            df_wacc = df_wacc.loc[:, self.base_year:YEARS[-1]]
-            df_just_wacc = df_just_wacc.loc[:, self.base_year:YEARS[-1]]
+            df_wacc = df_wacc.loc[:, self.base_year : YEARS[-1]]
+            df_just_wacc = df_just_wacc.loc[:, self.base_year : YEARS[-1]]
 
-        assert not df_wacc.isnull().any().any(),\
-            f'Error loading WACC for {tech_name}. Found empty values: {df_wacc}'
+        assert (
+            not df_wacc.isnull().any().any()
+        ), f"Error loading WACC for {tech_name}. Found empty values: {df_wacc}"
 
         return df_wacc, df_just_wacc
 
@@ -186,10 +216,10 @@ class Extractor(AbstractExtractor):
 
         @returns financial assumption data
         """
-        r1, c = self._find_cell(self._df, 'Financial Assumptions:')
+        r1, c = self._find_cell(self._df, "Financial Assumptions:")
         r2 = r1 + 1
         val = self._df.loc[r2, c]
-        while not (self._is_empty(val) or val == 'Construction Duration yrs'):
+        while not (self._is_empty(val) or val == "Construction Duration yrs"):
             r2 += 1
             assert r2 != self._df.shape[0], "Error finding end of fin assumptions"
             val = self._df.loc[r2, c]
@@ -198,19 +228,21 @@ class Extractor(AbstractExtractor):
         if self._is_empty(val):
             r2 -= 1
 
-        headers = ['Financial Assumptions', 'Value']
+        headers = ["Financial Assumptions", "Value"]
 
-        df_fin_assump = pd.DataFrame(self._df.loc[r1 + 1:r2, c])
-        df_fin_assump['Value'] = self._df.loc[r1 + 1:r2, c + FIN_ASSUMP_COL]
+        df_fin_assump = pd.DataFrame(self._df.loc[r1 + 1 : r2, c])
+        df_fin_assump["Value"] = self._df.loc[r1 + 1 : r2, c + FIN_ASSUMP_COL]
         df_fin_assump.columns = pd.Index(headers)
-        df_fin_assump = df_fin_assump.set_index('Financial Assumptions')
+        df_fin_assump = df_fin_assump.set_index("Financial Assumptions")
 
-        assert not df_fin_assump.isnull().any().any(),\
-            f'Error loading financial assumptions. Found empty values: {df_fin_assump}'
+        assert (
+            not df_fin_assump.isnull().any().any()
+        ), f"Error loading financial assumptions. Found empty values: {df_fin_assump}"
         return df_fin_assump
 
-    def get_metric_values(self, metric: str, num_tds: int, split_metrics: bool = False)\
-            -> pd.DataFrame:
+    def get_metric_values(
+        self, metric: str, num_tds: int, split_metrics: bool = False
+    ) -> pd.DataFrame:
         """
         Grab metric values table
 
@@ -224,17 +256,18 @@ class Extractor(AbstractExtractor):
             num_rows += len(self.scenarios)
 
         df_met = self._get_metric_values(metric, num_rows)
-        assert len(df_met) == num_tds * len(self.scenarios), \
-            (f'{metric} of {self.sheet_name} '
-            f'appears to be corrupt or the wrong number of tech details ({num_tds}) '
-            f'was entered. split_metrics = {split_metrics}.')
+        assert len(df_met) == num_tds * len(self.scenarios), (
+            f"{metric} of {self.sheet_name} "
+            f"appears to be corrupt or the wrong number of tech details ({num_tds}) "
+            f"was entered. split_metrics = {split_metrics}."
+        )
 
         return df_met
 
     def get_tax_credits(self) -> pd.DataFrame:
         # HACK - 30 is arbitrary, but works
-        df_tc = self._get_metric_values('Tax Credit', 30)
-        df_tc.index.name = 'Tax Credit'
+        df_tc = self._get_metric_values("Tax Credit", 30)
+        df_tc.index.name = "Tax Credit"
         return df_tc
 
     def get_cff(self, cff_name: str, rows: int) -> pd.DataFrame:
@@ -265,32 +298,39 @@ class Extractor(AbstractExtractor):
         end_col = self._next_empty_col(self._df_tech_full, r, first_col) - 1
 
         # Extract headings
-        year_headings = self._df_tech_full.loc[first_row - 1, first_col + 2:end_col]
+        year_headings = self._df_tech_full.loc[first_row - 1, first_col + 2 : end_col]
         year_headings = list(year_headings.astype(int))
 
         # Extract data
         df_met = self._df_tech_full.loc[first_row:end_row, first_col:end_col]
 
-        assert first_col < end_col,\
-            (f'There is a formatting error for {metric} in {self.sheet_name}. '
-             f'Extracted:\n{str(df_met)}')
+        assert first_col < end_col, (
+            f"There is a formatting error for {metric} in {self.sheet_name}. "
+            f"Extracted:\n{str(df_met)}"
+        )
 
         # Create index from tech details and cases
-        df_met[first_col] = df_met[first_col].astype(str) + '/' +\
-             df_met[first_col + 1].astype(str)
+        df_met[first_col] = (
+            df_met[first_col].astype(str) + "/" + df_met[first_col + 1].astype(str)
+        )
         df_met = df_met.set_index(first_col).drop(first_col + 1, axis=1)
 
         # Clean up
         df_met.columns = year_headings
         df_met.index.name = TECH_DETAIL_SCENARIO_COL
-        df_met = df_met.dropna(how='all')
+        df_met = df_met.dropna(how="all")
 
         cols = df_met.columns
-        assert cols[0] == self.base_year, f'{metric}: First year should be {self.base_year}, got {cols[0]} instead'
-        assert cols[-1] == YEARS[-1], f'{metric}: Last year should be {YEARS[-1]}, got {cols[-1]} instead'
+        assert (
+            cols[0] == self.base_year
+        ), f"{metric}: First year should be {self.base_year}, got {cols[0]} instead"
+        assert (
+            cols[-1] == YEARS[-1]
+        ), f"{metric}: Last year should be {YEARS[-1]}, got {cols[-1]} instead"
 
-        assert not df_met.isnull().any().any(),\
-            f'Error extracting values for {metric}. Found missing values: {df_met}'
+        assert (
+            not df_met.isnull().any().any()
+        ), f"Error extracting values for {metric}. Found missing values: {df_met}"
 
         return df_met
 
@@ -300,7 +340,7 @@ class Extractor(AbstractExtractor):
 
         @returns {pd.DataFrame}
         """
-        r, c = self._find_cell(self._df_tech_header, 'Technology Classification' )
+        r, c = self._find_cell(self._df_tech_header, "Technology Classification")
         first_row = r + 1
         first_col = c + 1
         end_row = self._next_empty_row(self._df_tech_header, first_col, first_row) - 1
@@ -315,7 +355,7 @@ class Extractor(AbstractExtractor):
 
         # Clean up
         df_meta = df_meta.reset_index(drop=True)
-        df_meta = df_meta.fillna('')
+        df_meta = df_meta.fillna("")
         df_meta.columns = headings
 
         return df_meta
@@ -324,7 +364,7 @@ class Extractor(AbstractExtractor):
     def _is_empty(val):
         if isinstance(val, str):
             return False
-        if val == '':
+        if val == "":
             return True
         if np.isnan(val):
             return True
@@ -344,7 +384,7 @@ class Extractor(AbstractExtractor):
             assert count != 0, f'Dataframe has no instances of "{value}"'
             assert count <= 1, f'Dataframe has more than one instance of "{value}"'
 
-        cell = df.where(df==value).dropna(how='all').dropna(axis=1)
+        cell = df.where(df == value).dropna(how="all").dropna(axis=1)
         return cell.index[0], cell.columns[0]
 
     def _next_empty_col(self, df, row, col1):

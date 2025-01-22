@@ -17,8 +17,15 @@ class AbstractExtractor(ABC):
     """
 
     @abstractmethod
-    def __init__(self, data_workbook_fname: str, sheet_name: str, case: str, crp: CrpChoiceType,
-                 scenarios: List[str], base_year: int):
+    def __init__(
+        self,
+        data_workbook_fname: str,
+        sheet_name: str,
+        case: str,
+        crp: CrpChoiceType,
+        scenarios: List[str],
+        base_year: int,
+    ):
         """
         @param data_workbook_fname - file name of data workbook
         @param sheet_name - name of sheet to process
@@ -29,8 +36,9 @@ class AbstractExtractor(ABC):
         """
 
     @abstractmethod
-    def get_metric_values(self, metric: str, num_tds: int, split_metrics: bool = False)\
-          -> pd.DataFrame:
+    def get_metric_values(
+        self, metric: str, num_tds: int, split_metrics: bool = False
+    ) -> pd.DataFrame:
         """
         Grab metric values table.
 
@@ -42,7 +50,7 @@ class AbstractExtractor(ABC):
 
     @abstractmethod
     def get_tax_credits(self) -> pd.DataFrame:
-        """ Get tax credit """
+        """Get tax credit"""
 
     @abstractmethod
     def get_cff(self, cff_name: str, rows: int) -> pd.DataFrame:
@@ -64,7 +72,9 @@ class AbstractExtractor(ABC):
         """
 
     @abstractmethod
-    def get_wacc(self, tech_name: str | None = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def get_wacc(
+        self, tech_name: str | None = None
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
         Extract values for tech and case from WACC sheet.
 

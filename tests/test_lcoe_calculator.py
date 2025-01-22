@@ -17,18 +17,23 @@ from lcoe_calculator.config import FINANCIAL_CASES
 from .mock_extractor import MockExtractor
 from .data_finder import DataFinder
 
+
 def test_lcoe_and_capex_calculations():
     """
     Test LCOE and CAPEX calculations using stored data
     """
     for Tech in ALL_TECHS:
-        print(f'----------- Testing {Tech.sheet_name} -----------')
+        print(f"----------- Testing {Tech.sheet_name} -----------")
         for case in FINANCIAL_CASES:
             for crp in CRP_CHOICES:
                 DataFinder.set_tech(Tech)
 
-                proc: TechProcessor = Tech('fake_path_to_data_workbook.xlsx', case=case, crp=crp,
-                                           extractor=MockExtractor)
+                proc: TechProcessor = Tech(
+                    "fake_path_to_data_workbook.xlsx",
+                    case=case,
+                    crp=crp,
+                    extractor=MockExtractor,
+                )
                 proc.run()
 
                 # Check all metrics have been loaded
@@ -49,15 +54,19 @@ def test_lcoe_and_capex_calculations():
                     proc.test_capex()
                     assert not proc.df_capex.isnull().any().any()
                     assert not proc.ss_capex.isnull().any().any()
-                    assert np.allclose(np.array(proc.df_capex, dtype=float),
-                                    np.array(proc.ss_capex, dtype=float))
+                    assert np.allclose(
+                        np.array(proc.df_capex, dtype=float),
+                        np.array(proc.ss_capex, dtype=float),
+                    )
                 if proc.has_lcoe:
                     proc.test_lcoe()
                     assert not proc.df_lcoe.isnull().any().any()
                     assert not proc.ss_lcoe.isnull().any().any()
-                    assert np.allclose(np.array(proc.df_lcoe, dtype=float),
-                                    np.array(proc.ss_lcoe, dtype=float))
+                    assert np.allclose(
+                        np.array(proc.df_lcoe, dtype=float),
+                        np.array(proc.ss_lcoe, dtype=float),
+                    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_lcoe_and_capex_calculations()
