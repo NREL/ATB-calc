@@ -236,13 +236,14 @@ def calculate_all_debt_fractions(data_workbook_filename: str, output_filename: s
     df_itc, df_ptc = Extractor.get_tax_credits_sheet(data_workbook_filename)
 
     crp: CrpChoiceType = 20
-
     debt_frac_dict = {}
 
-    # column structure of resulting data frame
-    cols = ["Technology", "Case"] + [str(year) for year in YEARS]
-
     for Tech in techs:
+        tech_years = range(Tech.base_year, END_YEAR + 1)
+
+        # column structure of resulting data frame
+        cols = ["Technology", "Case"] + [str(year) for year in tech_years]
+
         for fin_case in FINANCIAL_CASES:
             click.echo(f"Processing tech {Tech.tech_name} and financial case {fin_case}")
             debt_fracs = [Tech.tech_name, fin_case] # First two columns are metadata
@@ -275,20 +276,20 @@ def calculate_all_debt_fractions(data_workbook_filename: str, output_filename: s
                 )
             ]
 
-            for year in range(Tech.base_year, END_YEAR + 1):
+            for year in tech_years:
                 if debug:
                     click.echo(f"Processing tech {Tech.tech_name}, financial case {fin_case}, "
                                f"and year {year}")
                 if not year in detail_vals or not year in tech_vals:
                     debt_fracs.append(None)
                     continue
-                   
+
                 input_vals = detail_vals.set_index('Parameter')[year].to_dict()
                 gen_vals = tech_vals.set_index('Parameter')[year].to_dict()
 
                 # Tax credits - assumes each tech has one PTC or one ITC
                 if Tech.has_tax_credit and fin_case == 'Market':
-                    name = Tech.sheet_name
+                    name = str(Tech.sheet_name)
                     if Tech.wacc_name:
                         name = Tech.wacc_name
 
