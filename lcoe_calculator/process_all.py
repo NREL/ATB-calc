@@ -1,5 +1,6 @@
 #
-# Copyright (c) Alliance for Sustainable Energy, LLC and Skye Analytics, Inc. See also https://github.com/NREL/ATB-calc/blob/main/LICENSE
+# Copyright (c) Alliance for Sustainable Energy, LLC and Skye Analytics, Inc. See also
+# https://github.com/NREL/ATB-calc/blob/main/LICENSE
 #
 # This file is part of ATB-calc
 # (see https://github.com/NREL/ATB-calc).
@@ -7,7 +8,7 @@
 """
 Process all (or some) ATB technologies and calculate all metrics.
 """
-from typing import List, Dict, Type
+from typing import List, Dict, Type, Optional
 from datetime import datetime as dt
 import click
 import pandas as pd
@@ -41,7 +42,8 @@ class ProcessAll:
         if not isinstance(techs, list):
             techs = [techs]
 
-        self.data = pd.DataFrame()  # Flat data
+        self.data = pd.DataFrame()  # Data
+        self.flat_data = pd.DataFrame()  # Flat data
         self.meta = pd.DataFrame()  # Meta data
 
         self._techs = techs
@@ -49,10 +51,10 @@ class ProcessAll:
 
     def _run_tech(
         self,
-        Tech: TechProcessor,
+        Tech: type[TechProcessor],
         crp: CrpChoiceType,
         case: str,
-        tcc: str,
+        tcc: Optional[str],
         test_capex,
         test_lcoe,
     ):
@@ -75,9 +77,6 @@ class ProcessAll:
         if test_lcoe:
             proc.test_lcoe()
 
-        flat = proc.flat
-        self.data = pd.concat([self.data, flat])
-
         return proc
 
     def process(self, test_capex: bool = True, test_lcoe: bool = True):
@@ -88,7 +87,7 @@ class ProcessAll:
         for i, Tech in enumerate(self._techs):
             print(f"##### Processing {Tech.tech_name} ({i+1}/{len(self._techs)}) #####")
 
-            proc = None
+            proc: TechProcessor
             for crp in CRP_CHOICES:
                 # skip TechLife if 20 or 30 so we don't duplicate effort
                 if crp == "TechLife" and Tech.tech_life in CRP_CHOICES:
@@ -96,15 +95,15 @@ class ProcessAll:
 
                 for case in FINANCIAL_CASES:
                     if case is MARKET_FIN_CASE and Tech.tech_name in TAX_CREDIT_CASES:
-                        tax_cases = TAX_CREDIT_CASES[Tech.tech_name]
+                        tax_cases = TAX_CREDIT_CASES[Tech.tech_name]  # type: ignore
                         for tc in tax_cases:
-                            proc = self._run_tech(
-                                Tech, crp, case, tc, test_capex, test_lcoe
-                            )
+                            proc = self._run_tech(Tech, crp, case, tc, test_capex, test_lcoe)
+                            self.data = pd.concat([self.data, proc.combined_data()])
+                            self.flat_data = pd.concat([self.flat_data, proc.flat_data()])
                     else:
-                        proc = self._run_tech(
-                            Tech, crp, case, None, test_capex, test_lcoe
-                        )
+                        proc = self._run_tech(Tech, crp, case, None, test_capex, test_lcoe)
+                        self.data = pd.concat([self.data, proc.combined_data()])
+                        self.flat_data = pd.concat([self.flat_data, proc.flat_data()])
 
             meta = proc.get_meta_data()
             meta["Tech Name"] = Tech.tech_name
@@ -116,22 +115,9 @@ class ProcessAll:
     @property
     def data_flattened(self):
         """Get flat data pivoted with each year as a row"""
-        if self.data is None:
+        if self.flat_data is None:
             raise ValueError("Please run process() first")
-
-        melted = pd.melt(
-            self.data,
-            id_vars=[
-                "Parameter",
-                "Case",
-                "TaxCreditCase",
-                "CRPYears",
-                "Technology",
-                "DisplayName",
-                "Scenario",
-            ],
-        )
-        return melted
+        return self.flat_data
 
     def to_csv(self, fname: str):
         """Write data to CSV"""
@@ -165,15 +151,9 @@ tech_names = [Tech.__name__ for Tech in ALL_TECHS]
     type=click.Choice(tech_names),
     help="Name of tech to process. Process all techs if none are specified.",
 )
+@click.option("-m", "--save-meta", "meta_file", type=click.Path(), help="Save meta data to CSV.")
 @click.option(
-    "-m", "--save-meta", "meta_file", type=click.Path(), help="Save meta data to CSV."
-)
-@click.option(
-    "-f",
-    "--save-flat",
-    "flat_file",
-    type=click.Path(),
-    help="Save data in flat format to CSV.",
+    "-f", "--save-flat", "flat_file", type=click.Path(), help="Save data in flat format to CSV."
 )
 @click.option(
     "-p",
@@ -183,11 +163,7 @@ tech_names = [Tech.__name__ for Tech in ALL_TECHS]
     help="Save data in pivoted format to CSV.",
 )
 @click.option(
-    "-c",
-    "--clipboard",
-    is_flag=True,
-    default=False,
-    help="Copy data to system clipboard.",
+    "-c", "--clipboard", is_flag=True, default=False, help="Copy data to system clipboard."
 )
 def process(
     data_workbook_filename: str,
@@ -200,9 +176,7 @@ def process(
     """
     CLI to process ATB data workbook and calculate metrics.
     """
-    tech_map: Dict[str, Type[TechProcessor]] = {
-        tech.__name__: tech for tech in ALL_TECHS
-    }
+    tech_map: Dict[str, Type[TechProcessor]] = {tech.__name__: tech for tech in ALL_TECHS}
 
     techs = ALL_TECHS if tech is None else [tech_map[tech]]
 

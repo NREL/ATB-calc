@@ -10,8 +10,8 @@ Config and constants for the LCOE pipeline.
 from typing import Literal, List
 
 # Years of data projected by ATB
-BASE_YEAR = 2022
-END_YEAR = 2050
+BASE_YEAR = 2023
+END_YEAR = 2060
 YEARS = list(range(BASE_YEAR, END_YEAR + 1, 1))
 
 # Financial cases
@@ -22,9 +22,7 @@ FINANCIAL_CASES = [MARKET_FIN_CASE, R_AND_D_FIN_CASE]
 # Tax credit cases
 ITC_ONLY_CASE = "ITC only"
 PTC_PLUS_ITC_CASE_PVB = "PV PTC and Battery ITC"
-TAX_CREDIT_CASES = {
-    "Utility-Scale PV-Plus-Battery": [ITC_ONLY_CASE, PTC_PLUS_ITC_CASE_PVB]
-}
+TAX_CREDIT_CASES = {"Utility-Scale PV-Plus-Battery": [ITC_ONLY_CASE, PTC_PLUS_ITC_CASE_PVB]}
 
 # CRP choices and type hints
 CrpChoiceType = Literal[20, 30, "TechLife"]
@@ -36,7 +34,8 @@ SCENARIOS = ["Advanced", "Moderate", "Conservative"]
 # Column name for combined tech detail name and scenario, aka Column K in the workbook
 TECH_DETAIL_SCENARIO_COL = "tech_detail-scenario"
 
-# Metric header names in ATB data workbook
+# Metric header names in ATB data workbook (usually column J)
 LCOE_SS_NAME = "Levelized Cost of Energy ($/MWh)"
 CAPEX_SS_NAME = "CAPEX ($/kW)"
 CFF_SS_NAME = "Construction Finance Factor"
+REFERENCES_SS_NAME = "References"

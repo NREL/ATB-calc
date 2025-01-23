@@ -68,9 +68,7 @@ def calculate_debt_fraction(input_vals: InputVals, debug=False) -> float:
     analysis_period = 20
     ac_capacity = 1000  # kW
     capacity_factor = input_vals["CF"]
-    gen = [
-        capacity_factor * ac_capacity
-    ] * 8760  # Distribute evenly throughout the year
+    gen = [capacity_factor * ac_capacity] * 8760  # Distribute evenly throughout the year
 
     capex = input_vals["OCC"]
     con_fin_costs = input_vals["CFC"]
@@ -105,9 +103,7 @@ def calculate_debt_fraction(input_vals: InputVals, debug=False) -> float:
     # Specify length 1 so degradation is applied each year.
     # An array of 0.7 len(analysis_period) assumes degradation the first year, but not afterwards
     model.value("degradation", [degradation])
-    model.value(
-        "system_use_lifetime_output", 0
-    )  # Do degradation in the financial model
+    model.value("system_use_lifetime_output", 0)  # Do degradation in the financial model
 
     model.value(
         "debt_option", 1
@@ -216,9 +212,7 @@ def calculate_debt_fraction(input_vals: InputVals, debug=False) -> float:
     model.execute()
 
     if debug:
-        print(
-            f"LCOE: {model.Outputs.lcoe_real} cents/kWh"
-        )  # multiply by 10 to get $ / MWh
+        print(f"LCOE: {model.Outputs.lcoe_real} cents/kWh")  # multiply by 10 to get $ / MWh
         print(f"NPV: {model.Outputs.cf_project_return_aftertax_npv}")
         print()
         print(f"IRR in target year: {model.Outputs.flip_target_irr}")
@@ -261,9 +255,7 @@ def calculate_all_debt_fractions(
     DATA_WORKBOOK_FILENAME - Path and name of ATB data workbook XLXS file.
     OUTPUT_FILENAME - File to save calculated debt fractions to. Should end with .csv
     """
-    tech_map: Dict[str, Type[TechProcessor]] = {
-        tech.__name__: tech for tech in LCOE_TECHS
-    }
+    tech_map: Dict[str, Type[TechProcessor]] = {tech.__name__: tech for tech in LCOE_TECHS}
     techs = LCOE_TECHS if tech is None else [tech_map[tech]]
 
     df_itc, df_ptc = Extractor.get_tax_credits_sheet(data_workbook_filename)
@@ -278,9 +270,7 @@ def calculate_all_debt_fractions(
         cols = ["Technology", "Case"] + [str(year) for year in tech_years]
 
         for fin_case in FINANCIAL_CASES:
-            click.echo(
-                f"Processing tech {Tech.tech_name} and financial case {fin_case}"
-            )
+            click.echo(f"Processing tech {Tech.tech_name} and financial case {fin_case}")
             debt_fracs = [Tech.tech_name, fin_case]  # First two columns are metadata
 
             proc = Tech(
@@ -291,7 +281,7 @@ def calculate_all_debt_fractions(
             )
             proc.run()
 
-            d = proc.flat
+            d = proc.combined_data()
 
             # Values that are specific to the representative tech detail
             detail_vals = d[
@@ -344,35 +334,20 @@ def calculate_all_debt_fractions(
                         name = Tech.wacc_name
 
                     if Tech.sheet_name == "Utility-Scale PV-Plus-Battery":
-                        if (
-                            proc.tax_credit_case is PTC_PLUS_ITC_CASE_PVB
-                            and year > 2022
-                        ):
+                        if proc.tax_credit_case is PTC_PLUS_ITC_CASE_PVB and year > 2022:
                             if Tech.default_tech_detail is None:
-                                raise AttributeError(
-                                    "Tech.default_tech_detail must be set for "
-                                )
-                            ncf = proc.df_ncf.loc[
-                                Tech.default_tech_detail + "/Moderate"
-                            ][year]
-                            pvcf = proc.df_pvcf.loc[
-                                Tech.default_tech_detail + "/Moderate"
-                            ][year]
+                                raise AttributeError("Tech.default_tech_detail must be set for ")
+                            ncf = proc.df_ncf.loc[Tech.default_tech_detail + "/Moderate"][year]
+                            pvcf = proc.df_pvcf.loc[Tech.default_tech_detail + "/Moderate"][year]
 
                             batt_occ_percent = (
-                                proc.df_batt_cost
-                                * proc.CO_LOCATION_SAVINGS
-                                / proc.df_occ
+                                proc.df_batt_cost * proc.CO_LOCATION_SAVINGS / proc.df_occ
                             )
 
-                            input_vals["PTC"] = df_ptc.loc[name][year] * min(
-                                ncf / pvcf, 1.0
-                            )
+                            input_vals["PTC"] = df_ptc.loc[name][year] * min(ncf / pvcf, 1.0)
                             input_vals["ITC"] = (
                                 df_itc.loc[name][year]
-                                * batt_occ_percent.loc[
-                                    Tech.default_tech_detail + "/Moderate"
-                                ][year]
+                                * batt_occ_percent.loc[Tech.default_tech_detail + "/Moderate"][year]
                             )
                         else:
                             input_vals["PTC"] = 0

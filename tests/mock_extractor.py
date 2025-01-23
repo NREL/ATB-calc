@@ -104,9 +104,7 @@ class MockExtractor(AbstractExtractor):
         @returns {pd.DataFrame} df_just_wacc - last six rows of wacc sheet,
             'WACC Nominal - {scenario}' and 'WACC Real - {scenario}'
         """
-        fname = DataFinder.get_data_filename(
-            WACC_FAKE_SS_NAME, self._case, self._requested_crp
-        )
+        fname = DataFinder.get_data_filename(WACC_FAKE_SS_NAME, self._case, self._requested_crp)
         df_wacc = self.read_csv(fname)
         fname = DataFinder.get_data_filename(
             JUST_WACC_FAKE_SS_NAME, self._case, self._requested_crp
@@ -125,3 +123,12 @@ class MockExtractor(AbstractExtractor):
         df = pd.read_csv(fname, index_col=0)
         df.columns = df.columns.astype(int)
         return df
+
+    def get_references(self, metrics: List[Tuple[str, str]]) -> pd.DataFrame:
+        """
+        Dynamically search for references and return as a data frame.
+
+        @param metrics - list of metrics to load from spreadsheet
+        @returns references
+        """
+        pass

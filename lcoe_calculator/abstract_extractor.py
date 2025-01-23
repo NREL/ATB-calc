@@ -72,9 +72,16 @@ class AbstractExtractor(ABC):
         """
 
     @abstractmethod
-    def get_wacc(
-        self, tech_name: str | None = None
-    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def get_references(self, metrics: List[str]) -> pd.DataFrame:
+        """
+        Dynamically search for references and return as a data frame.
+
+        @param metrics - list of metrics to load from spreadsheet
+        @returns references
+        """
+
+    @abstractmethod
+    def get_wacc(self, tech_name: str | None = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
         Extract values for tech and case from WACC sheet.
 

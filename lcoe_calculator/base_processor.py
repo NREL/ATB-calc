@@ -7,13 +7,21 @@
 """
 Tech LCOE and CAPEX processor class. This is effectively an abstract class and must be subclassed.
 """
-from typing import List, Tuple, Type, Optional
+from typing import List, Tuple, Type, Optional, Dict
 from abc import ABC, abstractmethod
 import pandas as pd
 import numpy as np
+from pprint import pprint
 
 from .macrs import MACRS_6
-from .extractor import Extractor
+from .extractor import (
+    Extractor,
+    REF_SCENARIO,
+    REF_METRIC,
+    REF_REFERENCE,
+    REF_END_YEAR,
+    REF_START_YEAR,
+)
 from .abstract_extractor import AbstractExtractor
 from .config import (
     FINANCIAL_CASES,
@@ -89,9 +97,7 @@ class TechProcessor(ABC):
     has_capex = True  # If True, calculate CAPEX
     has_lcoe = True  # If True, calculate CRF, PFF, & LCOE.
 
-    split_metrics = (
-        False  # Indicates 3 empty rows in tech detail metrics, e.g. hydropower
-    )
+    split_metrics = False  # Indicates 3 empty rows in tech detail metrics, e.g. hydropower
 
     # Attributes to export in flat file, format: (attr name in class, value for
     # flat file). Any attributes that are None are silently ignored. Financial
@@ -111,9 +117,7 @@ class TechProcessor(ABC):
     # Variables used by the debt fraction calculator. Should be filled out for any tech
     # where self.has_lcoe == True.
     default_tech_detail: Optional[str] = None
-    dscr: Optional[float] = (
-        None  # Debt service coverage ratio (unitless, typically 1-1.5)
-    )
+    dscr: Optional[float] = None  # Debt service coverage ratio (unitless, typically 1-1.5)
 
     def __init__(
         self,
@@ -164,6 +168,7 @@ class TechProcessor(ABC):
         self.df_hrp = None  # Heat Rate Penalty (% change), retrofits only
         self.df_nop = None  # Net Output Penalty (% change), retrofits only
         self.df_pvcf = None  # PV-only capacity factor (%), PV-plus-battery only
+        self.df_references = None
 
         # These data frames are calculated and populated by object methods
         self.df_aep = None  # Annual energy production (kWh/kW)
@@ -194,15 +199,113 @@ class TechProcessor(ABC):
                 not self.df_lcoe.isnull().any().any()
             ), f"Error in calculated LCOE, found missing values: {self.df_lcoe}"
 
-    @property
-    def flat(self) -> pd.DataFrame:
+    def flat_data(self) -> pd.DataFrame:
         """
-        Return flattened data, joining all outputs. Split tech detail and
+        Return flattened data, with a row for each year, scenario, parameter, etc, combo. References
+        are appended. Outputs are defined in self.flat_attrs, but are silently skipped if value
+        attribute value is None.
+
+        @returns Flattened data
+        """
+        df_melted = pd.melt(
+            self.combined_data(),
+            id_vars=[
+                "Parameter",
+                "Case",
+                "TaxCreditCase",
+                "CRPYears",
+                "Technology",
+                "DisplayName",
+                "Scenario",
+            ],
+        )
+        melted = df_melted.to_dict(orient="records")
+
+        # Create lookup table for full metric name keyed by abbreviation. Abbreviations in
+        # self.flat_attrs that do not have a matching value in self.metrics will be ignored. E.g.:
+        # {
+        #   'CF': 'Net Capacity Factor (%)',
+        #   'Fixed O&M': 'Fixed Operation and Maintenance Expenses ($/kW-yr)',
+        # }
+        metrics_by_var = {metric[1]: metric[0] for metric in self.metrics}
+        abbrevs_to_metrics = {
+            attr[1]: metrics_by_var[attr[0]]
+            for attr in self.flat_attrs
+            if attr[0] in metrics_by_var
+        }
+
+        if self.df_references is None:
+            raise ValueError("References must be loaded to flatten data")
+
+        # Append reference info to each record
+        for record in melted:
+            self._append_reference_info(record, abbrevs_to_metrics, self.df_references)
+
+        df_final = pd.DataFrame.from_dict(melted)
+        return df_final
+
+    @staticmethod
+    def _append_reference_info(
+        record: Dict[str, str | int | float],
+        abbrevs_to_metrics: Dict[str, str],
+        df_refs: pd.DataFrame,
+    ):
+        """Append reference info to a single flat file record. This modifies the record in place.
+
+        :param record: Record to add reference info to.
+        :param abbrevs_to_metrics: Mapping of abbreviations to full metric names.
+        :param df_refs: DataFrame of references
+        """
+
+        metric = abbrevs_to_metrics.get(record["Parameter"], "")  # type: ignore
+        if metric == "":
+            # TODO - these column names should be handled dynamically
+            record["Reference"] = ""
+            record["Type of Evidence"] = ""
+            record["Escalation Index"] = ""
+            return
+
+        # Filter references by metric and scenario
+        scenario = record["Scenario"]
+        scenario_mask = (df_refs[REF_SCENARIO] == scenario) | (df_refs[REF_SCENARIO] == "All")
+        metric_mask = df_refs[REF_METRIC] == metric
+        def_refs_filtered = df_refs[metric_mask & scenario_mask]
+
+        if len(def_refs_filtered) == 0:
+            raise ValueError(f"No reference found for metric '{metric}', scenario '{scenario}'")
+
+        # Find the reference for year
+        year = int(record["variable"])
+        year_mask = (def_refs_filtered[REF_START_YEAR] <= year) & (
+            def_refs_filtered[REF_END_YEAR] >= year
+        )
+        df_ref = def_refs_filtered[year_mask]
+
+        if len(df_ref) == 0:
+            raise ValueError(
+                f"There is no reference for year {year} for metric '{metric}', scenario "
+                f"'{scenario}'"
+            )
+        if len(df_ref) > 1:
+            raise ValueError(
+                f"Multiple references found for year {year} for metric '{metric}', scenario "
+                f"'{scenario}'"
+            )
+
+        # Finally, append reference values
+        # TODO - these column names should be handled dynamically
+        record["Reference"] = df_ref[REF_REFERENCE].values[0]
+        record["Type of Evidence"] = df_ref["Type of Evidence"].values[0]
+        record["Escalation Index"] = df_ref["Escalation Index"].values[0]
+
+    def combined_data(self) -> pd.DataFrame:
+        """
+        Return combined data, joining all outputs. Split tech detail and
         scenario into separate columns and append tech, parameter name, case and
         crp. Include financial if present. Outputs are defined in self.flat_attrs,
         but are silently skipped if value attribute value is None.
 
-        @returns Flat data for tech
+        @returns Combined data for tech
         """
         df_flat = pd.DataFrame() if self.df_wacc is None else self._flat_fin_assump()
 
@@ -278,9 +381,7 @@ class TechProcessor(ABC):
             not self.ss_lcoe.isnull().any().any()
         ), f"Error in LCOE from workbook, found missing values: {self.ss_lcoe}"
 
-        if np.allclose(
-            np.array(self.df_lcoe, dtype=float), np.array(self.ss_lcoe, dtype=float)
-        ):
+        if np.allclose(np.array(self.df_lcoe, dtype=float), np.array(self.ss_lcoe, dtype=float)):
             print("Calculated LCOE matches LCOE from workbook")
         else:
             msg = f"Calculated LCOE doesn't match LCOE from workbook for {self.sheet_name}"
@@ -311,9 +412,7 @@ class TechProcessor(ABC):
         assert (
             not self.ss_capex.isnull().any().any()
         ), f"Error in CAPEX from workbook, found missing values: {self.ss_capex}"
-        if np.allclose(
-            np.array(self.df_capex, dtype=float), np.array(self.ss_capex, dtype=float)
-        ):
+        if np.allclose(np.array(self.df_capex, dtype=float), np.array(self.ss_capex, dtype=float)):
             print("Calculated CAPEX matches CAPEX from workbook")
         else:
             raise ValueError("Calculated CAPEX doesn't match CAPEX from workbook")
@@ -350,9 +449,7 @@ class TechProcessor(ABC):
         df = df.reset_index(drop=False)
         df[["Parameter", "Scenario"]] = df.WACC.str.split(" - ", expand=True)
         df.loc[df.Scenario.isnull(), "Scenario"] = "*"
-        df.loc[df.Scenario == "Nominal", "Parameter"] = (
-            "Interest During Construction - Nominal"
-        )
+        df.loc[df.Scenario == "Nominal", "Parameter"] = "Interest During Construction - Nominal"
         df.loc[df.Scenario == "Nominal", "Scenario"] = "*"
         df["DisplayName"] = "*"
         df["TaxCreditCase"] = self._get_tax_credit_case()
@@ -406,8 +503,11 @@ class TechProcessor(ABC):
                 self.df_cff = self.load_cff(extractor, metric, index)
                 continue
 
-            temp = extractor.get_metric_values(metric, self.num_tds, self.split_metrics)
-            setattr(self, var_name, temp)
+            df_temp = extractor.get_metric_values(metric, self.num_tds, self.split_metrics)
+
+            # print(metric, var_name)
+            # print(df_temp)
+            setattr(self, var_name, df_temp)
 
         if self.has_tax_credit:
             self.df_tc = extractor.get_tax_credits()
@@ -420,6 +520,10 @@ class TechProcessor(ABC):
         if self.has_wacc:
             print("\tLoading WACC data")
             self.df_wacc, self.df_just_wacc = extractor.get_wacc(self.wacc_name)
+
+        print("\tLoading references")
+        metric_names = [m[0] for m in self.metrics]
+        self.df_references = extractor.get_references(metric_names)
 
         print("\tDone loading data")
         return extractor
@@ -440,8 +544,7 @@ class TechProcessor(ABC):
         """
         df_cff = extractor.get_cff(cff_name, len(cls.scenarios))
         assert len(df_cff) == len(cls.scenarios), (
-            f"Wrong number of CFF rows found. Expected {len(cls.scenarios)}, "
-            f"get {len(df_cff)}."
+            f"Wrong number of CFF rows found. Expected {len(cls.scenarios)}, " f"get {len(df_cff)}."
         )
 
         if return_short_df:
@@ -462,9 +565,7 @@ class TechProcessor(ABC):
 
     def _calc_capex(self):
         assert (
-            self.df_cff is not None
-            and self.df_occ is not None
-            and self.df_gcc is not None
+            self.df_cff is not None and self.df_occ is not None and self.df_gcc is not None
         ), "CFF, OCC, and GCC must to loaded to calculate CAPEX"
         df_capex = self.df_cff * (self.df_occ + self.df_gcc)
         df_capex = df_capex.copy()
@@ -505,9 +606,7 @@ class TechProcessor(ABC):
             print(self.df_fin)
             raise ValueError(msg) from err
 
-        assert not np.isnan(
-            crp
-        ), f'CRP must be a number, got "{crp}", type is "{type(crp)}"'
+        assert not np.isnan(crp), f'CRP must be a number, got "{crp}", type is "{type(crp)}"'
         return crp
 
     def _calc_itc(self, itc_type=""):
@@ -546,9 +645,7 @@ class TechProcessor(ABC):
 
                 MACRS_schedule = self.get_depreciation_schedule(year)
 
-                df_depreciation_factor = self._calc_dep_factor(
-                    MACRS_schedule, inflation, scenario
-                )
+                df_depreciation_factor = self._calc_dep_factor(MACRS_schedule, inflation, scenario)
 
                 df_pvd.loc["PVD - " + scenario, year] = np.dot(
                     MACRS_schedule, df_depreciation_factor[year]
@@ -556,9 +653,9 @@ class TechProcessor(ABC):
 
         itc_schedule = self._calc_itc(itc_type=itc_type)
 
-        df_pff = (
-            1 - df_tax_rate.values * df_pvd * (1 - itc_schedule / 2) - itc_schedule
-        ) / (1 - df_tax_rate.values)
+        df_pff = (1 - df_tax_rate.values * df_pvd * (1 - itc_schedule / 2) - itc_schedule) / (
+            1 - df_tax_rate.values
+        )
         df_pff.index = [f"PFF - {scenario}" for scenario in self.scenarios]
         return df_pff
 
@@ -578,9 +675,9 @@ class TechProcessor(ABC):
         wacc_real = self.df_wacc.loc["WACC Real - " + scenario]
 
         for dep_year in range(dep_years):
-            df_depreciation_factor.loc[dep_year + 1] = 1 / (
-                (1 + wacc_real) * (1 + inflation)
-            ) ** (dep_year + 1)
+            df_depreciation_factor.loc[dep_year + 1] = 1 / ((1 + wacc_real) * (1 + inflation)) ** (
+                dep_year + 1
+            )
 
         return df_depreciation_factor
 
@@ -592,9 +689,7 @@ class TechProcessor(ABC):
         """
         if self.has_tax_credit:
             df_tax_credit = self.df_tc.reset_index()
-            df_ptc = df_tax_credit.loc[
-                df_tax_credit["Tax Credit"].str.contains("PTC/", na=False)
-            ]
+            df_ptc = df_tax_credit.loc[df_tax_credit["Tax Credit"].str.contains("PTC/", na=False)]
 
             assert len(df_ptc) != 0, f"PTC data is missing for {self.sheet_name}"
             assert len(df_ptc) == len(
@@ -619,9 +714,7 @@ class TechProcessor(ABC):
         x = self.df_crf.values * self.df_pff
         y = pd.concat([x] * self.num_tds)
 
-        df_lcoe = (
-            1000 * (y.values * self.df_capex.values + self.df_fom) / self.df_aep.values
-        )
+        df_lcoe = 1000 * (y.values * self.df_capex.values + self.df_fom) / self.df_aep.values
         df_lcoe = df_lcoe + self.df_vom.values - ptc
 
         return df_lcoe
@@ -642,7 +735,8 @@ class TechProcessor(ABC):
         ptc = self._calc_ptc()
         itc = self._calc_itc()
 
-        # Trim the 2022 to eliminate pre-inflation reduction act confusion (consider removing in future years)
+        # Trim the 2022 to eliminate pre-inflation reduction act confusion (consider removing in
+        # future years)
         ptc = ptc[:, 1:]
         itc = itc[1:]
 
