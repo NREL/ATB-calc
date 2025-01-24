@@ -126,6 +126,7 @@ class TechProcessor(ABC):
         crp: CrpChoiceType = 30,
         tcc: Optional[str] = None,
         extractor: Type[AbstractExtractor] = Extractor,
+        load_refs: bool = True,
     ):
         """
         @param data_workbook_fname - name of workbook
@@ -133,6 +134,7 @@ class TechProcessor(ABC):
         @param crp - capital recovery period: 20, 30, or 'TechLife'
         @param tcc - tax credit case: 'ITC only' or 'PV PTC and Battery ITC' Only required for the PV plus battery technology.
         @param extractor - Extractor class to use to obtain source data.
+        @param load_refs - Load references if True
         """
         assert case in FINANCIAL_CASES, (
             f"Financial case must be one of {FINANCIAL_CASES}," f" received {case}"
@@ -179,7 +181,7 @@ class TechProcessor(ABC):
         self.df_lcoe = None  # LCOE ($/MWh)
 
         self._ExtractorClass = extractor
-        self._extractor = self._extract_data()
+        self._extractor = self._extract_data(load_refs)
 
     def run(self):
         """Run all calculations for CAPEX and LCOE"""
@@ -221,6 +223,10 @@ class TechProcessor(ABC):
         )
         melted = df_melted.to_dict(orient="records")
 
+        if self.df_references is None:
+            print("Warning: references not loaded, excluding from flat file")
+            return pd.DataFrame.from_dict(melted)
+
         # Create lookup table for full metric name keyed by abbreviation. Abbreviations in
         # self.flat_attrs that do not have a matching value in self.metrics will be ignored. E.g.:
         # {
@@ -241,8 +247,7 @@ class TechProcessor(ABC):
         for record in melted:
             self._append_reference_info(record, abbrevs_to_metrics, self.df_references)
 
-        df_final = pd.DataFrame.from_dict(melted)
-        return df_final
+        return pd.DataFrame.from_dict(melted)
 
     @staticmethod
     def _append_reference_info(
@@ -390,6 +395,7 @@ class TechProcessor(ABC):
             print(self.ss_lcoe)
             print("DF LCOE:")
             print(self.df_lcoe)
+            breakpoint()
             raise ValueError(msg)
 
     def test_capex(self):
@@ -477,8 +483,12 @@ class TechProcessor(ABC):
 
         return crf, fcr
 
-    def _extract_data(self):
-        """Pull all data from the workbook"""
+    def _extract_data(self, load_refs: bool):
+        """
+        Pull all data from the workbook
+
+        @param load_refs - Load references if True
+        """
         crp_msg = (
             self._requested_crp
             if self._requested_crp != "TechLife"
@@ -500,7 +510,7 @@ class TechProcessor(ABC):
             if var_name == "df_cff":
                 # Grab DF index from another value to use in full CFF DF
                 index = getattr(self, self.metrics[0][1]).index
-                self.df_cff = self.load_cff(extractor, metric, index)
+                self.df_cff = self.load_cff(extractor, metric, index)  # type: ignore
                 continue
 
             df_temp = extractor.get_metric_values(metric, self.num_tds, self.split_metrics)
@@ -521,9 +531,10 @@ class TechProcessor(ABC):
             print("\tLoading WACC data")
             self.df_wacc, self.df_just_wacc = extractor.get_wacc(self.wacc_name)
 
-        print("\tLoading references")
-        metric_names = [m[0] for m in self.metrics]
-        self.df_references = extractor.get_references(metric_names)
+        if load_refs:
+            print("\tLoading references")
+            metric_names = [m[0] for m in self.metrics]
+            self.df_references = extractor.get_references(metric_names)
 
         print("\tDone loading data")
         return extractor
