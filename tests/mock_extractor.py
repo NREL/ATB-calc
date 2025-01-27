@@ -51,7 +51,7 @@ class MockExtractor(AbstractExtractor):
         self._case = case
         self._requested_crp = crp
 
-    def get_metric_values(self, metric: str, _: int, __=False) -> pd.DataFrame:
+    def get_metric_values(self, metric: str, _: int, __=False, ___=False) -> pd.DataFrame:
         """
         Grab metric values table
 
@@ -72,7 +72,7 @@ class MockExtractor(AbstractExtractor):
         df = self.read_csv(fname)
         return df
 
-    def get_cff(self, cff_name: str, _) -> pd.DataFrame:
+    def get_cff(self, cff_name: str, _, __=False) -> pd.DataFrame:
         """
         Pull CFF values
 

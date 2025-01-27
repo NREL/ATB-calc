@@ -49,7 +49,7 @@ class AbstractExtractor(ABC):
         @param metric - name of desired metric
         @param num_tds - number of tech resource groups
         @param split_metrics - metric has blanks in between tech details if True
-        @param allow_empty_values - throw error is empty values are found for metric if False
+        @param allow_empty_values - throw error if empty values are found for metric if False
         @returns data frame for metric
         """
 
