@@ -35,7 +35,7 @@ SCENARIOS = ["Advanced", "Moderate", "Conservative"]
 TECH_DETAIL_SCENARIO_COL = "tech_detail-scenario"
 
 # Metric header names in ATB data workbook (usually column J)
-LCOE_SS_NAME = "Levelized Cost of Energy ($/MWh)"
-CAPEX_SS_NAME = "CAPEX ($/kW)"
-CFF_SS_NAME = "Construction Finance Factor"
-REFERENCES_SS_NAME = "References"
+LCOE_CELL_NAME = "Levelized Cost of Energy ($/MWh)"
+CAPEX_CELL_NAME = "CAPEX ($/kW)"
+CFF_CELL_NAME = "Construction Finance Factor"
+REFERENCES_CELL_NAME = "References"

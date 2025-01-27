@@ -21,6 +21,7 @@ from .extractor import (
     REF_REFERENCE,
     REF_END_YEAR,
     REF_START_YEAR,
+    MANDATORY_COLUMNS,
 )
 from .abstract_extractor import AbstractExtractor
 from .config import (
@@ -30,9 +31,9 @@ from .config import (
     MARKET_FIN_CASE,
     CRP_CHOICES,
     SCENARIOS,
-    LCOE_SS_NAME,
-    CAPEX_SS_NAME,
-    CFF_SS_NAME,
+    LCOE_CELL_NAME,
+    CAPEX_CELL_NAME,
+    CFF_CELL_NAME,
     CrpChoiceType,
     BASE_YEAR,
 )
@@ -79,7 +80,7 @@ class TechProcessor(ABC):
         ("Grid Connection Costs (GCC) ($/kW)", "df_gcc"),
         ("Fixed Operation and Maintenance Expenses ($/kW-yr)", "df_fom"),
         ("Variable Operation and Maintenance Expenses ($/MWh)", "df_vom"),
-        (CFF_SS_NAME, "df_cff"),
+        (CFF_CELL_NAME, "df_cff"),
     ]
 
     tech_life = 30  # Tech lifespan in years
@@ -273,13 +274,14 @@ class TechProcessor(ABC):
         :param abbrevs_to_metrics: Mapping of abbreviations to full metric names.
         :param df_refs: DataFrame of references
         """
+        ref_columns = list(df_refs.columns)
+        optional_columns = [col for col in ref_columns if col not in MANDATORY_COLUMNS]
 
         metric = abbrevs_to_metrics.get(record["Parameter"], "")  # type: ignore
         if metric == "":
-            # TODO - these column names should be handled dynamically
             record["Reference"] = ""
-            record["Type of Evidence"] = ""
-            record["Escalation Index"] = ""
+            for col in optional_columns:
+                record[col] = ""
             return
 
         # Filter references by metric and scenario
@@ -310,10 +312,9 @@ class TechProcessor(ABC):
             )
 
         # Finally, append reference values
-        # TODO - these column names should be handled dynamically
         record["Reference"] = df_ref[REF_REFERENCE].values[0]
-        record["Type of Evidence"] = df_ref["Type of Evidence"].values[0]
-        record["Escalation Index"] = df_ref["Escalation Index"].values[0]
+        for col in optional_columns:
+            record[col] = df_ref[col].values[0]
 
     def combined_data(self) -> pd.DataFrame:
         """
@@ -388,7 +389,7 @@ class TechProcessor(ABC):
         assert self.df_lcoe is not None, "Please run `run()` first to calculate LCOE."
 
         self.ss_lcoe = self._extractor.get_metric_values(
-            LCOE_SS_NAME, self.num_tds, self.split_metrics, self.allow_empty_values
+            LCOE_CELL_NAME, self.num_tds, self.split_metrics, self.allow_empty_values
         )
 
         if not self.allow_empty_values:
@@ -427,7 +428,7 @@ class TechProcessor(ABC):
         assert self.df_capex is not None, "Please run `run()` first to calculate CAPEX."
 
         self.ss_capex = self._extractor.get_metric_values(
-            CAPEX_SS_NAME, self.num_tds, self.split_metrics, self.allow_empty_values
+            CAPEX_CELL_NAME, self.num_tds, self.split_metrics, self.allow_empty_values
         )
 
         if not self.allow_empty_values:

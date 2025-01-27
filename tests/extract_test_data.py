@@ -15,9 +15,9 @@ from lcoe_calculator.tech_processors import ALL_TECHS
 from lcoe_calculator.extractor import Extractor
 from lcoe_calculator.config import (
     FINANCIAL_CASES,
-    LCOE_SS_NAME,
-    CAPEX_SS_NAME,
-    CFF_SS_NAME,
+    LCOE_CELL_NAME,
+    CAPEX_CELL_NAME,
+    CFF_CELL_NAME,
     CRP_CHOICES,
     CrpChoiceType,
 )
@@ -54,14 +54,14 @@ def extract_data_for_crp_case(
     metrics = list(tech.metrics)
 
     if tech.has_lcoe:
-        metrics.append((LCOE_SS_NAME, ""))
+        metrics.append((LCOE_CELL_NAME, ""))
 
     if tech.has_capex:
-        metrics.append((CAPEX_SS_NAME, ""))
+        metrics.append((CAPEX_CELL_NAME, ""))
 
     extract_cff = False
     for metric, _ in metrics:
-        if metric == CFF_SS_NAME:
+        if metric == CFF_CELL_NAME:
             extract_cff = True
             continue
 
@@ -71,8 +71,8 @@ def extract_data_for_crp_case(
         df.to_csv(fname)
 
     if extract_cff:
-        df_cff = tech.load_cff(extractor, CFF_SS_NAME, index, return_short_df=True)
-        fname = DataFinder.get_data_filename(CFF_SS_NAME, case, crp)
+        df_cff = tech.load_cff(extractor, CFF_CELL_NAME, index, return_short_df=True)
+        fname = DataFinder.get_data_filename(CFF_CELL_NAME, case, crp)
         df_cff.to_csv(fname)
 
     if tech.has_fin_assump:
@@ -104,9 +104,7 @@ def extract(filename: str, tech: str | None):
     Extract test data for one or more techs for all CRPs and financial cases. Data will be extracted
     from the Excel ATB data workbook FILENAME and saved as CSV for testing.
     """
-    tech_map: Dict[str, Type[TechProcessor]] = {
-        tech.__name__: tech for tech in ALL_TECHS
-    }
+    tech_map: Dict[str, Type[TechProcessor]] = {tech.__name__: tech for tech in ALL_TECHS}
 
     if tech is None:
         techs = ALL_TECHS

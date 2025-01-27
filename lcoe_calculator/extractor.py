@@ -22,10 +22,9 @@ from .config import (
     YEARS,
     TECH_DETAIL_SCENARIO_COL,
     CrpChoiceType,
-    CFF_SS_NAME,
-    REFERENCES_SS_NAME,
+    CFF_CELL_NAME,
+    REFERENCES_CELL_NAME,
 )
-
 
 FIN_ASSUMP_COL = 5  # Number of columns from fin assumption keys to values
 NUM_WACC_PARMS = 24  # Number of rows of data for each tech in WACC Calc sheet
@@ -36,6 +35,8 @@ REF_START_YEAR = "Start Year"
 REF_END_YEAR = "End Year"
 REF_SCENARIO = "Scenario"
 REF_REFERENCE = "Reference"
+
+MANDATORY_COLUMNS = [REF_METRIC, REF_START_YEAR, REF_END_YEAR, REF_SCENARIO, REF_REFERENCE]
 
 
 class Extractor(AbstractExtractor):
@@ -297,7 +298,7 @@ class Extractor(AbstractExtractor):
         @param metrics - list of metrics to load from spreadsheet, "Metric Name (unit)", format.
         @returns references
         """
-        r1, c1 = self._find_cell(self._df, REFERENCES_SS_NAME)
+        r1, c1 = self._find_cell(self._df, REFERENCES_CELL_NAME)
 
         # Find last column with reference data
         metric_col: int | None = None
@@ -334,14 +335,13 @@ class Extractor(AbstractExtractor):
         df_refs[REF_END_YEAR] = df_refs[REF_END_YEAR].astype(int)
 
         # Check for missing or extra metrics
-        mandatory_cols = [REF_METRIC, REF_START_YEAR, REF_END_YEAR, REF_SCENARIO, REF_REFERENCE]
-        for col in mandatory_cols:
+        for col in MANDATORY_COLUMNS:
             if col not in df_refs.columns:
                 raise ValueError(f"Missing column '{col}' in references")
 
         # Check for missing metrics
-        if CFF_SS_NAME in metrics:
-            metrics.remove(CFF_SS_NAME)
+        if CFF_CELL_NAME in metrics:
+            metrics.remove(CFF_CELL_NAME)
         ss_metrics = df_refs[REF_METRIC].unique()
         if len(set(metrics).difference(ss_metrics)) > 0:
             raise ValueError(
@@ -354,11 +354,11 @@ class Extractor(AbstractExtractor):
             )
 
         # Check for missing values in mandatory columns
-        for col in mandatory_cols:
+        for col in MANDATORY_COLUMNS:
             if df_refs[col].isnull().any():
                 raise ValueError(f"Found missing values in references column '{col}'")
 
-        if df_refs[mandatory_cols].isnull().values.any():
+        if df_refs[MANDATORY_COLUMNS].isnull().values.any():
             raise ValueError("Found NaN or N/A values in references")
 
         return df_refs
