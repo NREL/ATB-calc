@@ -247,7 +247,7 @@ class Extractor(AbstractExtractor):
         return df_fin_assump
 
     def get_metric_values(
-        self, metric: str, num_tds: int, split_metrics: bool = False
+        self, metric: str, num_tds: int, split_metrics=False, allow_empty_values=False
     ) -> pd.DataFrame:
         """
         Grab metric values table
@@ -255,13 +255,14 @@ class Extractor(AbstractExtractor):
         @param metric - name of desired metric
         @param num_tds - number of tech resource groups
         @param split_metrics - metric has blanks in between tech details if True
+        @param allow_empty_values - throw error if empty values are found for metric if False
         @returns data frame for metric
         """
         num_rows = len(self.scenarios) * num_tds
         if split_metrics:
             num_rows += len(self.scenarios)
 
-        df_met = self._get_metric_values(metric, num_rows)
+        df_met = self._get_metric_values(metric, num_rows, allow_empty_values)
         assert len(df_met) == num_tds * len(self.scenarios), (
             f"{metric} of {self.sheet_name} "
             f"appears to be corrupt or the wrong number of tech details ({num_tds}) "
@@ -276,15 +277,16 @@ class Extractor(AbstractExtractor):
         df_tc.index.name = "Tax Credit"
         return df_tc
 
-    def get_cff(self, cff_name: str, rows: int) -> pd.DataFrame:
+    def get_cff(self, cff_name: str, rows: int, allow_empty_values=False) -> pd.DataFrame:
         """
         Pull CFF values
 
         @param cff_name - name of CFF data in SS
         @param rows - number of CFF rows to pull
+        @param allow_empty_values - throw error if empty values are found for metric if False
         @returns CFF data frame
         """
-        df_cff = self._get_metric_values(cff_name, rows)
+        df_cff = self._get_metric_values(cff_name, rows, allow_empty_values)
         df_cff.index.name = cff_name
         return df_cff
 
@@ -361,13 +363,16 @@ class Extractor(AbstractExtractor):
 
         return df_refs
 
-    def _get_metric_values(self, metric, num_rows):
+    def _get_metric_values(
+        self, metric: str, num_rows: int, allow_empty_values=False
+    ) -> pd.DataFrame:
         """
         Grab metric values table
 
-        @param {str} metric - name of desired metric
-        @param {int} num_rows - number of rows to pull
-        @returns {pd.DataFrame}
+        @param metric - name of desired metric
+        @param num_rows - number of rows to pull
+        @param allow_empty_values - throw error if empty values are found for metric if False
+        @returns data frame for metric
         """
         # Determine bounds of data
         r, c = self._find_cell(self._df_tech_full, metric)
@@ -405,9 +410,10 @@ class Extractor(AbstractExtractor):
             cols[-1] == YEARS[-1]
         ), f"{metric}: Last year should be {YEARS[-1]}, got {cols[-1]} instead"
 
-        assert (
-            not df_met.isnull().any().any()
-        ), f"Error extracting values for {metric}. Found missing values: {df_met}"
+        if not allow_empty_values:
+            assert (
+                not df_met.isnull().any().any()
+            ), f"Error extracting values for {metric}. Found missing values: {df_met}"
 
         return df_met
 

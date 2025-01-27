@@ -97,7 +97,15 @@ class TechProcessor(ABC):
     has_capex = True  # If True, calculate CAPEX
     has_lcoe = True  # If True, calculate CRF, PFF, & LCOE.
 
-    split_metrics = False  # Indicates 3 empty rows in tech detail metrics, e.g. hydropower
+    split_metrics = False
+    """ Indicates 3 empty rows in tech detail metrics, e.g. hydropower """
+
+    allow_empty_values = False
+    """
+    If False, all xlsx data and calculated LCOE and CAPEX values will be checked for
+    NaN/null/empty values and an error will be thrown if any are found. If True, empty values
+    are allowed and will not throw an error.
+    """
 
     # Attributes to export in flat file, format: (attr name in class, value for
     # flat file). Any attributes that are None are silently ignored. Financial
@@ -171,6 +179,8 @@ class TechProcessor(ABC):
         self.df_nop = None  # Net Output Penalty (% change), retrofits only
         self.df_pvcf = None  # PV-only capacity factor (%), PV-plus-battery only
         self.df_references = None
+        self.ss_capex: pd.DataFrame
+        self.ss_lcoe: pd.DataFrame
 
         # These data frames are calculated and populated by object methods
         self.df_aep = None  # Annual energy production (kWh/kW)
@@ -188,18 +198,20 @@ class TechProcessor(ABC):
         if self.has_capex:
             self.df_cfc = self._calc_con_fin_cost()
             self.df_capex = self._calc_capex()
-            assert (
-                not self.df_capex.isnull().any().any()
-            ), f"Error in calculated CAPEX, found missing values: {self.df_capex}"
+            if not self.allow_empty_values:
+                assert (
+                    not self.df_capex.isnull().any().any()
+                ), f"Error in calculated CAPEX, found missing values: {self.df_capex}"
 
         if self.has_lcoe and self.has_wacc:
             self.df_aep = self._calc_aep()
             self.df_crf = self._calc_crf()
             self.df_pff = self._calc_pff()
             self.df_lcoe = self._calc_lcoe()
-            assert (
-                not self.df_lcoe.isnull().any().any()
-            ), f"Error in calculated LCOE, found missing values: {self.df_lcoe}"
+            if not self.allow_empty_values:
+                assert (
+                    not self.df_lcoe.isnull().any().any()
+                ), f"Error in calculated LCOE, found missing values: {self.df_lcoe}"
 
     def flat_data(self) -> pd.DataFrame:
         """
@@ -376,17 +388,24 @@ class TechProcessor(ABC):
         assert self.df_lcoe is not None, "Please run `run()` first to calculate LCOE."
 
         self.ss_lcoe = self._extractor.get_metric_values(
-            LCOE_SS_NAME, self.num_tds, self.split_metrics
+            LCOE_SS_NAME, self.num_tds, self.split_metrics, self.allow_empty_values
         )
 
-        assert (
-            not self.df_lcoe.isnull().any().any()
-        ), f"Error in calculated LCOE, found missing values: {self.df_lcoe}"
-        assert (
-            not self.ss_lcoe.isnull().any().any()
-        ), f"Error in LCOE from workbook, found missing values: {self.ss_lcoe}"
+        if not self.allow_empty_values:
+            assert (
+                not self.df_lcoe.isnull().any().any()
+            ), f"Error in calculated LCOE, found missing values: {self.df_lcoe}"
 
-        if np.allclose(np.array(self.df_lcoe, dtype=float), np.array(self.ss_lcoe, dtype=float)):
+        if not self.allow_empty_values:
+            assert (
+                not self.ss_lcoe.isnull().any().any()
+            ), f"Error in LCOE from workbook, found missing values: {self.ss_lcoe}"
+
+        if np.allclose(
+            np.array(self.df_lcoe, dtype=float),
+            np.array(self.ss_lcoe, dtype=float),
+            equal_nan=self.allow_empty_values,
+        ):
             print("Calculated LCOE matches LCOE from workbook")
         else:
             msg = f"Calculated LCOE doesn't match LCOE from workbook for {self.sheet_name}"
@@ -395,7 +414,6 @@ class TechProcessor(ABC):
             print(self.ss_lcoe)
             print("DF LCOE:")
             print(self.df_lcoe)
-            breakpoint()
             raise ValueError(msg)
 
     def test_capex(self):
@@ -409,16 +427,23 @@ class TechProcessor(ABC):
         assert self.df_capex is not None, "Please run `run()` first to calculate CAPEX."
 
         self.ss_capex = self._extractor.get_metric_values(
-            CAPEX_SS_NAME, self.num_tds, self.split_metrics
+            CAPEX_SS_NAME, self.num_tds, self.split_metrics, self.allow_empty_values
         )
 
-        assert (
-            not self.df_capex.isnull().any().any()
-        ), f"Error in calculated CAPEX, found missing values: {self.df_capex}"
-        assert (
-            not self.ss_capex.isnull().any().any()
-        ), f"Error in CAPEX from workbook, found missing values: {self.ss_capex}"
-        if np.allclose(np.array(self.df_capex, dtype=float), np.array(self.ss_capex, dtype=float)):
+        if not self.allow_empty_values:
+            assert (
+                not self.df_capex.isnull().any().any()
+            ), f"Error in calculated CAPEX, found missing values: {self.df_capex}"
+
+        if not self.allow_empty_values:
+            assert (
+                not self.ss_capex.isnull().any().any()
+            ), f"Error in CAPEX from workbook, found missing values: {self.ss_capex}"
+        if np.allclose(
+            np.array(self.df_capex, dtype=float),
+            np.array(self.ss_capex, dtype=float),
+            equal_nan=self.allow_empty_values,
+        ):
             print("Calculated CAPEX matches CAPEX from workbook")
         else:
             raise ValueError("Calculated CAPEX doesn't match CAPEX from workbook")
@@ -513,7 +538,9 @@ class TechProcessor(ABC):
                 self.df_cff = self.load_cff(extractor, metric, index)  # type: ignore
                 continue
 
-            df_temp = extractor.get_metric_values(metric, self.num_tds, self.split_metrics)
+            df_temp = extractor.get_metric_values(
+                metric, self.num_tds, self.split_metrics, self.allow_empty_values
+            )
 
             # print(metric, var_name)
             # print(df_temp)
@@ -539,9 +566,8 @@ class TechProcessor(ABC):
         print("\tDone loading data")
         return extractor
 
-    @classmethod
     def load_cff(
-        cls, extractor: Extractor, cff_name: str, index: pd.Index, return_short_df=False
+        self, extractor: Extractor, cff_name: str, index: pd.Index, return_short_df=False
     ) -> pd.DataFrame:
         """
         Load CFF data from workbook and duplicate for all tech details. This method is
@@ -553,9 +579,10 @@ class TechProcessor(ABC):
         @param return_short_df - return original 3 row data frame if True
         @returns - CFF data frame
         """
-        df_cff = extractor.get_cff(cff_name, len(cls.scenarios))
-        assert len(df_cff) == len(cls.scenarios), (
-            f"Wrong number of CFF rows found. Expected {len(cls.scenarios)}, " f"get {len(df_cff)}."
+        df_cff = extractor.get_cff(cff_name, len(self.scenarios), self.allow_empty_values)
+        assert len(df_cff) == len(self.scenarios), (
+            f"Wrong number of CFF rows found. Expected {len(self.scenarios)}, "
+            f"get {len(df_cff)}."
         )
 
         if return_short_df:
@@ -563,7 +590,7 @@ class TechProcessor(ABC):
 
         # CFF only has values for the three scenarios. Duplicate for all tech details
         full_df_cff = pd.DataFrame()
-        for _ in range(cls.num_tds):
+        for _ in range(self.num_tds):
             full_df_cff = pd.concat([full_df_cff, df_cff])
         full_df_cff.index = index
 
