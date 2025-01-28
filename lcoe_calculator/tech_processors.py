@@ -99,10 +99,10 @@ class UtilityPvPlusBatteryProc(TechProcessor):
     dscr = 1.25
 
     GRID_ROUNDTRIP_EFF = 0.85  # Roundtrip Efficiency (Grid charging)
-    CO_LOCATION_SAVINGS = 0.9228  # Reduction in OCC from co-locating the PV and battery system on the same site
-    BATT_PV_RATIO = (
-        60.0 / 100.0
-    )  # Modifier for $/kW to get everything on the same basis
+    CO_LOCATION_SAVINGS = (
+        0.9228  # Reduction in OCC from co-locating the PV and battery system on the same site
+    )
+    BATT_PV_RATIO = 60.0 / 100.0  # Modifier for $/kW to get everything on the same basis
 
     metrics = [
         ("Net Capacity Factor (%)", "df_ncf"),
@@ -123,12 +123,13 @@ class UtilityPvPlusBatteryProc(TechProcessor):
         crp: CrpChoiceType = 30,
         tcc: str = "PV PTC and Battery ITC",
         extractor: Type[PVBatteryExtractor] = PVBatteryExtractor,
+        load_refs: bool = True,
     ):
         # Additional data frames pulled from excel
         self.df_pv_cost: Optional[pd.DataFrame] = None
         self.df_batt_cost: Optional[pd.DataFrame] = None
 
-        super().__init__(data_workbook_fname, case, crp, tcc, extractor)
+        super().__init__(data_workbook_fname, case, crp, tcc, extractor, load_refs=load_refs)
 
     def _calc_lcoe(self):
         batt_charge_frac = self.df_fin.loc[
@@ -145,16 +146,10 @@ class UtilityPvPlusBatteryProc(TechProcessor):
         )  # account for RTE losses at 100% grid charging (might need to make equation above better)
 
         fcr_pv = pd.concat([self.df_crf.values * self.df_pff_pv] * self.num_tds).values
-        fcr_batt = pd.concat(
-            [self.df_crf.values * self.df_pff_batt] * self.num_tds
-        ).values
+        fcr_batt = pd.concat([self.df_crf.values * self.df_pff_batt] * self.num_tds).values
 
         df_lcoe_part = (
-            (
-                fcr_pv
-                * self.df_cff
-                * (self.df_pv_cost * self.CO_LOCATION_SAVINGS + self.df_gcc)
-            )
+            (fcr_pv * self.df_cff * (self.df_pv_cost * self.CO_LOCATION_SAVINGS + self.df_gcc))
             + (
                 fcr_batt
                 * self.df_cff
@@ -171,7 +166,7 @@ class UtilityPvPlusBatteryProc(TechProcessor):
 
         return df_lcoe
 
-    def _extract_data(self):
+    def _extract_data(self, load_refs: bool):
         """Pull all data from the workbook"""
         crp_msg = (
             self._requested_crp
@@ -180,7 +175,7 @@ class UtilityPvPlusBatteryProc(TechProcessor):
         )
 
         print(f"Loading data from {self.sheet_name}, for {self._case} and {crp_msg}")
-        extractor = self._ExtractorClass(
+        extractor = self._ExtractorClass(  # type: ignore
             self._data_workbook_fname,
             self.sheet_name,
             self._case,
@@ -195,7 +190,7 @@ class UtilityPvPlusBatteryProc(TechProcessor):
             if var_name == "df_cff":
                 # Grab DF index from another value to use in full CFF DF
                 index = getattr(self, self.metrics[0][1]).index
-                self.df_cff = self.load_cff(extractor, metric, index)
+                self.df_cff = self.load_cff(extractor, metric, index)  # type: ignore
                 continue
 
             temp = extractor.get_metric_values(metric, self.num_tds, self.split_metrics)
@@ -212,6 +207,11 @@ class UtilityPvPlusBatteryProc(TechProcessor):
         if self.has_wacc:
             print("\tLoading WACC data")
             self.df_wacc, self.df_just_wacc = extractor.get_wacc(self.wacc_name)
+
+        if load_refs:
+            print("\tLoading references")
+            metric_names = [m[0] for m in self.metrics]
+            self.df_references = extractor.get_references(metric_names)
 
         print("\tDone loading data")
         return extractor

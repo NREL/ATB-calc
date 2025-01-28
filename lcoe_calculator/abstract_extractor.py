@@ -37,7 +37,11 @@ class AbstractExtractor(ABC):
 
     @abstractmethod
     def get_metric_values(
-        self, metric: str, num_tds: int, split_metrics: bool = False
+        self,
+        metric: str,
+        num_tds: int,
+        split_metrics: bool = False,
+        allow_empty_values: bool = False,
     ) -> pd.DataFrame:
         """
         Grab metric values table.
@@ -45,6 +49,7 @@ class AbstractExtractor(ABC):
         @param metric - name of desired metric
         @param num_tds - number of tech resource groups
         @param split_metrics - metric has blanks in between tech details if True
+        @param allow_empty_values - throw error if empty values are found for metric if False
         @returns data frame for metric
         """
 
@@ -72,9 +77,16 @@ class AbstractExtractor(ABC):
         """
 
     @abstractmethod
-    def get_wacc(
-        self, tech_name: str | None = None
-    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def get_references(self, metrics: List[str]) -> pd.DataFrame:
+        """
+        Dynamically search for references and return as a data frame.
+
+        @param metrics - list of metrics to load from spreadsheet
+        @returns references
+        """
+
+    @abstractmethod
+    def get_wacc(self, tech_name: str | None = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
         Extract values for tech and case from WACC sheet.
 

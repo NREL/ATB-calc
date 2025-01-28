@@ -18,7 +18,7 @@ from .mock_extractor import MockExtractor
 from .data_finder import DataFinder
 
 
-def test_lcoe_and_capex_calculations():
+def test_lcoe_and_capex_calculations() -> None:
     """
     Test LCOE and CAPEX calculations using stored data
     """
@@ -52,6 +52,7 @@ def test_lcoe_and_capex_calculations():
                 # workbook.
                 if proc.has_capex:
                     proc.test_capex()
+                    assert proc.df_capex is not None
                     assert not proc.df_capex.isnull().any().any()
                     assert not proc.ss_capex.isnull().any().any()
                     assert np.allclose(
@@ -60,6 +61,7 @@ def test_lcoe_and_capex_calculations():
                     )
                 if proc.has_lcoe:
                     proc.test_lcoe()
+                    assert proc.df_lcoe is not None
                     assert not proc.df_lcoe.isnull().any().any()
                     assert not proc.ss_lcoe.isnull().any().any()
                     assert np.allclose(

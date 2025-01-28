@@ -9,17 +9,34 @@ Extract financial assumptions, metrics, and WACC from Excel data workbook. The x
 is used to change CRP and the financial case in the workbook and rerun calculations before
 pulling values.
 """
+import warnings
 from typing import List, Tuple
+
 import pandas as pd
 import numpy as np
 import xlwings as xw
 
 from .abstract_extractor import AbstractExtractor
-from .config import FINANCIAL_CASES, YEARS, TECH_DETAIL_SCENARIO_COL, CrpChoiceType
-
+from .config import (
+    FINANCIAL_CASES,
+    YEARS,
+    TECH_DETAIL_SCENARIO_COL,
+    CrpChoiceType,
+    CFF_CELL_NAME,
+    REFERENCES_CELL_NAME,
+)
 
 FIN_ASSUMP_COL = 5  # Number of columns from fin assumption keys to values
 NUM_WACC_PARMS = 24  # Number of rows of data for each tech in WACC Calc sheet
+
+# Mandatory columns names for references table
+REF_METRIC = "Metric"
+REF_START_YEAR = "Start Year"
+REF_END_YEAR = "End Year"
+REF_SCENARIO = "Scenario"
+REF_REFERENCE = "Reference"
+
+MANDATORY_COLUMNS = [REF_METRIC, REF_START_YEAR, REF_END_YEAR, REF_SCENARIO, REF_REFERENCE]
 
 
 class Extractor(AbstractExtractor):
@@ -55,15 +72,19 @@ class Extractor(AbstractExtractor):
         self.scenarios = scenarios
         self.base_year = base_year
 
-        # Open workbook, set fin case and CRP, and save
+        # Open workbook, set fin case and CRP, and save.
         wb = xw.Book(data_workbook_fname)
         sheet = wb.sheets["Financial and CRP Inputs"]
         sheet.range("B5").value = case
         sheet.range("E5").value = crp
         wb.save()
 
-        df = pd.read_excel(data_workbook_fname, sheet_name=sheet_name)
+        # Suppress data validation warning: https://stackoverflow.com/a/66571471/6053212
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl")
+            df = pd.read_excel(data_workbook_fname, sheet_name=sheet_name)
         df = df.reset_index()
+
         # Give columns numerical names
         columns = {x: y for x, y in zip(df.columns, range(0, len(df.columns)))}
         df = df.rename(columns=columns)
@@ -87,10 +108,13 @@ class Extractor(AbstractExtractor):
         """
         df_tc = pd.read_excel(data_workbook_fname, sheet_name=cls.tax_credits_sheet)
         df_tc = df_tc.reset_index()
+        print(df_tc)
 
         # Give columns numerical names
         columns = {x: y for x, y in zip(df_tc.columns, range(0, len(df_tc.columns)))}
         df_tc = df_tc.rename(columns=columns)
+        print(df_tc)
+        breakpoint()
 
         # First and last year locations in header
         fy_row, fy_col = cls._find_cell(df_tc, YEARS[0])
@@ -103,14 +127,12 @@ class Extractor(AbstractExtractor):
         # Figure out location of data
         itc_row, itc_col = cls._find_cell(df_tc, "ITC (%)")
         ptc_row, ptc_col = cls._find_cell(df_tc, "PTC ($/MWh)")
-        assert itc_col + 2 == fy_col, (
-            "Expected first data column for ITC does not line up "
-            + "with first year heading."
-        )
-        assert ptc_col + 2 == fy_col, (
-            "Expected first data column for PTC does not line up "
-            + "with first year heading."
-        )
+        assert (
+            itc_col + 2 == fy_col
+        ), "Expected first data column for ITC does not line up with first year heading."
+        assert (
+            ptc_col + 2 == fy_col
+        ), "Expected first data column for PTC does not line up with first year heading."
         assert itc_col == ptc_col, "ITC and PTC marker text are not in the same column"
 
         # Pull years from tax credit sheet
@@ -131,18 +153,12 @@ class Extractor(AbstractExtractor):
         df_ptc.drop("Technology", axis=1, inplace=True)
         df_ptc = df_ptc.dropna()
 
-        assert (
-            not df_itc.isnull().any().any()
-        ), f"Error loading ITC. Found empty values: {df_itc}"
-        assert (
-            not df_ptc.isnull().any().any()
-        ), f"Error loading PTC. Found empty values: {df_ptc}"
+        assert not df_itc.isnull().any().any(), f"Error loading ITC. Found empty values: {df_itc}"
+        assert not df_ptc.isnull().any().any(), f"Error loading PTC. Found empty values: {df_ptc}"
 
         return df_itc, df_ptc
 
-    def get_wacc(
-        self, tech_name: str | None = None
-    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def get_wacc(self, tech_name: str | None = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
         Extract values for tech and case from WACC sheet.
 
@@ -160,14 +176,10 @@ class Extractor(AbstractExtractor):
         count = (df_wacc == search).sum().sum()
         if count != 1:
             assert count != 0, f'Unable to find "{search}" on {self.wacc_sheet} sheet.'
-            assert (
-                count <= 1
-            ), f'"{search}" found more than once in {self.wacc_sheet} sheet.'
+            assert count <= 1, f'"{search}" found more than once in {self.wacc_sheet} sheet.'
 
         start_row, c = self._find_cell(df_wacc, search)
-        assert (
-            c == "Unnamed: 0"
-        ), f'WACC Calc tech search string ("{search}") found in wrong column'
+        assert c == "Unnamed: 0", f'WACC Calc tech search string ("{search}") found in wrong column'
 
         # Grab the rows, reset index and columns
         df_wacc = df_wacc.iloc[start_row : start_row + NUM_WACC_PARMS + 1]
@@ -192,9 +204,7 @@ class Extractor(AbstractExtractor):
         )
 
         cols = df_wacc.columns
-        assert (
-            cols[0] == YEARS[0]
-        ), f"WACC: First year should be {YEARS[0]}, got {cols[0]} instead"
+        assert cols[0] == YEARS[0], f"WACC: First year should be {YEARS[0]}, got {cols[0]} instead"
         assert (
             cols[-1] == YEARS[-1]
         ), f"WACC: Last year should be {YEARS[-1]}, got {cols[-1]} instead"
@@ -241,7 +251,7 @@ class Extractor(AbstractExtractor):
         return df_fin_assump
 
     def get_metric_values(
-        self, metric: str, num_tds: int, split_metrics: bool = False
+        self, metric: str, num_tds: int, split_metrics=False, allow_empty_values=False
     ) -> pd.DataFrame:
         """
         Grab metric values table
@@ -249,13 +259,14 @@ class Extractor(AbstractExtractor):
         @param metric - name of desired metric
         @param num_tds - number of tech resource groups
         @param split_metrics - metric has blanks in between tech details if True
+        @param allow_empty_values - throw error if empty values are found for metric if False
         @returns data frame for metric
         """
         num_rows = len(self.scenarios) * num_tds
         if split_metrics:
             num_rows += len(self.scenarios)
 
-        df_met = self._get_metric_values(metric, num_rows)
+        df_met = self._get_metric_values(metric, num_rows, allow_empty_values)
         assert len(df_met) == num_tds * len(self.scenarios), (
             f"{metric} of {self.sheet_name} "
             f"appears to be corrupt or the wrong number of tech details ({num_tds}) "
@@ -270,25 +281,107 @@ class Extractor(AbstractExtractor):
         df_tc.index.name = "Tax Credit"
         return df_tc
 
-    def get_cff(self, cff_name: str, rows: int) -> pd.DataFrame:
+    def get_cff(self, cff_name: str, rows: int, allow_empty_values=False) -> pd.DataFrame:
         """
         Pull CFF values
 
         @param cff_name - name of CFF data in SS
         @param rows - number of CFF rows to pull
+        @param allow_empty_values - throw error if empty values are found for metric if False
         @returns CFF data frame
         """
-        df_cff = self._get_metric_values(cff_name, rows)
+        df_cff = self._get_metric_values(cff_name, rows, allow_empty_values)
         df_cff.index.name = cff_name
         return df_cff
 
-    def _get_metric_values(self, metric, num_rows):
+    def get_references(self, metrics: List[str]) -> pd.DataFrame:
+        """
+        Dynamically search for references and return as a data frame.
+
+        @param metrics - list of metrics to load from spreadsheet, "Metric Name (unit)", format.
+        @returns references
+        """
+        r1, c1 = self._find_cell(self._df, REFERENCES_CELL_NAME)
+
+        # Find last column with reference data
+        metric_col: int | None = None
+        c2 = c1 + 1
+        val = self._df.loc[r1, c2]
+        while not self._is_empty(val):
+            c2 += 1
+            if c2 == self._df.shape[1]:
+                raise ValueError("Error finding end of references")
+            val = self._df.loc[r1, c2]
+            if val == REF_METRIC:
+                metric_col = c2
+        c2 -= 1
+
+        if metric_col is None:
+            raise ValueError("No metric column found in references")
+
+        # Find last row with reference data, assuming metric column is not empty
+        r2 = r1 + 1
+        while not self._is_empty(self._df.loc[r2, metric_col]):
+            r2 += 1
+            if r2 == self._df.shape[0]:
+                break
+        r2 -= 1
+
+        # Extract data
+        column_names = self._df.loc[r1, c1 + 1 : c2]
+        df_refs = (
+            self._df.loc[r1 + 1 : r2, c1 + 1 : c2]
+            .reset_index(drop=True)
+            .rename(columns=column_names)
+        )
+        df_refs[REF_START_YEAR] = df_refs[REF_START_YEAR].astype(int)
+        df_refs[REF_END_YEAR] = df_refs[REF_END_YEAR].astype(int)
+
+        # Check for missing or extra metrics
+        for col in MANDATORY_COLUMNS:
+            if col not in df_refs.columns:
+                raise ValueError(f"Missing column '{col}' in references")
+
+        # Check for missing metrics
+        if CFF_CELL_NAME in metrics:
+            metrics.remove(CFF_CELL_NAME)
+        ss_metrics = df_refs[REF_METRIC].unique()
+        if len(set(metrics).difference(ss_metrics)) > 0:
+            raise ValueError(
+                f"Missing metrics in xlsx references: {set(metrics).difference(ss_metrics)}"
+            )
+        if len(set(ss_metrics).difference(metrics)) > 0:
+            raise ValueError(
+                "There are extra metrics in the xlsx that are not required: "
+                f"{set(ss_metrics).difference(metrics)}"
+            )
+
+        # Check for missing values in mandatory columns
+        for col in MANDATORY_COLUMNS:
+            if df_refs[col].isnull().any():
+                raise ValueError(f"Found missing values in references column '{col}'")
+
+        if df_refs[MANDATORY_COLUMNS].isnull().values.any():
+            raise ValueError("Found NaN or N/A values in references")
+
+        # Join with Zotero reference ids
+        df_zotero = pd.read_excel(self._data_workbook_fname, sheet_name="References")
+        df_zotero.set_index("Bib", inplace=True)
+        df_refs.set_index(REF_REFERENCE, inplace=True, drop=False)
+        df_refs = df_refs.join(df_zotero)
+
+        return df_refs
+
+    def _get_metric_values(
+        self, metric: str, num_rows: int, allow_empty_values=False
+    ) -> pd.DataFrame:
         """
         Grab metric values table
 
-        @param {str} metric - name of desired metric
-        @param {int} num_rows - number of rows to pull
-        @returns {pd.DataFrame}
+        @param metric - name of desired metric
+        @param num_rows - number of rows to pull
+        @param allow_empty_values - throw error if empty values are found for metric if False
+        @returns data frame for metric
         """
         # Determine bounds of data
         r, c = self._find_cell(self._df_tech_full, metric)
@@ -310,9 +403,7 @@ class Extractor(AbstractExtractor):
         )
 
         # Create index from tech details and cases
-        df_met[first_col] = (
-            df_met[first_col].astype(str) + "/" + df_met[first_col + 1].astype(str)
-        )
+        df_met[first_col] = df_met[first_col].astype(str) + "/" + df_met[first_col + 1].astype(str)
         df_met = df_met.set_index(first_col).drop(first_col + 1, axis=1)
 
         # Clean up
@@ -328,9 +419,10 @@ class Extractor(AbstractExtractor):
             cols[-1] == YEARS[-1]
         ), f"{metric}: Last year should be {YEARS[-1]}, got {cols[-1]} instead"
 
-        assert (
-            not df_met.isnull().any().any()
-        ), f"Error extracting values for {metric}. Found missing values: {df_met}"
+        if not allow_empty_values:
+            assert (
+                not df_met.isnull().any().any()
+            ), f"Error extracting values for {metric}. Found missing values: {df_met}"
 
         return df_met
 

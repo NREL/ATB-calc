@@ -3,5 +3,7 @@
     "editor.defaultFormatter": "ms-python.black-formatter",
     "editor.formatOnSave": true
   },
-  "black-formatter.args": ["--line-length", "100"]
+  "black-formatter.args": ["--line-length", "100"],
+  "autoDocstring.docstringFormat": "sphinx-notypes",
+  "cSpell.words": ["capex", "lcoe"]
 }
