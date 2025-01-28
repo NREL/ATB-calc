@@ -124,7 +124,7 @@ class MockExtractor(AbstractExtractor):
         df.columns = df.columns.astype(int)
         return df
 
-    def get_references(self, metrics: List[Tuple[str, str]]) -> pd.DataFrame:
+    def get_references(self, metrics: List[str]) -> pd.DataFrame:
         """
         Dynamically search for references and return as a data frame.
 

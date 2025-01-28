@@ -108,10 +108,13 @@ class Extractor(AbstractExtractor):
         """
         df_tc = pd.read_excel(data_workbook_fname, sheet_name=cls.tax_credits_sheet)
         df_tc = df_tc.reset_index()
+        print(df_tc)
 
         # Give columns numerical names
         columns = {x: y for x, y in zip(df_tc.columns, range(0, len(df_tc.columns)))}
         df_tc = df_tc.rename(columns=columns)
+        print(df_tc)
+        breakpoint()
 
         # First and last year locations in header
         fy_row, fy_col = cls._find_cell(df_tc, YEARS[0])
@@ -360,6 +363,12 @@ class Extractor(AbstractExtractor):
 
         if df_refs[MANDATORY_COLUMNS].isnull().values.any():
             raise ValueError("Found NaN or N/A values in references")
+
+        # Join with Zotero reference ids
+        df_zotero = pd.read_excel(self._data_workbook_fname, sheet_name="References")
+        df_zotero.set_index("Bib", inplace=True)
+        df_refs.set_index(REF_REFERENCE, inplace=True, drop=False)
+        df_refs = df_refs.join(df_zotero)
 
         return df_refs
 
