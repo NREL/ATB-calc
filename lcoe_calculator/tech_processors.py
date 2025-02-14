@@ -526,6 +526,7 @@ class NGH2BlendProc(TechProcessor):
     default_tech_detail = "NG-H2 Blend 15%"
     dscr = 1.45
     _depreciation_schedule = MACRS_21
+    allow_empty_values = True
 
 class NuclearProc(TechProcessor):
     tech_name = "Nuclear"
