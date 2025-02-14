@@ -538,13 +538,9 @@ class TechProcessor(ABC):
                 index = getattr(self, self.metrics[0][1]).index
                 self.df_cff = self.load_cff(extractor, metric, index)  # type: ignore
                 continue
-
             df_temp = extractor.get_metric_values(
                 metric, self.num_tds, self.split_metrics, self.allow_empty_values
             )
-
-            # print(metric, var_name)
-            # print(df_temp)
             setattr(self, var_name, df_temp)
 
         if self.has_tax_credit:

@@ -108,13 +108,10 @@ class Extractor(AbstractExtractor):
         """
         df_tc = pd.read_excel(data_workbook_fname, sheet_name=cls.tax_credits_sheet)
         df_tc = df_tc.reset_index()
-        print(df_tc)
 
         # Give columns numerical names
         columns = {x: y for x, y in zip(df_tc.columns, range(0, len(df_tc.columns)))}
         df_tc = df_tc.rename(columns=columns)
-        print(df_tc)
-        breakpoint()
 
         # First and last year locations in header
         fy_row, fy_col = cls._find_cell(df_tc, YEARS[0])
