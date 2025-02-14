@@ -497,6 +497,35 @@ class NaturalGasRetrofitProc(TechProcessor):
     num_tds = 4
     has_tax_credit = False
 
+class NGH2BlendProc(TechProcessor):
+    tech_name = "NG-H2 Combustion_FE"
+    tech_life = 55
+
+    metrics = [
+        ("Heat Rate (MMBtu/MWh)", "df_hr"),
+        ("Overnight Capital Cost ($/kW)", "df_occ"),
+        ("Grid Connection Costs (GCC) ($/kW)", "df_gcc"),
+        ("Fixed Operation and Maintenance Expenses ($/kW-yr)", "df_fom"),
+        ("Variable Operation and Maintenance Expenses ($/MWh)", "df_vom"),
+        ("Construction Finance Factor", "df_cff"),
+    ]
+
+    flat_attrs = [
+        ("df_hr", "Heat Rate"),
+        ("df_occ", "OCC"),
+        ("df_gcc", "GCC"),
+        ("df_fom", "Fixed O&M"),
+        ("df_vom", "Variable O&M"),
+        ("df_cfc", "CFC"),
+        ("df_capex", "CAPEX"),
+    ]
+    sheet_name = "Natural Gas_FE"
+    num_tds = 4
+    has_tax_credit = False
+    has_lcoe = False
+    default_tech_detail = "NG-H2 Blend 15%"
+    dscr = 1.45
+    _depreciation_schedule = MACRS_21
 
 class NuclearProc(TechProcessor):
     tech_name = "Nuclear"
@@ -674,6 +703,7 @@ ALL_TECHS: List[Type[TechProcessor]] = [
     CoalRetrofitProc,
     NaturalGasRetrofitProc,
     NaturalGasFuelCellProc,
+    NGH2BlendProc
 ]
 
 
