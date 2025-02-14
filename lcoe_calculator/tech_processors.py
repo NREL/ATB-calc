@@ -519,7 +519,7 @@ class NGH2BlendProc(TechProcessor):
         ("df_cfc", "CFC"),
         ("df_capex", "CAPEX"),
     ]
-    sheet_name = "Natural Gas_FE"
+    sheet_name = "NG-H2 Combustion_FE"
     num_tds = 4
     has_tax_credit = False
     has_lcoe = False
