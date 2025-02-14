@@ -40,13 +40,15 @@ def test_lcoe_and_capex_calculations() -> None:
                 for metric in proc.metrics:
                     df = getattr(proc, metric[1])
                     assert isinstance(df, pd.DataFrame)
-                    assert not df.isnull().any().any()
+                    if not Tech.allow_empty_values:
+                        assert not df.isnull().any().any()
 
                 # Check all data for export has been loaded or calculated
                 for flat_attr in proc.flat_attrs:
                     df = getattr(proc, flat_attr[0])
                     assert isinstance(df, pd.DataFrame)
-                    assert not df.isnull().any().any()
+                    if not Tech.allow_empty_values:
+                        assert not df.isnull().any().any()
 
                 # Compare python calculated CAPEX and LCOE to values originally calculated in the
                 # workbook.

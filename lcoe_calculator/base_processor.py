@@ -141,7 +141,8 @@ class TechProcessor(ABC):
         @param data_workbook_fname - name of workbook
         @param case - financial case to run: 'Market' or 'R&D'
         @param crp - capital recovery period: 20, 30, or 'TechLife'
-        @param tcc - tax credit case: 'ITC only' or 'PV PTC and Battery ITC' Only required for the PV plus battery technology.
+        @param tcc - tax credit case: 'ITC only' or 'PV PTC and Battery ITC'. Only required for the
+            PV plus battery technology.
         @param extractor - Extractor class to use to obtain source data.
         @param load_refs - Load references if True
         """
@@ -563,8 +564,9 @@ class TechProcessor(ABC):
         print("\tDone loading data")
         return extractor
 
+    @classmethod
     def load_cff(
-        self, extractor: Extractor, cff_name: str, index: pd.Index, return_short_df=False
+        cls, extractor: Extractor, cff_name: str, index: pd.Index, return_short_df=False
     ) -> pd.DataFrame:
         """
         Load CFF data from workbook and duplicate for all tech details. This method is
@@ -576,10 +578,9 @@ class TechProcessor(ABC):
         @param return_short_df - return original 3 row data frame if True
         @returns - CFF data frame
         """
-        df_cff = extractor.get_cff(cff_name, len(self.scenarios), self.allow_empty_values)
-        assert len(df_cff) == len(self.scenarios), (
-            f"Wrong number of CFF rows found. Expected {len(self.scenarios)}, "
-            f"get {len(df_cff)}."
+        df_cff = extractor.get_cff(cff_name, len(cls.scenarios), cls.allow_empty_values)
+        assert len(df_cff) == len(cls.scenarios), (
+            f"Wrong number of CFF rows found. Expected {len(cls.scenarios)}, " f"get {len(df_cff)}."
         )
 
         if return_short_df:
@@ -587,7 +588,7 @@ class TechProcessor(ABC):
 
         # CFF only has values for the three scenarios. Duplicate for all tech details
         full_df_cff = pd.DataFrame()
-        for _ in range(self.num_tds):
+        for _ in range(cls.num_tds):
             full_df_cff = pd.concat([full_df_cff, df_cff])
         full_df_cff.index = index
 
