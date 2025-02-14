@@ -497,6 +497,7 @@ class NaturalGasRetrofitProc(TechProcessor):
     num_tds = 4
     has_tax_credit = False
 
+
 class NGH2BlendProc(TechProcessor):
     tech_name = "NG-H2 Combustion_FE"
     tech_life = 55
@@ -527,6 +528,7 @@ class NGH2BlendProc(TechProcessor):
     dscr = 1.45
     _depreciation_schedule = MACRS_21
     allow_empty_values = True
+
 
 class NuclearProc(TechProcessor):
     tech_name = "Nuclear"
@@ -704,7 +706,7 @@ ALL_TECHS: List[Type[TechProcessor]] = [
     CoalRetrofitProc,
     NaturalGasRetrofitProc,
     NaturalGasFuelCellProc,
-    NGH2BlendProc
+    NGH2BlendProc,
 ]
 
 

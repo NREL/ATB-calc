@@ -65,7 +65,9 @@ def extract_data_for_crp_case(
             extract_cff = True
             continue
 
-        df = extractor.get_metric_values(metric, tech.num_tds, tech.split_metrics, tech.allow_empty_values)
+        df = extractor.get_metric_values(
+            metric, tech.num_tds, tech.split_metrics, tech.allow_empty_values
+        )
         index = df.index
         fname = DataFinder.get_data_filename(metric, case, crp)
         df.to_csv(fname)

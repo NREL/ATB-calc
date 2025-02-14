@@ -113,8 +113,6 @@ class Extractor(AbstractExtractor):
         # Give columns numerical names
         columns = {x: y for x, y in zip(df_tc.columns, range(0, len(df_tc.columns)))}
         df_tc = df_tc.rename(columns=columns)
-        print(df_tc)
-        breakpoint()
 
         # First and last year locations in header
         fy_row, fy_col = cls._find_cell(df_tc, YEARS[0])
@@ -262,6 +260,11 @@ class Extractor(AbstractExtractor):
         @param allow_empty_values - throw error if empty values are found for metric if False
         @returns data frame for metric
         """
+        assert not (split_metrics and allow_empty_values), (
+            "split_metrics and allow_empty_values cannot currently both be True due to "
+            "self._get_metric_values() implementation"
+        )
+
         num_rows = len(self.scenarios) * num_tds
         if split_metrics:
             num_rows += len(self.scenarios)
@@ -409,7 +412,10 @@ class Extractor(AbstractExtractor):
         # Clean up
         df_met.columns = year_headings
         df_met.index.name = TECH_DETAIL_SCENARIO_COL
-        df_met = df_met.dropna(how="all")
+
+        if not allow_empty_values:
+            # TODO - empty rows MUST be dropped for techs with split metrics
+            df_met = df_met.dropna(how="all")
 
         cols = df_met.columns
         assert (
