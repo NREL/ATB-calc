@@ -64,7 +64,11 @@ class TechProcessor(ABC):
     @property
     @abstractmethod
     def tech_name(self) -> str:
-        """Name of tech for flat file"""
+        """
+        Name of tech for flat file. The same tech_name can be used for multiple tech processors
+        (assuming each tech processor as a different sheet_name) if the resource classes do not
+        overlap.
+        """
 
     # For a consistent depreciation schedule, use one of the lists from the
     # macrs.py file as shown below. More complex schedules can be defined by

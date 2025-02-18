@@ -9,7 +9,7 @@ Workflow to calculate debt fractions based on ATB data
 
 Developed against PySAM 4.0.0
 """
-from typing import TypedDict, List, Dict, Type
+from typing import TypedDict, List, Dict, Type, Tuple
 import pandas as pd
 import click
 
@@ -24,7 +24,6 @@ from lcoe_calculator.config import (
     PTC_PLUS_ITC_CASE_PVB,
 )
 from lcoe_calculator.tech_processors import LCOE_TECHS
-import lcoe_calculator.tech_processors
 from lcoe_calculator.base_processor import TechProcessor
 from lcoe_calculator.macrs import MACRS_6, MACRS_16, MACRS_21
 
@@ -241,13 +240,22 @@ tech_names = [Tech.__name__ for Tech in LCOE_TECHS]
 @click.option(
     "-t",
     "--tech",
+    "techs",
     type=click.Choice(tech_names),
-    help="Name of technology to calculate debt fraction for. Use all techs if none are "
-    "specified. Only technologies with an LCOE may be processed.",
+    multiple=True,
+    help="Name of technology(ies) to calculate debt fraction for. Use all techs if none are "
+    "specified. Only technologies with an LCOE may be processed. Multiple techs may be specified.",
 )
 @click.option("-d", "--debug", is_flag=True, default=False, help="Print debug data.")
+@click.option(
+    "-i", "--ignore-references", is_flag=True, default=False, help="Do not load references."
+)
 def calculate_all_debt_fractions(
-    data_workbook_filename: str, output_filename: str, tech: str | None, debug: bool
+    data_workbook_filename: str,
+    output_filename: str,
+    techs: Tuple[str],
+    debug: bool,
+    ignore_references: bool,
 ):
     """
     Calculate debt fractions for one or more technologies, and all financial cases and years.
@@ -256,31 +264,32 @@ def calculate_all_debt_fractions(
     OUTPUT_FILENAME - File to save calculated debt fractions to. Should end with .csv
     """
     tech_map: Dict[str, Type[TechProcessor]] = {tech.__name__: tech for tech in LCOE_TECHS}
-    techs = LCOE_TECHS if tech is None else [tech_map[tech]]
+    tech_classes = LCOE_TECHS if len(techs) == 0 else [tech_map[tech] for tech in techs]
 
     df_itc, df_ptc = Extractor.get_tax_credits_sheet(data_workbook_filename)
 
     crp: CrpChoiceType = 20
-    debt_frac_dict = {}
+    header_columns = ["Tech Sheet Name", "Technology", "Case"]
+    columns_for_all_techs = header_columns + [str(year) for year in YEARS]
+    df_all_debt_fracs = pd.DataFrame(columns=columns_for_all_techs)
 
-    for Tech in techs:
+    for Tech in tech_classes:  # pylint: disable=invalid-name
+        # Column structure of tech specific data frame
         tech_years = range(Tech.base_year, END_YEAR + 1)
-
-        # column structure of resulting data frame
-        cols = ["Technology", "Case"] + [str(year) for year in tech_years]
+        tech_columns = header_columns + [str(year) for year in tech_years]
 
         for fin_case in FINANCIAL_CASES:
-            click.echo(f"Processing tech {Tech.tech_name} and financial case {fin_case}")
-            debt_fracs = [Tech.tech_name, fin_case]  # First two columns are metadata
+            click.echo(f"Processing tech {Tech.__name__} and financial case {fin_case}")
+            debt_fracs = [Tech.sheet_name, Tech.tech_name, fin_case]  # First 3 columns are metadata
 
             proc = Tech(
                 data_workbook_filename,
                 crp=crp,
                 case=fin_case,
                 tcc=PTC_PLUS_ITC_CASE_PVB,
+                load_refs=(not ignore_references),
             )
             proc.run()
-
             d = proc.combined_data()
 
             # Values that are specific to the representative tech detail
@@ -335,11 +344,16 @@ def calculate_all_debt_fractions(
 
                     if Tech.sheet_name == "Utility-Scale PV-Plus-Battery":
                         if proc.tax_credit_case is PTC_PLUS_ITC_CASE_PVB and year > 2022:
-                            if Tech.default_tech_detail is None:
-                                raise AttributeError("Tech.default_tech_detail must be set for ")
+                            if (
+                                Tech.default_tech_detail is None
+                                or proc.df_ncf is None
+                                or proc.df_pvcf is None
+                                or not hasattr(proc, "CO_LOCATION_SAVINGS")
+                            ):
+                                raise AttributeError(f"Missing attribute(s) for {Tech.__name__}")
+
                             ncf = proc.df_ncf.loc[Tech.default_tech_detail + "/Moderate"][year]
                             pvcf = proc.df_pvcf.loc[Tech.default_tech_detail + "/Moderate"][year]
-
                             batt_occ_percent = (
                                 proc.df_batt_cost * proc.CO_LOCATION_SAVINGS / proc.df_occ
                             )
@@ -361,9 +375,7 @@ def calculate_all_debt_fractions(
 
                 # Financial parameters stored in tech processor
                 input_vals["DSCR"] = Tech.dscr
-
                 input_vals["MACRS"] = proc.get_depreciation_schedule(year)
-
                 input_vals.update(gen_vals)
 
                 # Calculate debt fraction using PySAM
@@ -371,10 +383,11 @@ def calculate_all_debt_fractions(
                 debt_frac /= 100.0
                 debt_fracs.append(debt_frac)
 
-            debt_frac_dict[proc.tech_name + fin_case] = debt_fracs
+            # Store debt fracs for current tech in a data frame and merge with other debt fracs
+            df_debt_fracs = pd.DataFrame([debt_fracs], columns=tech_columns)
+            df_all_debt_fracs = pd.concat([df_all_debt_fracs, df_debt_fracs])
 
-    debt_frac_df = pd.DataFrame.from_dict(debt_frac_dict, orient="index", columns=cols)
-    debt_frac_df.to_csv(output_filename)
+    df_all_debt_fracs.to_csv(output_filename, index=False)
 
 
 if __name__ == "__main__":
