@@ -534,7 +534,7 @@ class NuclearProc(TechProcessor):
     tech_name = "Nuclear"
     tech_life = 60
     sheet_name = "Nuclear"
-    num_tds = 2
+    num_tds = 3
     default_tech_detail = "Nuclear - Large"
     dscr = 1.45
     base_year = 2030
