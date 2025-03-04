@@ -81,17 +81,22 @@ class ProcessAll:
 
         return proc
 
-    def process(self, test_capex: bool = True, test_lcoe: bool = True, flat_file: bool = True):
+    def process(
+        self,
+        test_capex: bool = True,
+        test_lcoe: bool = True,
+        flat_file: bool = True,
+        load_refs: bool = True,
+    ):
         """Processing all requested techs
 
         :param test_capex: test CAPEX if True, defaults to True
         :param test_lcoe: test LCOE if True, defaults to True
         :param flat_file: extract flat file data if True, defaults to True
+        :param load_refs: load references from xlsx if True
         """
         self.data = pd.DataFrame()
         self.meta = pd.DataFrame()
-
-        load_refs = flat_file
 
         for i, Tech in enumerate(self._techs):
             print(f"##### Processing {Tech.tech_name} ({i+1}/{len(self._techs)}) #####")
@@ -104,10 +109,10 @@ class ProcessAll:
 
                 for case in FINANCIAL_CASES:
                     if case is MARKET_FIN_CASE and Tech.tech_name in TAX_CREDIT_CASES:
-                        tax_cases = TAX_CREDIT_CASES[Tech.tech_name]  # type: ignore
-                        for tc in tax_cases:
+                        tax_credit_cases = TAX_CREDIT_CASES[Tech.tech_name]  # type: ignore
+                        for tcc in tax_credit_cases:
                             proc = self._run_tech(
-                                Tech, crp, case, tc, test_capex, test_lcoe, load_refs
+                                Tech, crp, case, tcc, test_capex, test_lcoe, load_refs
                             )
                             self.data = pd.concat([self.data, proc.combined_data()])
                             if flat_file:
@@ -172,6 +177,7 @@ tech_names = [Tech.__name__ for Tech in ALL_TECHS]
 @click.option(
     "-f", "--save-flat", "flat_file", type=click.Path(), help="Save data in flat format to CSV."
 )
+@click.option("-i", "--ignore-references", is_flag=True, help="Don't load references from XLSX.")
 @click.option(
     "-p",
     "--save-pivoted",
@@ -187,6 +193,7 @@ def run(
     tech: str | None,
     meta_file: str | None,
     flat_file: str | None,
+    ignore_references: bool,
     pivoted_file: str | None,
     clipboard: bool,
 ):
@@ -200,7 +207,7 @@ def run(
     start_dt = dt.now()
 
     processor = ProcessAll(data_workbook_filename, techs)
-    processor.process(flat_file=bool(flat_file))
+    processor.process(flat_file=bool(flat_file), load_refs=not ignore_references)
     click.echo(f"Processing completed in {dt.now()-start_dt}.")
 
     if meta_file:
