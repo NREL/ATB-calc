@@ -500,6 +500,7 @@ class NaturalGasRetrofitProc(TechProcessor):
 
 class NGH2BlendProc(TechProcessor):
     tech_name = "NG-H2 Combustion_FE"
+    wacc_name = "Natural Gas_FE"
     tech_life = 55
 
     metrics = [
