@@ -27,7 +27,7 @@ class OffShoreWindProc(TechProcessor):
 
     tech_name = "OffShoreWind"
     tech_life = 30
-    dscr = 1.35
+    dscr = 1.375
 
 
 class FixedOffShoreWindProc(OffShoreWindProc):
@@ -51,7 +51,7 @@ class LandBasedWindProc(TechProcessor):
     tech_life = 30
     num_tds = 10
     default_tech_detail = "Land-Based Wind - Class 4 - Technology 1"
-    dscr = 1.35
+    dscr = 1.375
 
 
 class DistributedWindProc(TechProcessor):
@@ -60,7 +60,7 @@ class DistributedWindProc(TechProcessor):
     tech_life = 30
     num_tds = 40
     default_tech_detail = "Midsize DW - Class 4"
-    dscr = 1.35
+    dscr = 1.375
 
 
 class UtilityPvProc(TechProcessor):
@@ -69,7 +69,7 @@ class UtilityPvProc(TechProcessor):
     sheet_name = "Solar - Utility PV"
     num_tds = 10
     default_tech_detail = "Utility PV - Class 5"
-    dscr = 1.25
+    dscr = 1.275
 
 
 class CommPvProc(TechProcessor):
@@ -78,7 +78,7 @@ class CommPvProc(TechProcessor):
     sheet_name = "Solar - PV Dist. Comm"
     num_tds = 10
     default_tech_detail = "Commercial PV - Class 5"
-    dscr = 1.25
+    dscr = 1.275
 
 
 class ResPvProc(TechProcessor):
@@ -87,7 +87,7 @@ class ResPvProc(TechProcessor):
     sheet_name = "Solar - PV Dist. Res"
     num_tds = 10
     default_tech_detail = "Residential PV - Class 5"
-    dscr = 1.25
+    dscr = 1.275
 
 
 class UtilityPvPlusBatteryProc(TechProcessor):
@@ -96,7 +96,7 @@ class UtilityPvPlusBatteryProc(TechProcessor):
     sheet_name = "Utility-Scale PV-Plus-Battery"
     num_tds = 10
     default_tech_detail = "PV+Storage - Class 5"
-    dscr = 1.25
+    dscr = 1.275
 
     GRID_ROUNDTRIP_EFF = 0.85  # Roundtrip Efficiency (Grid charging)
     CO_LOCATION_SAVINGS = (
