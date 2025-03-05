@@ -350,7 +350,8 @@ class Extractor(AbstractExtractor):
         ss_metrics = df_refs[REF_METRIC].unique()
         if len(set(metrics).difference(ss_metrics)) > 0:
             raise ValueError(
-                f"Missing metrics in xlsx references: {set(metrics).difference(ss_metrics)}"
+                "References are missing for the following metrics: "
+                f"{set(metrics).difference(ss_metrics)}"
             )
         if len(set(ss_metrics).difference(metrics)) > 0:
             raise ValueError(
