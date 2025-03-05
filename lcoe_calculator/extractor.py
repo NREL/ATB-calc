@@ -103,8 +103,8 @@ class Extractor(AbstractExtractor):
         between ITC and PTC data.
 
         @param {str} data_workbook_fname - file name of data workbook
-        @returns {pd.DataFrame, pd.DataFrame} df_itc, df_ptc - data frames of
-            itc and ptc data.
+        @returns {pd.DataFrame, pd.DataFrame, pd.DataFrame} df_itc, df_ptc - data frames
+             of itc, ptc, and transferability data.
         """
         df_tc = pd.read_excel(data_workbook_fname, sheet_name=cls.tax_credits_sheet)
         df_tc = df_tc.reset_index()
