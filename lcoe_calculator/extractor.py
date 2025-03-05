@@ -124,6 +124,7 @@ class Extractor(AbstractExtractor):
         # Figure out location of data
         itc_row, itc_col = cls._find_cell(df_tc, "ITC (%)")
         ptc_row, ptc_col = cls._find_cell(df_tc, "PTC ($/MWh)")
+        tfr_row, tfr_col = cls._find_cell(df_tc, "Transfer Discount (%)")
         assert (
             itc_col + 2 == fy_col
         ), "Expected first data column for ITC does not line up with first year heading."
@@ -144,16 +145,23 @@ class Extractor(AbstractExtractor):
         df_itc.index = df_itc.Technology
         df_itc.drop("Technology", axis=1, inplace=True)
 
-        df_ptc = df_tc.loc[ptc_row:, ptc_col + 1 : ly_col]
+        df_ptc = df_tc.loc[ptc_row : tfr_row - 2, ptc_col + 1 : ly_col]
         df_ptc.columns = ["Technology"] + years
         df_ptc.index = df_ptc.Technology
         df_ptc.drop("Technology", axis=1, inplace=True)
-        df_ptc = df_ptc.dropna()
+
+        # Load transfer discount values
+        df_tfr = df_tc.loc[tfr_row:, tfr_col + 1 : ly_col]
+        df_tfr.columns = ["Credit"] + years
+        df_tfr.index = df_tfr.Credit
+        df_tfr.drop("Credit", axis=1, inplace=True)
+        df_tfr = df_tfr.dropna()
 
         assert not df_itc.isnull().any().any(), f"Error loading ITC. Found empty values: {df_itc}"
         assert not df_ptc.isnull().any().any(), f"Error loading PTC. Found empty values: {df_ptc}"
+        assert not df_tfr.isnull().any().any(), f"Error loading PTC. Found empty values: {df_tfr}"
 
-        return df_itc, df_ptc
+        return df_itc, df_ptc, df_tfr
 
     def get_wacc(self, tech_name: str | None = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
