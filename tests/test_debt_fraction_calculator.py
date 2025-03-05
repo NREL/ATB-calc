@@ -58,7 +58,7 @@ def test_ptc():
 
     debt_frac = calculate_debt_fraction(input_vals)
 
-    assert debt_frac == pytest.approx(45.5, 0.1)
+    assert debt_frac == pytest.approx(65.05, 0.1)
 
 
 def test_itc():

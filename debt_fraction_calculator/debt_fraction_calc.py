@@ -7,7 +7,7 @@
 """
 Workflow to calculate debt fractions based on ATB data
 
-Developed against PySAM 4.0.0
+Updated to PySAM 6.0.1
 """
 from typing import TypedDict, List, Dict, Type, Tuple
 import pandas as pd
@@ -27,6 +27,8 @@ from lcoe_calculator.tech_processors import LCOE_TECHS
 from lcoe_calculator.base_processor import TechProcessor
 from lcoe_calculator.macrs import MACRS_6, MACRS_16, MACRS_21
 
+# Tax credit transferability: For the 2025 ATB this doesn't vary by year so hardcode for now
+PTC_DSCR_FACTOR = 0.7
 
 InputVals = TypedDict(
     "InputVals",
@@ -61,7 +63,7 @@ def calculate_debt_fraction(input_vals: InputVals, debug=False) -> float:
     @returns debt_fraction - Calculated debt fraction (% 0-100)
     """
     # Partnership flip with debt (tax-equity financing)
-    model = levpartflip.default("GenericSystemLeveragedPartnershipFlip")
+    model = levpartflip.default("CustomGenerationProfileLeveragedPartnershipFlip")
 
     # Values required for computation. Set to pysam using model.value() calls below
     analysis_period = 20
@@ -150,11 +152,13 @@ def calculate_debt_fraction(input_vals: InputVals, debug=False) -> float:
     model.value("itc_fed_percent", [input_vals["ITC"] * 100])
     model.value("itc_fed_percent_maxvalue", [1e38])
     model.value("itc_sta_amount", [0])
-    model.value("ptc_fed_amount", [input_vals["PTC"] / 1000])  # Convert $/MWh to $/kWh
+    model.value("ptc_fed_amount", [input_vals["PTC"] / 1000 * (1 - PTC_DSCR_FACTOR)])  # Convert $/MWh to $/kWh, apply remainder of dscr factor
+    model.value("ptc_fed_term", 10)
+    model.value("ptc_fed_escal", 2.5)
 
-    # Production based incentive code to test treating the tax credits as available for debt service, currently unused
-    model.value("pbi_fed_amount", [0])
-    model.value("pbi_fed_term", 0)
+    # PTC_DSCR_FACTOR indicated what percent is available for debt service, vs what percent is treated like a pre-IRA tax credit
+    model.value("pbi_fed_amount", [input_vals["PTC"] / 1000 * PTC_DSCR_FACTOR])
+    model.value("pbi_fed_term", 10)
     model.value("pbi_fed_escal", 2.5)
     model.value("pbi_fed_for_ds", True)
     model.value("pbi_fed_tax_fed", False)
@@ -266,7 +270,7 @@ def calculate_all_debt_fractions(
     tech_map: Dict[str, Type[TechProcessor]] = {tech.__name__: tech for tech in LCOE_TECHS}
     tech_classes = LCOE_TECHS if len(techs) == 0 else [tech_map[tech] for tech in techs]
 
-    df_itc, df_ptc = Extractor.get_tax_credits_sheet(data_workbook_filename)
+    df_itc, df_ptc, df_tfr = Extractor.get_tax_credits_sheet(data_workbook_filename)
 
     crp: CrpChoiceType = 20
     header_columns = ["Tech Sheet Name", "Technology", "Case"]
@@ -358,17 +362,17 @@ def calculate_all_debt_fractions(
                                 proc.df_batt_cost * proc.CO_LOCATION_SAVINGS / proc.df_occ
                             )
 
-                            input_vals["PTC"] = df_ptc.loc[name][year] * min(ncf / pvcf, 1.0)
+                            input_vals["PTC"] = df_ptc.loc[name][year] * min(ncf / pvcf, 1.0) * df_tfr.loc["PTC Transfer Discount"][year]
                             input_vals["ITC"] = (
                                 df_itc.loc[name][year]
-                                * batt_occ_percent.loc[Tech.default_tech_detail + "/Moderate"][year]
-                            )
+                                * batt_occ_percent.loc[Tech.default_tech_detail + "/Moderate"][year] 
+                            ) * df_tfr.loc["ITC Transfer Discount"][year]
                         else:
                             input_vals["PTC"] = 0
-                            input_vals["ITC"] = df_itc.loc[name][year]
+                            input_vals["ITC"] = df_itc.loc[name][year] * df_tfr.loc["ITC Transfer Discount"][year]
                     else:
-                        input_vals["PTC"] = df_ptc.loc[name][year]
-                        input_vals["ITC"] = df_itc.loc[name][year]
+                        input_vals["PTC"] = df_ptc.loc[name][year] * df_tfr.loc["PTC Transfer Discount"][year]
+                        input_vals["ITC"] = df_itc.loc[name][year] * df_tfr.loc["ITC Transfer Discount"][year]
                 else:
                     input_vals["PTC"] = 0
                     input_vals["ITC"] = 0
