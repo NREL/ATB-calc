@@ -121,7 +121,7 @@ class UtilityPvPlusBatteryProc(TechProcessor):
         data_workbook_fname: str,
         case: str = MARKET_FIN_CASE,
         crp: CrpChoiceType = 30,
-        tcc: str = "ITC only",
+        tcc: str = "PV PTC and Battery ITC",
         extractor: Type[PVBatteryExtractor] = PVBatteryExtractor,
         load_refs: bool = True,
     ):
