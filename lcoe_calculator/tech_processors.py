@@ -121,7 +121,7 @@ class UtilityPvPlusBatteryProc(TechProcessor):
         data_workbook_fname: str,
         case: str = MARKET_FIN_CASE,
         crp: CrpChoiceType = 30,
-        tcc: str = "PV PTC and Battery ITC",
+        tcc: str = "ITC only",
         extractor: Type[PVBatteryExtractor] = PVBatteryExtractor,
         load_refs: bool = True,
     ):
@@ -617,6 +617,7 @@ class AbstractBatteryProc(TechProcessor):
         ("Fixed Operation and Maintenance Expenses ($/kW-yr)", "df_fom"),
         ("Variable Operation and Maintenance Expenses ($/MWh)", "df_vom"),
         ("Construction Finance Factor", "df_cff"),
+        ("Round-Trip Efficiency", "df_rte")
     ]
 
     flat_attrs = [
@@ -626,6 +627,7 @@ class AbstractBatteryProc(TechProcessor):
         ("df_vom", "Variable O&M"),
         ("df_cfc", "CFC"),
         ("df_capex", "CAPEX"),
+        ("df_rte", "Round-Trip Efficiency")
     ]
 
 
