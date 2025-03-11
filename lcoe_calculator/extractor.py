@@ -199,7 +199,8 @@ class Extractor(AbstractExtractor):
         df_wacc.columns = df_wacc.columns.astype(int)
         df_wacc.columns.name = "year"
 
-        df_just_wacc = df_wacc.iloc[-6:]
+        # Grab rows with "WACC" in index string
+        df_just_wacc = df_wacc.loc[df_wacc.index.str.contains("WACC")]
         df_just_wacc.index.rename("WACC Type", inplace=True)
 
         cols = df_wacc.columns
