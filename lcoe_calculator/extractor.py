@@ -27,7 +27,7 @@ from .config import (
 )
 
 FIN_ASSUMP_COL = 5  # Number of columns from fin assumption keys to values
-NUM_WACC_PARMS = 24  # Number of rows of data for each tech in WACC Calc sheet
+WACC_LABEL_COLUMN = 1  # Index of column on WACC sheet with row labels. 1 == column B
 
 # Mandatory columns names for references table
 REF_METRIC = "Metric"
@@ -183,11 +183,13 @@ class Extractor(AbstractExtractor):
             assert count != 0, f'Unable to find "{search}" on {self.wacc_sheet} sheet.'
             assert count <= 1, f'"{search}" found more than once in {self.wacc_sheet} sheet.'
 
+        # Find data boundaries
         start_row, c = self._find_cell(df_wacc, search)
         assert c == "Unnamed: 0", f'WACC Calc tech search string ("{search}") found in wrong column'
+        end_row = self._next_empty_row(df_wacc, WACC_LABEL_COLUMN, start_row) - 1
 
         # Grab the rows, reset index and columns
-        df_wacc = df_wacc.iloc[start_row : start_row + NUM_WACC_PARMS + 1]
+        df_wacc = df_wacc.iloc[start_row : end_row + 1]
         df_wacc = df_wacc.set_index("Unnamed: 1")
         df_wacc.columns = pd.Index(df_wacc.iloc[0])
 
@@ -197,16 +199,9 @@ class Extractor(AbstractExtractor):
         df_wacc.columns = df_wacc.columns.astype(int)
         df_wacc.columns.name = "year"
 
-        df_just_wacc = df_wacc.iloc[-6:]
+        # Grab rows with "WACC" in index string
+        df_just_wacc = df_wacc.loc[df_wacc.index.str.contains("WACC")]
         df_just_wacc.index.rename("WACC Type", inplace=True)
-
-        idx = df_wacc.index
-        assert idx[0] == "Inflation Rate" and idx[-1] == "WACC Real - Conservative", (
-            '"Inflation Rate" should be the first row in the WACC table and '
-            f'"WACC Real - Conservative" should be last, but "{idx[0]}" and '
-            f'"{idx[-1]}" were found instead. Please check the data workbook '
-            f"and NUM_WACC_PARAMS."
-        )
 
         cols = df_wacc.columns
         assert cols[0] == YEARS[0], f"WACC: First year should be {YEARS[0]}, got {cols[0]} instead"
@@ -497,6 +492,9 @@ class Extractor(AbstractExtractor):
         """
         Find next empty column in a row, starting at col1, or the end of
         the row.
+
+        WARNING: Row and column indices must be numeric and start at 0.
+        TODO: switch to using df.iloc[].
         """
         col2 = col1 + 1
         while not self._is_empty(df.loc[row, col2]):
@@ -507,11 +505,16 @@ class Extractor(AbstractExtractor):
 
     def _next_empty_row(self, df: pd.DataFrame, col: int, row1: int) -> int:
         """
-        Find next empty row in a column, starting at row1
+        Find next empty row in a column in a specified area.
+
+        :param df: Data frame to search
+        :param col: Column to search within, first column is 0
+        :param row1: First row of data in area of interest
+        :return: Next empty row in column `col`, below `row`.
         """
         row2 = row1 + 1
-        while not self._is_empty(df.loc[row2, col]):
+        while not self._is_empty(df.iloc[row2, col]):
             row2 += 1
-            if row2 == len(df.loc[col]):
+            if row2 == len(df.iloc[col]):
                 return row2
         return row2

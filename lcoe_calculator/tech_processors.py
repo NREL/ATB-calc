@@ -605,7 +605,7 @@ class AbstractBatteryProc(TechProcessor):
     Abstract tech processor for batteries w/o LCOE or CAPEX.
     """
 
-    has_wacc = False
+    has_wacc = True
     has_lcoe = False
 
     # This is false because the ATB does not calculate LCOS (batteries can receive the ITC).
@@ -617,7 +617,7 @@ class AbstractBatteryProc(TechProcessor):
         ("Fixed Operation and Maintenance Expenses ($/kW-yr)", "df_fom"),
         ("Variable Operation and Maintenance Expenses ($/MWh)", "df_vom"),
         ("Construction Finance Factor", "df_cff"),
-        ("Round-Trip Efficiency", "df_rte")
+        ("Round-Trip Efficiency", "df_rte"),
     ]
 
     flat_attrs = [
@@ -627,7 +627,7 @@ class AbstractBatteryProc(TechProcessor):
         ("df_vom", "Variable O&M"),
         ("df_cfc", "CFC"),
         ("df_capex", "CAPEX"),
-        ("df_rte", "Round-Trip Efficiency")
+        ("df_rte", "Round-Trip Efficiency"),
     ]
 
 
