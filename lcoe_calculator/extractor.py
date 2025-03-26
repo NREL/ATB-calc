@@ -82,7 +82,7 @@ class Extractor(AbstractExtractor):
         # Suppress data validation warning: https://stackoverflow.com/a/66571471/6053212
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl")
-            df = pd.read_excel(data_workbook_fname, sheet_name=sheet_name)
+            df = pd.read_excel(data_workbook_fname, sheet_name=sheet_name, keep_default_na=False, na_values=["", "NULL", "null", "NaN", "nan", "inf"])
         df = df.reset_index()
 
         # Give columns numerical names
@@ -369,7 +369,7 @@ class Extractor(AbstractExtractor):
 
         if df_refs[MANDATORY_COLUMNS].isnull().values.any():
             raise ValueError("Found NaN or N/A values in references")
-
+            
         # Join with Zotero reference ids
         df_zotero = pd.read_excel(self._data_workbook_fname, sheet_name="References")
         df_zotero.set_index("Bib", inplace=True)
