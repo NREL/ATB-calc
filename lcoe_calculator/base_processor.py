@@ -7,11 +7,11 @@
 """
 Tech LCOE and CAPEX processor class. This is effectively an abstract class and must be subclassed.
 """
+import click
 from typing import List, Tuple, Type, Optional, Dict
 from abc import ABC, abstractmethod
 import pandas as pd
 import numpy as np
-from pprint import pprint
 
 from .macrs import MACRS_6
 from .extractor import (
@@ -21,6 +21,7 @@ from .extractor import (
     REF_REFERENCE,
     REF_END_YEAR,
     REF_START_YEAR,
+    REF_DETAIL,
     MANDATORY_COLUMNS,
 )
 from .abstract_extractor import AbstractExtractor
@@ -173,28 +174,28 @@ class TechProcessor(ABC):
         self.tax_credit_case = tcc
 
         # These data frames are extracted from excel
-        self.df_ncf = None  # Net capacity factor (%)
-        self.df_occ = None  # Overnight capital cost ($/kW)
-        self.df_gcc = None  # Grid connection costs ($/kW)
-        self.df_fom = None  # Fixed O&M ($/kW-yr)
-        self.df_vom = None  # Variable O&M ($/MWh)
-        self.df_tc = None  # Tax credits (varies)
-        self.df_wacc = None  # WACC table (varies)
-        self.df_just_wacc = None  # Last six rows of WACC table
-        self.df_hrp = None  # Heat Rate Penalty (% change), retrofits only
-        self.df_nop = None  # Net Output Penalty (% change), retrofits only
-        self.df_pvcf = None  # PV-only capacity factor (%), PV-plus-battery only
-        self.df_references = None
+        self.df_ncf: Optional[pd.DataFrame] = None  # Net capacity factor (%)
+        self.df_occ: Optional[pd.DataFrame] = None  # Overnight capital cost ($/kW)
+        self.df_gcc: Optional[pd.DataFrame] = None  # Grid connection costs ($/kW)
+        self.df_fom: Optional[pd.DataFrame] = None  # Fixed O&M ($/kW-yr)
+        self.df_vom: Optional[pd.DataFrame] = None  # Variable O&M ($/MWh)
+        self.df_tc: Optional[pd.DataFrame] = None  # Tax credits (varies)
+        self.df_wacc: Optional[pd.DataFrame] = None  # WACC table (varies)
+        self.df_just_wacc: Optional[pd.DataFrame] = None  # Last six rows of WACC table
+        self.df_hrp: Optional[pd.DataFrame] = None  # Heat Rate Penalty (% change), retrofits only
+        self.df_nop: Optional[pd.DataFrame] = None  # Net Output Penalty (% change), retrofits only
+        self.df_pvcf: Optional[pd.DataFrame] = None  # PV-only cap factor (%), PV-plus-batt only
+        self.df_references: Optional[pd.DataFrame] = None  # References for metrics
         self.ss_capex: pd.DataFrame
         self.ss_lcoe: pd.DataFrame
 
         # These data frames are calculated and populated by object methods
-        self.df_aep = None  # Annual energy production (kWh/kW)
-        self.df_capex = None  # CAPEX ($/kW)
-        self.df_cfc = None  # Construction finance cost ($/kW)
-        self.df_crf = None  # Capital recovery factor - real (%)
-        self.df_pff = None  # Project finance factor (unitless)
-        self.df_lcoe = None  # LCOE ($/MWh)
+        self.df_aep: Optional[pd.DataFrame] = None  # Annual energy production (kWh/kW)
+        self.df_capex: Optional[pd.DataFrame] = None  # CAPEX ($/kW)
+        self.df_cfc: Optional[pd.DataFrame] = None  # Construction finance cost ($/kW)
+        self.df_crf: Optional[pd.DataFrame] = None  # Capital recovery factor - real (%)
+        self.df_pff: Optional[pd.DataFrame] = None  # Project finance factor (unitless)
+        self.df_lcoe: Optional[pd.DataFrame] = None  # LCOE ($/MWh)
 
         self._ExtractorClass = extractor
         self._extractor = self._extract_data(load_refs)
@@ -243,7 +244,7 @@ class TechProcessor(ABC):
 
         if self.df_references is None:
             print("Warning: references not loaded, excluding from flat file")
-            return pd.DataFrame.from_dict(melted)
+            return pd.DataFrame.from_dict(melted)  # type: ignore
 
         # Create lookup table for full metric name keyed by abbreviation. Abbreviations in
         # self.flat_attrs that do not have a matching value in self.metrics will be ignored. E.g.:
@@ -263,9 +264,9 @@ class TechProcessor(ABC):
 
         # Append reference info to each record
         for record in melted:
-            self._append_reference_info(record, abbrevs_to_metrics, self.df_references)
+            self._append_reference_info(record, abbrevs_to_metrics, self.df_references)  # type: ignore
 
-        return pd.DataFrame.from_dict(melted)
+        return pd.DataFrame.from_dict(melted)  # type: ignore
 
     @staticmethod
     def _append_reference_info(
@@ -289,14 +290,21 @@ class TechProcessor(ABC):
                 record[col] = ""
             return
 
-        # Filter references by metric and scenario
+        # Filter references by metric, scenario, and tech detail
         scenario = record["Scenario"]
+        tech_detail: str = record["DisplayName"]  # type: ignore
         scenario_mask = (df_refs[REF_SCENARIO] == scenario) | (df_refs[REF_SCENARIO] == "All")
         metric_mask = df_refs[REF_METRIC] == metric
-        def_refs_filtered = df_refs[metric_mask & scenario_mask]
+        tech_detail_mask = (df_refs[REF_DETAIL].str.contains(tech_detail)) | (
+            df_refs[REF_DETAIL] == "All"
+        )
+        def_refs_filtered = df_refs[metric_mask & scenario_mask & tech_detail_mask]
 
         if len(def_refs_filtered) == 0:
-            raise ValueError(f"No reference found for metric '{metric}', scenario '{scenario}'")
+            raise ValueError(
+                f"No reference found for metric '{metric}', scenario '{scenario}', tech detail "
+                f"'{tech_detail}'"
+            )
 
         # Find the reference for year
         year = int(record["variable"])
@@ -308,12 +316,13 @@ class TechProcessor(ABC):
         if len(df_ref) == 0:
             raise ValueError(
                 f"There is no reference for year {year} for metric '{metric}', scenario "
-                f"'{scenario}'"
+                f"'{scenario}, and tech detail '{tech_detail}'"
             )
         if len(df_ref) > 1:
-            raise ValueError(
+            click.echo(
                 f"Multiple references found for year {year} for metric '{metric}', scenario "
-                f"'{scenario}'"
+                f"'{scenario}', and tech detail '{tech_detail}'",
+                err=True,
             )
 
         # Finally, append reference values
@@ -337,7 +346,7 @@ class TechProcessor(ABC):
             case = MARKET_FIN_CASE
 
         for attr, parameter in self.flat_attrs:
-            df = getattr(self, attr)
+            df: pd.DataFrame = getattr(self, attr)
             df = df.reset_index()
 
             old_cols = df.columns
@@ -541,7 +550,7 @@ class TechProcessor(ABC):
             if var_name == "df_cff":
                 # Grab DF index from another value to use in full CFF DF
                 index = getattr(self, self.metrics[0][1]).index
-                self.df_cff = self.load_cff(extractor, metric, index)  # type: ignore
+                self.df_cff = self.load_cff(extractor, metric, index)
                 continue
             df_temp = extractor.get_metric_values(
                 metric, self.num_tds, self.split_metrics, self.allow_empty_values
@@ -639,7 +648,7 @@ class TechProcessor(ABC):
         raw_crp = self.df_fin.loc["Capital Recovery Period (Years)", "Value"]
 
         try:
-            crp = float(raw_crp)
+            crp = float(raw_crp)  # type: ignore
         except ValueError as err:
             msg = f"Error converting CRP value ({raw_crp}) to a float: {err}."
             print(f"{msg} self.df_fin is:")

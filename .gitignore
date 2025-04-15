@@ -102,3 +102,6 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+*.csv
+!./tests/data/**/*.csv
