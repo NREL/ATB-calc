@@ -263,8 +263,11 @@ class TechProcessor(ABC):
             raise ValueError("References must be loaded to flatten data")
 
         # Append reference info to each record
+        duplicate_warnings: List[str] = []
         for record in melted:
-            self._append_reference_info(record, abbrevs_to_metrics, self.df_references)  # type: ignore
+            self._append_reference_info(
+                record, abbrevs_to_metrics, self.df_references, duplicate_warnings  # type: ignore
+            )
 
         return pd.DataFrame.from_dict(melted)  # type: ignore
 
@@ -273,12 +276,15 @@ class TechProcessor(ABC):
         record: Dict[str, str | int | float],
         abbrevs_to_metrics: Dict[str, str],
         df_refs: pd.DataFrame,
+        duplicate_warnings: List[str],
     ):
         """Append reference info to a single flat file record. This modifies the record in place.
 
         :param record: Record to add reference info to.
         :param abbrevs_to_metrics: Mapping of abbreviations to full metric names.
         :param df_refs: DataFrame of references
+        :param duplicate_warnings: List for tracking which metrics have already seen a duplicate
+            reference warning.
         """
         ref_columns = list(df_refs.columns)
         optional_columns = [col for col in ref_columns if col not in MANDATORY_COLUMNS]
@@ -318,12 +324,16 @@ class TechProcessor(ABC):
                 f"There is no reference for year {year} for metric '{metric}', scenario "
                 f"'{scenario}, and tech detail '{tech_detail}'"
             )
+
+        # Warn about multiple references
         if len(df_ref) > 1:
-            click.echo(
-                f"Multiple references found for year {year} for metric '{metric}', scenario "
-                f"'{scenario}', and tech detail '{tech_detail}'",
-                err=True,
-            )
+            if metric not in duplicate_warnings:
+                duplicate_warnings.append(metric)
+                click.echo(
+                    f"Multiple references found for {year}, '{metric}', '{scenario}', "
+                    f"'{tech_detail}'",
+                    err=True,
+                )
 
         # Finally, append reference values
         record["Reference"] = df_ref[REF_REFERENCE].values[0]
