@@ -35,8 +35,16 @@ REF_START_YEAR = "Start Year"
 REF_END_YEAR = "End Year"
 REF_SCENARIO = "Scenario"
 REF_REFERENCE = "Reference"
+REF_DETAIL = "Tech Detail"
 
-MANDATORY_COLUMNS = [REF_METRIC, REF_START_YEAR, REF_END_YEAR, REF_SCENARIO, REF_REFERENCE]
+MANDATORY_COLUMNS = [
+    REF_METRIC,
+    REF_START_YEAR,
+    REF_END_YEAR,
+    REF_SCENARIO,
+    REF_REFERENCE,
+    REF_DETAIL,
+]
 
 
 class Extractor(AbstractExtractor):
@@ -82,7 +90,12 @@ class Extractor(AbstractExtractor):
         # Suppress data validation warning: https://stackoverflow.com/a/66571471/6053212
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl")
-            df = pd.read_excel(data_workbook_fname, sheet_name=sheet_name, keep_default_na=False, na_values=["", "NULL", "null", "NaN", "nan", "inf"])
+            df = pd.read_excel(
+                data_workbook_fname,
+                sheet_name=sheet_name,
+                keep_default_na=False,
+                na_values=["", "NULL", "null", "NaN", "nan", "inf"],
+            )
         df = df.reset_index()
 
         # Give columns numerical names
@@ -342,7 +355,7 @@ class Extractor(AbstractExtractor):
         df_refs[REF_START_YEAR] = df_refs[REF_START_YEAR].astype(int)
         df_refs[REF_END_YEAR] = df_refs[REF_END_YEAR].astype(int)
 
-        # Check for missing or extra metrics
+        # Check for missing columns
         for col in MANDATORY_COLUMNS:
             if col not in df_refs.columns:
                 raise ValueError(f"Missing column '{col}' in references")
@@ -362,6 +375,15 @@ class Extractor(AbstractExtractor):
                 f"{set(ss_metrics).difference(metrics)}"
             )
 
+        # Check for invalid values in scenarios column
+        for scenario in df_refs[REF_SCENARIO].unique():
+            allowed = self.scenarios + ["All"]
+            if scenario not in allowed:
+                raise ValueError(
+                    f"Invalid scenario '{scenario}' found in references. "
+                    f"Valid scenarios are: {allowed}"
+                )
+
         # Check for missing values in mandatory columns
         for col in MANDATORY_COLUMNS:
             if df_refs[col].isnull().any():
@@ -369,7 +391,7 @@ class Extractor(AbstractExtractor):
 
         if df_refs[MANDATORY_COLUMNS].isnull().values.any():
             raise ValueError("Found NaN or N/A values in references")
-            
+
         # Join with Zotero reference ids
         df_zotero = pd.read_excel(self._data_workbook_fname, sheet_name="References")
         df_zotero.set_index("Bib", inplace=True)
