@@ -182,6 +182,7 @@ class UtilityPvPlusBatteryProc(TechProcessor):
             self._requested_crp,
             self.scenarios,
             self.base_year,
+            self.is_market_cost_tech(),
             self.tax_credit_case,
         )
 

@@ -18,7 +18,7 @@ Find path to test data CSV files. General layout:
 from typing import Optional, Type
 import os
 from lcoe_calculator.base_processor import TechProcessor
-from lcoe_calculator.config import LCOE_CELL_NAME, CAPEX_CELL_NAME, CrpChoiceType
+from lcoe_calculator.config import LCOE_CELL_NAME, CAPEX_CELL_NAME, CrpChoiceType, FinancialCases
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
@@ -48,7 +48,7 @@ class DataFinder:
         cls._tech = tech
 
     @classmethod
-    def get_data_filename(cls, metric: str, case: str, crp: CrpChoiceType):
+    def get_data_filename(cls, metric: str, case: FinancialCases, crp: CrpChoiceType):
         """
         Get path and filename to test data.
 
@@ -84,7 +84,7 @@ class DataFinder:
             return os.path.join(tech_dir, f"{df_name}.csv")
 
         # Files in ./data/{tech}/{case}
-        case_dir = os.path.join(tech_dir, case)
+        case_dir = os.path.join(tech_dir, case.value.replace(" ", "_"))
         if not os.path.exists(case_dir):
             os.makedirs(case_dir)
         if df_name in ["df_cff", "df_wacc", "df_just_wacc"]:

@@ -12,7 +12,7 @@ import pandas as pd
 
 from lcoe_calculator.base_processor import CRP_CHOICES
 from lcoe_calculator.tech_processors import ALL_TECHS, TechProcessor
-from lcoe_calculator.config import FINANCIAL_CASES
+from lcoe_calculator.config import FinancialCases
 
 from .mock_extractor import MockExtractor
 from .data_finder import DataFinder
@@ -24,7 +24,13 @@ def test_lcoe_and_capex_calculations() -> None:
     """
     for Tech in ALL_TECHS:
         print(f"----------- Testing {Tech.sheet_name} -----------")
-        for case in FINANCIAL_CASES:
+
+        # skip MARKET_COST for non-market cost techs
+        cases = [FinancialCases.MARKET, FinancialCases.R_AND_D]
+        if Tech.is_market_cost_tech():
+            cases = list(FinancialCases)
+
+        for case in cases:
             for crp in CRP_CHOICES:
                 DataFinder.set_tech(Tech)
 

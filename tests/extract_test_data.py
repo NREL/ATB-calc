@@ -14,12 +14,12 @@ from lcoe_calculator.base_processor import TechProcessor
 from lcoe_calculator.tech_processors import ALL_TECHS
 from lcoe_calculator.extractor import Extractor
 from lcoe_calculator.config import (
-    FINANCIAL_CASES,
     LCOE_CELL_NAME,
     CAPEX_CELL_NAME,
     CFF_CELL_NAME,
     CRP_CHOICES,
     CrpChoiceType,
+    FinancialCases,
 )
 from .data_finder import (
     DataFinder,
@@ -32,7 +32,7 @@ from .data_finder import (
 
 # Use extractor to pull values from data workbook and save as CSV
 def extract_data_for_crp_case(
-    data_workbook_fname: str, tech: Type[TechProcessor], case: str, crp: CrpChoiceType
+    data_workbook_fname: str, tech: Type[TechProcessor], case: FinancialCases, crp: CrpChoiceType
 ):
     """
     Extract data from ATB data workbook for a tech and save as CSV.
@@ -48,7 +48,8 @@ def extract_data_for_crp_case(
         case,
         crp,
         tech.scenarios,
-        base_year=tech.base_year,
+        tech.base_year,
+        tech.is_market_cost_tech(),
     )
 
     metrics = list(tech.metrics)
@@ -117,7 +118,11 @@ def extract(filename: str, tech: str | None):
         print(f"Extracting values for {Tech.sheet_name}")
         DataFinder.set_tech(Tech)
 
-        for case in FINANCIAL_CASES:
+        cases = [FinancialCases.MARKET, FinancialCases.R_AND_D]
+        if Tech.is_market_cost_tech():
+            cases = list(FinancialCases)
+
+        for case in cases:
             for crp in CRP_CHOICES:
                 print(f"\tcrp={crp}, case={case}")
                 extract_data_for_crp_case(filename, Tech, case, crp)
