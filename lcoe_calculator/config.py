@@ -8,7 +8,7 @@
 Config and constants for the LCOE pipeline.
 """
 from enum import Enum
-from typing import Literal, List, TypeAlias
+from typing import Literal, List
 
 # Years of data projected by ATB
 BASE_YEAR = 2023
@@ -22,8 +22,13 @@ class FinancialCases(Enum):
     """
 
     MARKET_COST = "Market Cost"
+    """ Market financials and cost case"""
+
     MARKET = "Market"
+    """ Market financials only"""
+
     R_AND_D = "R&D"
+    """ Research and Development financials only"""
 
 
 # Tax credit cases
