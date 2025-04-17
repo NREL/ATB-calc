@@ -1,5 +1,6 @@
 #
-# Copyright (c) Alliance for Sustainable Energy, LLC and Skye Analytics, Inc. See also https://github.com/NREL/ATB-calc/blob/main/LICENSE
+# Copyright (c) Alliance for Sustainable Energy, LLC and Skye Analytics, Inc. See also
+# https://github.com/NREL/ATB-calc/blob/main/LICENSE
 #
 # This file is part of ATB-calc
 # (see https://github.com/NREL/ATB-calc).

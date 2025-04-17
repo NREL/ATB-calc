@@ -43,7 +43,7 @@ def extract_data_for_crp_case(
     @param crp - name of desired CRP
     """
 
-    sheet_name = get_sheet_name(tech, case)
+    sheet_name = tech.get_sheet_name(case)
 
     extractor = Extractor(
         data_workbook_fname,
@@ -122,38 +122,13 @@ def extract(filename: str, tech: str | None):
 
         DataFinder.set_tech(Tech)
 
-        cases = [FinancialCases.MARKET, FinancialCases.R_AND_D]
-        if Tech.is_market_cost_tech():
-            cases = list(FinancialCases)
-
-        for case in cases:
-            sheet_name = get_sheet_name(Tech, case)
+        for case in Tech.supported_financial_cases():
+            sheet_name = Tech.get_sheet_name(case)
             for crp in CRP_CHOICES:
                 print(f"\tcrp={crp}, case={case}, sheet={sheet_name}")
                 extract_data_for_crp_case(filename, Tech, case, crp)
 
     print("Done")
-
-
-def get_sheet_name(tech: Type[TechProcessor], case: FinancialCases) -> str:
-    """Get appropriate sheet name based on financial case and tech type.
-
-    :param tech: Technology processor class
-    :param case: Desired financial case
-    :return: Sheet name
-    """
-    if tech.is_market_cost_tech():
-        if case == FinancialCases.MARKET_COST:
-            sheet_name = tech.market_sheet_name
-        else:
-            sheet_name = tech.rnd_sheet_name
-    else:
-        sheet_name = tech.sheet_name
-
-    if sheet_name is None:
-        raise ValueError(f"Sheet name is None for {tech.__name__} and case {case}")
-
-    return sheet_name
 
 
 if __name__ == "__main__":

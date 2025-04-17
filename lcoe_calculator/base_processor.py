@@ -1,5 +1,6 @@
 #
-# Copyright (c) Alliance for Sustainable Energy, LLC and Skye Analytics, Inc. See also https://github.com/NREL/ATB-calc/blob/main/LICENSE
+# Copyright (c) Alliance for Sustainable Energy, LLC and Skye Analytics, Inc. See also
+# https://github.com/NREL/ATB-calc/blob/main/LICENSE
 #
 # This file is part of ATB-calc
 # (see https://github.com/NREL/ATB-calc).
@@ -548,15 +549,7 @@ class TechProcessor(ABC):
             if self._requested_crp != "TechLife"
             else f"TechLife ({self.tech_life})"
         )
-
-        if self.is_market_cost_tech():
-            if self._case == FinancialCases.MARKET_COST:
-                sheet_name = self.market_sheet_name
-            else:
-                sheet_name = self.rnd_sheet_name
-        else:
-            sheet_name = self.sheet_name
-
+        sheet_name = self.get_sheet_name(self._case)
         print(f"Loading data from sheet '{sheet_name}', for '{self._case.value}' and {crp_msg}")
 
         extractor = self._ExtractorClass(
@@ -854,3 +847,35 @@ class TechProcessor(ABC):
         raise AttributeError(
             '"sheet_name", "market_sheet_name", and "rnd_sheet_name" are not set correctly'
         )
+
+    @classmethod
+    def supported_financial_cases(cls) -> list[FinancialCases]:
+        """Get the list of supported financial cases for this technology.
+
+        :return: list of supported financial cases
+        """
+        if cls.is_market_cost_tech():
+            return list(FinancialCases)
+
+        # By definition, only MARKET and R&D cases are supported for non-market cost technologies
+        return [FinancialCases.MARKET, FinancialCases.R_AND_D]
+
+    @classmethod
+    def get_sheet_name(cls, case: FinancialCases) -> str:
+        """Get appropriate sheet name based on financial case
+
+        :param case: Desired financial case
+        :return: Sheet name
+        """
+        if cls.is_market_cost_tech():
+            if case == FinancialCases.MARKET_COST:
+                sheet_name = cls.market_sheet_name
+            else:
+                sheet_name = cls.rnd_sheet_name
+        else:
+            sheet_name = cls.sheet_name
+
+        if sheet_name is None:
+            raise ValueError(f"Sheet name is None for {cls.__name__} and case {case}")
+
+        return sheet_name

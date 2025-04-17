@@ -31,13 +31,14 @@ class MockExtractor(AbstractExtractor):
 
     def __init__(
         self,
-        _: str,
-        __: str,
+        _: str,  # workbook name
+        __: str,  # sheet name
         case: FinancialCases,
         crp: CrpChoiceType,
-        ___: List[int],
-        ____: int,
-        _____: Optional[str] = None,
+        ___: List[int],  # scenarios
+        ____: int,  # base year
+        _____: bool,  # is_market_cost_tech
+        ______: Optional[str] = None,  # tax credit case (PV Battery only)
     ):
         """
         @param data_workbook_fname - IGNORED

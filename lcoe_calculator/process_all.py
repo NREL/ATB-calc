@@ -103,12 +103,7 @@ class ProcessAll:
                 if crp == "TechLife" and Tech.tech_life in CRP_CHOICES:
                     continue
 
-                # skip MARKET_COST for non-market cost techs
-                cases = [FinancialCases.MARKET, FinancialCases.R_AND_D]
-                if Tech.is_market_cost_tech():
-                    cases = list(FinancialCases)
-
-                for case in cases:
+                for case in Tech.supported_financial_cases():
                     if case is FinancialCases.MARKET and Tech.tech_name in TAX_CREDIT_CASES:
                         tax_credit_cases = TAX_CREDIT_CASES[Tech.tech_name]  # type: ignore
                         for tcc in tax_credit_cases:
