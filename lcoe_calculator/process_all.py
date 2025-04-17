@@ -94,6 +94,8 @@ class ProcessAll:
 
         for i, Tech in enumerate(self._techs):
             print(f"##### Processing {Tech.tech_name} ({i+1}/{len(self._techs)}) #####")
+            word = " " if Tech.is_market_cost_tech() else " not "
+            print(f"{Tech.tech_name} is{word}a market cost tech")
 
             proc: TechProcessor
             for crp in CRP_CHOICES:
@@ -101,8 +103,12 @@ class ProcessAll:
                 if crp == "TechLife" and Tech.tech_life in CRP_CHOICES:
                     continue
 
-                # for case in FinancialCases: TODO
-                for case in FinancialCases.MARKET, FinancialCases.R_AND_D:
+                # skip MARKET_COST for non-market cost techs
+                cases = [FinancialCases.MARKET, FinancialCases.R_AND_D]
+                if Tech.is_market_cost_tech():
+                    cases = list(FinancialCases)
+
+                for case in cases:
                     if case is FinancialCases.MARKET and Tech.tech_name in TAX_CREDIT_CASES:
                         tax_credit_cases = TAX_CREDIT_CASES[Tech.tech_name]  # type: ignore
                         for tcc in tax_credit_cases:

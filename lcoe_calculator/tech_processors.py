@@ -64,7 +64,9 @@ class DistributedWindProc(TechProcessor):
 class UtilityPvProc(TechProcessor):
     tech_name = "UtilityPV"
     tech_life = 30
-    sheet_name = "Solar - Utility PV"
+    rnd_sheet_name = "Solar - Utility PV - R&D costs"
+    market_sheet_name = "Solar - Utility PV - Market"
+    wacc_name = "Solar - Utility PV"
     num_tds = 10
     default_tech_detail = "Utility PV - Class 5"
     dscr = 1.275
@@ -319,7 +321,7 @@ class HydropowerProc(TechProcessor):
     dscr = 1.35
 
     def get_depreciation_schedule(self, year):
-        if self._case is MARKET_FIN_CASE and (year < 2025):
+        if self._case == FinancialCases.MARKET and (year < 2025):
             return MACRS_21
         else:
             return MACRS_6
@@ -553,7 +555,7 @@ class NuclearProc(TechProcessor):
         return df_lcoe
 
     def get_depreciation_schedule(self, year):
-        if self._case is MARKET_FIN_CASE and (year < 2025):
+        if self._case == FinancialCases.MARKET and (year < 2025):
             return MACRS_16
         else:
             return MACRS_6

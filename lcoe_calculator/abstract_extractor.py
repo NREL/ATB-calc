@@ -25,6 +25,7 @@ class AbstractExtractor(ABC):
         crp: CrpChoiceType,
         scenarios: List[str],
         base_year: int,
+        is_market_cost_tech: bool,
     ):
         """
         @param data_workbook_fname - file name of data workbook
@@ -33,6 +34,7 @@ class AbstractExtractor(ABC):
         @param crp - capital recovery period: 20, 30, or 'TechLife'
         @param scenarios - scenarios, e.g. 'Advanced', 'Moderate', etc.
         @param base_year - first year of data for this technology
+        @param is_market_cost_tech - True if this is a market cost tech
         """
 
     @abstractmethod

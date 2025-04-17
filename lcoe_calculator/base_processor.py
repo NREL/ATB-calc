@@ -61,11 +61,13 @@ class TechProcessor(ABC):
     def tech_name(self) -> str:
         """
         Name of tech for flat file. The same tech_name can be used for multiple tech processors
-        (assuming each tech processor as a different sheet_name) if the resource classes do not
+        (assuming each tech processor has a different sheet_name) if the resource classes do not
         overlap.
         """
 
-    # Either sheet_name or both market_sheet_name and rnd_sheet_name must be set
+    # Either sheet_name or both market_sheet_name and rnd_sheet_name must be set. Sheet name is
+    # used for all non-market cost technologies that only have two financial cases. For market cost
+    # technologies, the market_sheet_name and rnd_sheet_name must be set.
     sheet_name: str | None = None
     market_sheet_name: str | None = None
     rnd_sheet_name: str | None = None
@@ -150,7 +152,7 @@ class TechProcessor(ABC):
         @param extractor - Extractor class to use to obtain source data.
         @param load_refs - Load references if True
         """
-        assert case in FinancialCases, (
+        assert case in list(FinancialCases), (
             f"Financial case must be one of {FinancialCases}," f" received {case}"
         )
         assert crp in CRP_CHOICES, (
@@ -158,8 +160,13 @@ class TechProcessor(ABC):
         )
         assert isinstance(self.scenarios, list), "self.scenarios must be a list"
 
-        # Sanity check that sheet names are set properly
-        _ = self.market_cost_tech
+        # Sanity check case request and sheet names
+        self._check_sheet_names()
+        if case == FinancialCases.MARKET_COST and not self.is_market_cost_tech():
+            raise ValueError(
+                "Market cost financial case was requested for a non-market cost tech: "
+                f"{self.tech_name}"
+            )
 
         if self.has_lcoe:
             if self.default_tech_detail is None:
@@ -542,14 +549,24 @@ class TechProcessor(ABC):
             else f"TechLife ({self.tech_life})"
         )
 
-        print(f"Loading data from {self.sheet_name}, for {self._case.value} and {crp_msg}")
+        if self.is_market_cost_tech():
+            if self._case == FinancialCases.MARKET_COST:
+                sheet_name = self.market_sheet_name
+            else:
+                sheet_name = self.rnd_sheet_name
+        else:
+            sheet_name = self.sheet_name
+
+        print(f"Loading data from sheet '{sheet_name}', for '{self._case.value}' and {crp_msg}")
+
         extractor = self._ExtractorClass(
             self._data_workbook_fname,
-            self.sheet_name,  # TODO
+            sheet_name,  # type: ignore
             self._case,
             self._requested_crp,
             self.scenarios,
             self.base_year,
+            self.is_market_cost_tech(),
         )
 
         print("\tLoading metrics")
@@ -808,22 +825,29 @@ class TechProcessor(ABC):
         else:
             return "None"
 
-    @property
-    def market_cost_tech(self):
+    def _check_sheet_names(self):
+        """
+        Helper function to sanity check sheet names. Raises AttributeError if not set correctly.
+        """
+        if self.is_market_cost_tech() and self.wacc_name is None:
+            raise AttributeError("`wacc_name` must be set for market cost technologies.")
+
+    @classmethod
+    def is_market_cost_tech(cls):
         """
         If True, this is a market cost tech and has separate r&d and market sheets.
         """
         if (
-            self.sheet_name is not None
-            and self.rnd_sheet_name is None
-            and self.market_sheet_name is None
+            cls.sheet_name is not None
+            and cls.rnd_sheet_name is None
+            and cls.market_sheet_name is None
         ):
             return False
 
         if (
-            self.sheet_name is None
-            and self.rnd_sheet_name is not None
-            and self.market_sheet_name is not None
+            cls.sheet_name is None
+            and cls.rnd_sheet_name is not None
+            and cls.market_sheet_name is not None
         ):
             return True
 
