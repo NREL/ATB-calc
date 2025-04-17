@@ -12,7 +12,7 @@ processor needs special functions beyond the basic Extractor
 from typing import List
 import xlwings as xw
 
-from .config import CrpChoiceType
+from .config import CrpChoiceType, FinancialCases
 from .extractor import Extractor
 
 
@@ -26,7 +26,7 @@ class PVBatteryExtractor(Extractor):
         self,
         data_workbook_fname: str,
         sheet_name: str,
-        case: str,
+        case: FinancialCases,
         crp: CrpChoiceType,
         scenarios: List[str],
         base_year: int,
@@ -52,6 +52,4 @@ class PVBatteryExtractor(Extractor):
             sheet.range("Q46").value = tax_credit_case
             wb.save()
 
-        super().__init__(
-            data_workbook_fname, sheet_name, case, crp, scenarios, base_year
-        )
+        super().__init__(data_workbook_fname, sheet_name, case, crp, scenarios, base_year)

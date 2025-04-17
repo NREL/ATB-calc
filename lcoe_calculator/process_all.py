@@ -15,13 +15,7 @@ import pandas as pd
 
 from .tech_processors import ALL_TECHS
 from .base_processor import TechProcessor
-from .config import (
-    FINANCIAL_CASES,
-    MARKET_FIN_CASE,
-    CRP_CHOICES,
-    CrpChoiceType,
-    TAX_CREDIT_CASES,
-)
+from .config import CRP_CHOICES, CrpChoiceType, TAX_CREDIT_CASES, FinancialCases
 
 
 class ProcessAll:
@@ -51,9 +45,9 @@ class ProcessAll:
 
     def _run_tech(
         self,
-        Tech: type[TechProcessor],
+        Tech: type[TechProcessor],  # typing: ignore
         crp: CrpChoiceType,
-        case: str,
+        case: FinancialCases,
         tcc: Optional[str],
         test_capex: bool,
         test_lcoe: bool,
@@ -107,8 +101,9 @@ class ProcessAll:
                 if crp == "TechLife" and Tech.tech_life in CRP_CHOICES:
                     continue
 
-                for case in FINANCIAL_CASES:
-                    if case is MARKET_FIN_CASE and Tech.tech_name in TAX_CREDIT_CASES:
+                # for case in FinancialCases: TODO
+                for case in FinancialCases.MARKET, FinancialCases.R_AND_D:
+                    if case is FinancialCases.MARKET and Tech.tech_name in TAX_CREDIT_CASES:
                         tax_credit_cases = TAX_CREDIT_CASES[Tech.tech_name]  # type: ignore
                         for tcc in tax_credit_cases:
                             proc = self._run_tech(

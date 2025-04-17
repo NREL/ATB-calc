@@ -11,9 +11,7 @@ from typing import List, Optional, Type
 import numpy as np
 import pandas as pd
 
-from lcoe_calculator.abstract_extractor import AbstractExtractor
-
-from .config import MARKET_FIN_CASE, CrpChoiceType
+from .config import FinancialCases, CrpChoiceType
 from .extractor import Extractor
 from .tech_extractors import PVBatteryExtractor
 from .macrs import MACRS_6, MACRS_16, MACRS_21
@@ -119,7 +117,7 @@ class UtilityPvPlusBatteryProc(TechProcessor):
     def __init__(
         self,
         data_workbook_fname: str,
-        case: str = MARKET_FIN_CASE,
+        case: FinancialCases = FinancialCases.MARKET,
         crp: CrpChoiceType = 30,
         tcc: str = "PV PTC and Battery ITC",
         extractor: Type[PVBatteryExtractor] = PVBatteryExtractor,

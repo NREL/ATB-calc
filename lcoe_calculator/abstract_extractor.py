@@ -8,7 +8,7 @@ from typing import List, Tuple
 from abc import ABC, abstractmethod
 import pandas as pd
 
-from .config import CrpChoiceType
+from .config import CrpChoiceType, FinancialCases
 
 
 class AbstractExtractor(ABC):
@@ -21,7 +21,7 @@ class AbstractExtractor(ABC):
         self,
         data_workbook_fname: str,
         sheet_name: str,
-        case: str,
+        case: FinancialCases,
         crp: CrpChoiceType,
         scenarios: List[str],
         base_year: int,

@@ -18,12 +18,12 @@ import xlwings as xw
 
 from .abstract_extractor import AbstractExtractor
 from .config import (
-    FINANCIAL_CASES,
     YEARS,
     TECH_DETAIL_SCENARIO_COL,
     CrpChoiceType,
     CFF_CELL_NAME,
     REFERENCES_CELL_NAME,
+    FinancialCases,
 )
 
 FIN_ASSUMP_COL = 5  # Number of columns from fin assumption keys to values
@@ -59,7 +59,7 @@ class Extractor(AbstractExtractor):
         self,
         data_workbook_fname: str,
         sheet_name: str,
-        case: str,
+        case: FinancialCases,
         crp: CrpChoiceType,
         scenarios: List[str],
         base_year: int,
@@ -67,7 +67,7 @@ class Extractor(AbstractExtractor):
         """
         @param data_workbook_fname - file name of data workbook
         @param sheet_name - name of sheet to process
-        @param case - 'Market' or 'R&D'
+        @param case - Desired financial case to extract
         @param crp - capital recovery period: 20, 30, or 'TechLife'
         @param scenarios - scenarios, e.g. 'Advanced', 'Moderate', etc.
         @param base_year - first year of data for this technology
@@ -75,7 +75,6 @@ class Extractor(AbstractExtractor):
 
         self._data_workbook_fname = data_workbook_fname
         self.sheet_name = sheet_name
-        assert case in FINANCIAL_CASES, f'Financial case "{case}" is not known'
         self._case = case
         self.scenarios = scenarios
         self.base_year = base_year
@@ -83,7 +82,7 @@ class Extractor(AbstractExtractor):
         # Open workbook, set fin case and CRP, and save.
         wb = xw.Book(data_workbook_fname)
         sheet = wb.sheets["Financial and CRP Inputs"]
-        sheet.range("B5").value = case
+        sheet.range("B5").value = case.value
         sheet.range("E5").value = crp
         wb.save()
 
@@ -187,7 +186,7 @@ class Extractor(AbstractExtractor):
                                 Real - {scenario}'
         """
         df_wacc = pd.read_excel(self._data_workbook_fname, self.wacc_sheet)
-        case = "Market Factors" if self._case == "Market" else "R&D"
+        case = "R&D" if self._case == FinancialCases.R_AND_D else "Market Factors"
         tech_name = self.sheet_name if tech_name is None else tech_name
         search = f"{tech_name} {case}"
 
