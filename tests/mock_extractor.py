@@ -10,7 +10,7 @@ Mock data extractor for testing.
 from typing import List, Optional, Tuple
 import pandas as pd
 from lcoe_calculator.abstract_extractor import AbstractExtractor
-from lcoe_calculator.config import CrpChoiceType
+from lcoe_calculator.config import CrpChoiceType, FinancialCases
 from .data_finder import (
     DataFinder,
     TAX_CREDIT_FAKE_SS_NAME,
@@ -31,13 +31,14 @@ class MockExtractor(AbstractExtractor):
 
     def __init__(
         self,
-        _: str,
-        __: str,
-        case: str,
+        _: str,  # workbook name
+        __: str,  # sheet name
+        case: FinancialCases,
         crp: CrpChoiceType,
-        ___: List[int],
-        ____: int,
-        _____: Optional[str] = None,
+        ___: List[int],  # scenarios
+        ____: int,  # base year
+        _____: bool,  # is_market_cost_tech
+        ______: Optional[str] = None,  # tax credit case (PV Battery only)
     ):
         """
         @param data_workbook_fname - IGNORED
@@ -124,11 +125,10 @@ class MockExtractor(AbstractExtractor):
         df.columns = df.columns.astype(int)
         return df
 
-    def get_references(self, metrics: List[str]) -> pd.DataFrame:
+    def get_references(self, metrics: List[str]) -> pd.DataFrame:  # type: ignore
         """
         Dynamically search for references and return as a data frame.
 
         @param metrics - list of metrics to load from spreadsheet
         @returns references
         """
-        pass

@@ -1,5 +1,6 @@
 #
-# Copyright (c) Alliance for Sustainable Energy, LLC and Skye Analytics, Inc. See also https://github.com/NREL/ATB-calc/blob/main/LICENSE
+# Copyright (c) Alliance for Sustainable Energy, LLC and Skye Analytics, Inc. See also
+# https://github.com/NREL/ATB-calc/blob/main/LICENSE
 #
 # This file is part of ATB-calc
 # (see https://github.com/NREL/ATB-calc).
@@ -19,9 +20,9 @@ from lcoe_calculator.extractor import Extractor
 from lcoe_calculator.config import (
     YEARS,
     END_YEAR,
-    FINANCIAL_CASES,
     CrpChoiceType,
     PTC_PLUS_ITC_CASE_PVB,
+    FinancialCases,
 )
 from lcoe_calculator.tech_processors import LCOE_TECHS
 from lcoe_calculator.base_processor import TechProcessor
@@ -152,11 +153,14 @@ def calculate_debt_fraction(input_vals: InputVals, debug=False) -> float:
     model.value("itc_fed_percent", [input_vals["ITC"] * 100])
     model.value("itc_fed_percent_maxvalue", [1e38])
     model.value("itc_sta_amount", [0])
-    model.value("ptc_fed_amount", [input_vals["PTC"] / 1000 * (1 - PTC_DSCR_FACTOR)])  # Convert $/MWh to $/kWh, apply remainder of dscr factor
+    model.value(
+        "ptc_fed_amount", [input_vals["PTC"] / 1000 * (1 - PTC_DSCR_FACTOR)]
+    )  # Convert $/MWh to $/kWh, apply remainder of dscr factor
     model.value("ptc_fed_term", 10)
     model.value("ptc_fed_escal", 2.5)
 
-    # PTC_DSCR_FACTOR indicated what percent is available for debt service, vs what percent is treated like a pre-IRA tax credit
+    # PTC_DSCR_FACTOR indicated what percent is available for debt service, vs what percent is
+    # treated like a pre-IRA tax credit
     model.value("pbi_fed_amount", [input_vals["PTC"] / 1000 * PTC_DSCR_FACTOR])
     model.value("pbi_fed_term", 10)
     model.value("pbi_fed_escal", 2.5)
@@ -282,9 +286,13 @@ def calculate_all_debt_fractions(
         tech_years = range(Tech.base_year, END_YEAR + 1)
         tech_columns = header_columns + [str(year) for year in tech_years]
 
-        for fin_case in FINANCIAL_CASES:
+        for fin_case in Tech.supported_financial_cases():
             click.echo(f"Processing tech {Tech.__name__} and financial case {fin_case}")
-            debt_fracs = [Tech.sheet_name, Tech.tech_name, fin_case]  # First 3 columns are metadata
+            debt_fracs: list[str | FinancialCases | float | None] = [
+                Tech.get_sheet_name(fin_case),
+                Tech.tech_name,  # type: ignore
+                fin_case,
+            ]  # First 3 columns are metadata
 
             proc = Tech(
                 data_workbook_filename,
@@ -337,8 +345,10 @@ def calculate_all_debt_fractions(
                     debt_fracs.append(None)
                     continue
 
-                input_vals = detail_vals.set_index("Parameter")[year].to_dict()
-                gen_vals = tech_vals.set_index("Parameter")[year].to_dict()
+                input_vals: InputVals
+                gen_vals: InputVals
+                input_vals = detail_vals.set_index("Parameter")[year].to_dict()  # type: ignore
+                gen_vals = tech_vals.set_index("Parameter")[year].to_dict()  # type: ignore
 
                 # Tax credits - assumes each tech has one PTC or one ITC
                 if Tech.has_tax_credit and fin_case == "Market":
@@ -362,22 +372,34 @@ def calculate_all_debt_fractions(
                                 proc.df_batt_cost * proc.CO_LOCATION_SAVINGS / proc.df_occ
                             )
 
-                            input_vals["PTC"] = df_ptc.loc[name][year] * min(ncf / pvcf, 1.0) * df_tfr.loc["PTC Transfer Discount"][year]
+                            input_vals["PTC"] = (
+                                df_ptc.loc[name][year]
+                                * min(ncf / pvcf, 1.0)
+                                * df_tfr.loc["PTC Transfer Discount"][year]
+                            )
                             input_vals["ITC"] = (
                                 df_itc.loc[name][year]
-                                * batt_occ_percent.loc[Tech.default_tech_detail + "/Moderate"][year] 
+                                * batt_occ_percent.loc[Tech.default_tech_detail + "/Moderate"][year]
                             ) * df_tfr.loc["ITC Transfer Discount"][year]
                         else:
                             input_vals["PTC"] = 0
-                            input_vals["ITC"] = df_itc.loc[name][year] * df_tfr.loc["ITC Transfer Discount"][year]
+                            input_vals["ITC"] = (
+                                df_itc.loc[name][year] * df_tfr.loc["ITC Transfer Discount"][year]
+                            )
                     else:
-                        input_vals["PTC"] = df_ptc.loc[name][year] * df_tfr.loc["PTC Transfer Discount"][year]
-                        input_vals["ITC"] = df_itc.loc[name][year] * df_tfr.loc["ITC Transfer Discount"][year]
+                        input_vals["PTC"] = (
+                            df_ptc.loc[name][year] * df_tfr.loc["PTC Transfer Discount"][year]
+                        )
+                        input_vals["ITC"] = (
+                            df_itc.loc[name][year] * df_tfr.loc["ITC Transfer Discount"][year]
+                        )
                 else:
                     input_vals["PTC"] = 0
                     input_vals["ITC"] = 0
 
                 # Financial parameters stored in tech processor
+                if Tech.dscr is None:
+                    raise ValueError("DSCR is None. Debt fraction cannot be calculated.")
                 input_vals["DSCR"] = Tech.dscr
                 input_vals["MACRS"] = proc.get_depreciation_schedule(year)
                 input_vals.update(gen_vals)

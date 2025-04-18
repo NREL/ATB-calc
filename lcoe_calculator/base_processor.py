@@ -1,5 +1,6 @@
 #
-# Copyright (c) Alliance for Sustainable Energy, LLC and Skye Analytics, Inc. See also https://github.com/NREL/ATB-calc/blob/main/LICENSE
+# Copyright (c) Alliance for Sustainable Energy, LLC and Skye Analytics, Inc. See also
+# https://github.com/NREL/ATB-calc/blob/main/LICENSE
 #
 # This file is part of ATB-calc
 # (see https://github.com/NREL/ATB-calc).
@@ -7,37 +8,37 @@
 """
 Tech LCOE and CAPEX processor class. This is effectively an abstract class and must be subclassed.
 """
-import click
-from typing import List, Tuple, Type, Optional, Dict
 from abc import ABC, abstractmethod
-import pandas as pd
-import numpy as np
+from typing import Dict, List, Optional, Tuple, Type
 
-from .macrs import MACRS_6
-from .extractor import (
-    Extractor,
-    REF_SCENARIO,
-    REF_METRIC,
-    REF_REFERENCE,
-    REF_END_YEAR,
-    REF_START_YEAR,
-    REF_DETAIL,
-    MANDATORY_COLUMNS,
-)
+import click
+import numpy as np
+import pandas as pd
+
 from .abstract_extractor import AbstractExtractor
 from .config import (
-    FINANCIAL_CASES,
-    END_YEAR,
-    TECH_DETAIL_SCENARIO_COL,
-    MARKET_FIN_CASE,
-    CRP_CHOICES,
-    SCENARIOS,
-    LCOE_CELL_NAME,
+    BASE_YEAR,
     CAPEX_CELL_NAME,
     CFF_CELL_NAME,
+    CRP_CHOICES,
+    END_YEAR,
+    LCOE_CELL_NAME,
+    SCENARIOS,
+    TECH_DETAIL_SCENARIO_COL,
     CrpChoiceType,
-    BASE_YEAR,
+    FinancialCases,
 )
+from .extractor import (
+    MANDATORY_COLUMNS,
+    REF_DETAIL,
+    REF_END_YEAR,
+    REF_METRIC,
+    REF_REFERENCE,
+    REF_SCENARIO,
+    REF_START_YEAR,
+    Extractor,
+)
+from .macrs import MACRS_6
 
 
 class TechProcessor(ABC):
@@ -56,20 +57,21 @@ class TechProcessor(ABC):
     test_capex() - Compare calculated CAPEX to CAPEX in workbook.
     """
 
-    # ----------- These attributes must be set for each tech --------------
-    @property
-    @abstractmethod
-    def sheet_name(self) -> str:
-        """Name of the sheet in the excel data workbook"""
-
     @property
     @abstractmethod
     def tech_name(self) -> str:
         """
         Name of tech for flat file. The same tech_name can be used for multiple tech processors
-        (assuming each tech processor as a different sheet_name) if the resource classes do not
+        (assuming each tech processor has a different sheet_name) if the resource classes do not
         overlap.
         """
+
+    # Either sheet_name or both market_sheet_name and rnd_sheet_name must be set. Sheet name is
+    # used for all non-market cost technologies that only have two financial cases. For market cost
+    # technologies, the market_sheet_name and rnd_sheet_name must be set.
+    sheet_name: str | None = None
+    market_sheet_name: str | None = None
+    rnd_sheet_name: str | None = None
 
     # For a consistent depreciation schedule, use one of the lists from the
     # macrs.py file as shown below. More complex schedules can be defined by
@@ -136,7 +138,7 @@ class TechProcessor(ABC):
     def __init__(
         self,
         data_workbook_fname: str,
-        case: str = MARKET_FIN_CASE,
+        case: FinancialCases = FinancialCases.MARKET,
         crp: CrpChoiceType = 30,
         tcc: Optional[str] = None,
         extractor: Type[AbstractExtractor] = Extractor,
@@ -151,13 +153,21 @@ class TechProcessor(ABC):
         @param extractor - Extractor class to use to obtain source data.
         @param load_refs - Load references if True
         """
-        assert case in FINANCIAL_CASES, (
-            f"Financial case must be one of {FINANCIAL_CASES}," f" received {case}"
+        assert case in list(FinancialCases), (
+            f"Financial case must be one of {FinancialCases}," f" received {case}"
         )
         assert crp in CRP_CHOICES, (
             f"Financial case must be one of {CRP_CHOICES}," f" received {crp}"
         )
         assert isinstance(self.scenarios, list), "self.scenarios must be a list"
+
+        # Sanity check case request and sheet names
+        self._check_sheet_names()
+        if case == FinancialCases.MARKET_COST and not self.is_market_cost_tech():
+            raise ValueError(
+                "Market cost financial case was requested for a non-market cost tech: "
+                f"{self.tech_name}"
+            )
 
         if self.has_lcoe:
             if self.default_tech_detail is None:
@@ -326,14 +336,13 @@ class TechProcessor(ABC):
             )
 
         # Warn about multiple references
-        if len(df_ref) > 1:
-            if metric not in duplicate_warnings:
-                duplicate_warnings.append(metric)
-                click.echo(
-                    f"Multiple references found for {year}, '{metric}', '{scenario}', "
-                    f"'{tech_detail}'",
-                    err=True,
-                )
+        if len(df_ref) > 1 and metric not in duplicate_warnings:
+            duplicate_warnings.append(metric)
+            click.echo(
+                f"Multiple references found for {year}, '{metric}', '{scenario}', "
+                f"'{tech_detail}'",
+                err=True,
+            )
 
         # Finally, append reference values
         record["Reference"] = df_ref[REF_REFERENCE].values[0]
@@ -351,10 +360,6 @@ class TechProcessor(ABC):
         """
         df_flat = pd.DataFrame() if self.df_wacc is None else self._flat_fin_assump()
 
-        case = self._case.upper()
-        if case == "MARKET":
-            case = MARKET_FIN_CASE
-
         for attr, parameter in self.flat_attrs:
             df: pd.DataFrame = getattr(self, attr)
             df = df.reset_index()
@@ -369,7 +374,7 @@ class TechProcessor(ABC):
             df_flat = pd.concat([df_flat, df])
 
         df_flat["Technology"] = self.tech_name
-        df_flat["Case"] = case
+        df_flat["Case"] = self._case.value
         df_flat["CRPYears"] = self._crp_years
         df_flat["TaxCreditCase"] = self._get_tax_credit_case()
 
@@ -544,15 +549,17 @@ class TechProcessor(ABC):
             if self._requested_crp != "TechLife"
             else f"TechLife ({self.tech_life})"
         )
+        sheet_name = self.get_sheet_name(self._case)
+        print(f"Loading data from sheet '{sheet_name}', for '{self._case.value}' and {crp_msg}")
 
-        print(f"Loading data from {self.sheet_name}, for {self._case} and {crp_msg}")
         extractor = self._ExtractorClass(
             self._data_workbook_fname,
-            self.sheet_name,
+            sheet_name,  # type: ignore
             self._case,
             self._requested_crp,
             self.scenarios,
             self.base_year,
+            self.is_market_cost_tech(),
         )
 
         print("\tLoading metrics")
@@ -560,7 +567,7 @@ class TechProcessor(ABC):
             if var_name == "df_cff":
                 # Grab DF index from another value to use in full CFF DF
                 index = getattr(self, self.metrics[0][1]).index
-                self.df_cff = self.load_cff(extractor, metric, index)
+                self.df_cff = self.load_cff(extractor, metric, index)  # type: ignore
                 continue
             df_temp = extractor.get_metric_values(
                 metric, self.num_tds, self.split_metrics, self.allow_empty_values
@@ -810,3 +817,65 @@ class TechProcessor(ABC):
             return "ITC"
         else:
             return "None"
+
+    def _check_sheet_names(self):
+        """
+        Helper function to sanity check sheet names. Raises AttributeError if not set correctly.
+        """
+        if self.is_market_cost_tech() and self.wacc_name is None:
+            raise AttributeError("`wacc_name` must be set for market cost technologies.")
+
+    @classmethod
+    def is_market_cost_tech(cls):
+        """
+        If True, this is a market cost tech and has separate r&d and market sheets.
+        """
+        if (
+            cls.sheet_name is not None
+            and cls.rnd_sheet_name is None
+            and cls.market_sheet_name is None
+        ):
+            return False
+
+        if (
+            cls.sheet_name is None
+            and cls.rnd_sheet_name is not None
+            and cls.market_sheet_name is not None
+        ):
+            return True
+
+        raise AttributeError(
+            '"sheet_name", "market_sheet_name", and "rnd_sheet_name" are not set correctly'
+        )
+
+    @classmethod
+    def supported_financial_cases(cls) -> list[FinancialCases]:
+        """Get the list of supported financial cases for this technology.
+
+        :return: list of supported financial cases
+        """
+        if cls.is_market_cost_tech():
+            return list(FinancialCases)
+
+        # By definition, only MARKET and R&D cases are supported for non-market cost technologies
+        return [FinancialCases.MARKET, FinancialCases.R_AND_D]
+
+    @classmethod
+    def get_sheet_name(cls, case: FinancialCases) -> str:
+        """Get appropriate sheet name based on financial case
+
+        :param case: Desired financial case
+        :return: Sheet name
+        """
+        if cls.is_market_cost_tech():
+            if case == FinancialCases.MARKET_COST:
+                sheet_name = cls.market_sheet_name
+            else:
+                sheet_name = cls.rnd_sheet_name
+        else:
+            sheet_name = cls.sheet_name
+
+        if sheet_name is None:
+            raise ValueError(f"Sheet name is None for {cls.__name__} and case {case}")
+
+        return sheet_name

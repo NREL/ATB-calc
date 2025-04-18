@@ -1,5 +1,6 @@
 #
-# Copyright (c) Alliance for Sustainable Energy, LLC and Skye Analytics, Inc. See also https://github.com/NREL/ATB-calc/blob/main/LICENSE
+# Copyright (c) Alliance for Sustainable Energy, LLC and Skye Analytics, Inc. See also
+# https://github.com/NREL/ATB-calc/blob/main/LICENSE
 #
 # This file is part of ATB-calc
 # (see https://github.com/NREL/ATB-calc).
@@ -8,7 +9,7 @@ from typing import List, Tuple
 from abc import ABC, abstractmethod
 import pandas as pd
 
-from .config import CrpChoiceType
+from .config import CrpChoiceType, FinancialCases
 
 
 class AbstractExtractor(ABC):
@@ -21,10 +22,11 @@ class AbstractExtractor(ABC):
         self,
         data_workbook_fname: str,
         sheet_name: str,
-        case: str,
+        case: FinancialCases,
         crp: CrpChoiceType,
         scenarios: List[str],
         base_year: int,
+        is_market_cost_tech: bool,
     ):
         """
         @param data_workbook_fname - file name of data workbook
@@ -33,6 +35,7 @@ class AbstractExtractor(ABC):
         @param crp - capital recovery period: 20, 30, or 'TechLife'
         @param scenarios - scenarios, e.g. 'Advanced', 'Moderate', etc.
         @param base_year - first year of data for this technology
+        @param is_market_cost_tech - True if this is a market cost tech
         """
 
     @abstractmethod

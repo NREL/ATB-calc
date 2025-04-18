@@ -11,9 +11,7 @@ from typing import List, Optional, Type
 import numpy as np
 import pandas as pd
 
-from lcoe_calculator.abstract_extractor import AbstractExtractor
-
-from .config import MARKET_FIN_CASE, CrpChoiceType
+from .config import FinancialCases, CrpChoiceType
 from .extractor import Extractor
 from .tech_extractors import PVBatteryExtractor
 from .macrs import MACRS_6, MACRS_16, MACRS_21
@@ -47,7 +45,9 @@ class FloatingOffShoreWindProc(OffShoreWindProc):
 
 class LandBasedWindProc(TechProcessor):
     tech_name = "LandbasedWind"
-    sheet_name = "Land-Based Wind"
+    rnd_sheet_name = "Land-Based Wind - R&D costs"
+    market_sheet_name = "Land-Based Wind - Market"
+    wacc_name = "Land-Based Wind"
     tech_life = 30
     num_tds = 10
     default_tech_detail = "Land-Based Wind - Class 4 - Technology 1"
@@ -66,7 +66,9 @@ class DistributedWindProc(TechProcessor):
 class UtilityPvProc(TechProcessor):
     tech_name = "UtilityPV"
     tech_life = 30
-    sheet_name = "Solar - Utility PV"
+    rnd_sheet_name = "Solar - Utility PV - R&D costs"
+    market_sheet_name = "Solar - Utility PV - Market"
+    wacc_name = "Solar - Utility PV"
     num_tds = 10
     default_tech_detail = "Utility PV - Class 5"
     dscr = 1.275
@@ -119,7 +121,7 @@ class UtilityPvPlusBatteryProc(TechProcessor):
     def __init__(
         self,
         data_workbook_fname: str,
-        case: str = MARKET_FIN_CASE,
+        case: FinancialCases = FinancialCases.MARKET,
         crp: CrpChoiceType = 30,
         tcc: str = "PV PTC and Battery ITC",
         extractor: Type[PVBatteryExtractor] = PVBatteryExtractor,
@@ -182,6 +184,7 @@ class UtilityPvPlusBatteryProc(TechProcessor):
             self._requested_crp,
             self.scenarios,
             self.base_year,
+            self.is_market_cost_tech(),
             self.tax_credit_case,
         )
 
@@ -321,7 +324,7 @@ class HydropowerProc(TechProcessor):
     dscr = 1.35
 
     def get_depreciation_schedule(self, year):
-        if self._case is MARKET_FIN_CASE and (year < 2025):
+        if self._case == FinancialCases.MARKET and (year < 2025):
             return MACRS_21
         else:
             return MACRS_6
@@ -555,7 +558,7 @@ class NuclearProc(TechProcessor):
         return df_lcoe
 
     def get_depreciation_schedule(self, year):
-        if self._case is MARKET_FIN_CASE and (year < 2025):
+        if self._case == FinancialCases.MARKET and (year < 2025):
             return MACRS_16
         else:
             return MACRS_6

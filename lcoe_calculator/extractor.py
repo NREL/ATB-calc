@@ -1,5 +1,6 @@
 #
-# Copyright (c) Alliance for Sustainable Energy, LLC and Skye Analytics, Inc. See also https://github.com/NREL/ATB-calc/blob/main/LICENSE
+# Copyright (c) Alliance for Sustainable Energy, LLC and Skye Analytics, Inc. See also
+# https://github.com/NREL/ATB-calc/blob/main/LICENSE
 #
 # This file is part of ATB-calc
 # (see https://github.com/NREL/ATB-calc).
@@ -18,12 +19,12 @@ import xlwings as xw
 
 from .abstract_extractor import AbstractExtractor
 from .config import (
-    FINANCIAL_CASES,
     YEARS,
     TECH_DETAIL_SCENARIO_COL,
     CrpChoiceType,
     CFF_CELL_NAME,
     REFERENCES_CELL_NAME,
+    FinancialCases,
 )
 
 FIN_ASSUMP_COL = 5  # Number of columns from fin assumption keys to values
@@ -59,31 +60,39 @@ class Extractor(AbstractExtractor):
         self,
         data_workbook_fname: str,
         sheet_name: str,
-        case: str,
+        case: FinancialCases,
         crp: CrpChoiceType,
         scenarios: List[str],
         base_year: int,
+        is_market_cost_tech: bool,
     ):
         """
         @param data_workbook_fname - file name of data workbook
         @param sheet_name - name of sheet to process
-        @param case - 'Market' or 'R&D'
+        @param case - Desired financial case to extract
         @param crp - capital recovery period: 20, 30, or 'TechLife'
         @param scenarios - scenarios, e.g. 'Advanced', 'Moderate', etc.
         @param base_year - first year of data for this technology
+        @param is_market_cost_tech - True if this is a market cost tech
         """
 
         self._data_workbook_fname = data_workbook_fname
         self.sheet_name = sheet_name
-        assert case in FINANCIAL_CASES, f'Financial case "{case}" is not known'
         self._case = case
+        self._is_market_cost_tech = is_market_cost_tech
         self.scenarios = scenarios
         self.base_year = base_year
 
         # Open workbook, set fin case and CRP, and save.
         wb = xw.Book(data_workbook_fname)
         sheet = wb.sheets["Financial and CRP Inputs"]
-        sheet.range("B5").value = case
+
+        if case == FinancialCases.R_AND_D:
+            sheet.range("B5").value = case.value
+        else:
+            # Market cases both uses "Market"
+            sheet.range("B5").value = "Market"
+
         sheet.range("E5").value = crp
         wb.save()
 
@@ -176,20 +185,21 @@ class Extractor(AbstractExtractor):
 
         return df_itc, df_ptc, df_tfr
 
-    def get_wacc(self, tech_name: str | None = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def get_wacc(self, tech_wacc_name: str | None = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
         Extract values for tech and case from WACC sheet.
 
-        @param tech_name - name of tech to search for on WACC sheet. Use sheet name if None.
+        @param tech_wacc_name - name of tech to search for on WACC sheet. Use sheet name if None.
 
         @returns df_wacc - all WACC values
         @returns df_just_wacc - last six rows of wacc sheet, 'WACC Nominal - {scenario}' and 'WACC
                                 Real - {scenario}'
         """
         df_wacc = pd.read_excel(self._data_workbook_fname, self.wacc_sheet)
-        case = "Market Factors" if self._case == "Market" else "R&D"
-        tech_name = self.sheet_name if tech_name is None else tech_name
-        search = f"{tech_name} {case}"
+
+        case_name = "R&D" if self._case == FinancialCases.R_AND_D else "Market Factors"
+        tech_wacc_name = self.sheet_name if tech_wacc_name is None else tech_wacc_name
+        search = f"{tech_wacc_name} {case_name}"
 
         count = (df_wacc == search).sum().sum()
         if count != 1:
@@ -228,7 +238,7 @@ class Extractor(AbstractExtractor):
 
         assert (
             not df_wacc.isnull().any().any()
-        ), f"Error loading WACC for {tech_name}. Found empty values: {df_wacc}"
+        ), f"Error loading WACC for {tech_wacc_name}. Found empty values: {df_wacc}"
 
         return df_wacc, df_just_wacc
 
@@ -418,8 +428,9 @@ class Extractor(AbstractExtractor):
         first_col = c + 1
         end_col = self._next_empty_col(self._df_tech_full, r, first_col) - 1
 
-        # Extract headings
-        year_headings = self._df_tech_full.loc[first_row - 1, first_col + 2 : end_col]
+        # Extract year headings
+        col_offset = 3 if self._is_market_cost_tech else 2
+        year_headings = self._df_tech_full.loc[first_row - 1, first_col + col_offset : end_col]
         year_headings = list(year_headings.astype(int))
 
         # Extract data
@@ -430,9 +441,15 @@ class Extractor(AbstractExtractor):
             f"Extracted:\n{str(df_met)}"
         )
 
-        # Create index from tech details and cases
-        df_met[first_col] = df_met[first_col].astype(str) + "/" + df_met[first_col + 1].astype(str)
-        df_met = df_met.set_index(first_col).drop(first_col + 1, axis=1)
+        # Create index from tech details and scenario.
+        if self._is_market_cost_tech:
+            scenarios_col = first_col + 2
+            drop_cols = [scenarios_col, first_col + 1]  # scenarios and case columns
+        else:
+            scenarios_col = first_col + 1
+            drop_cols = scenarios_col
+        df_met[first_col] = df_met[first_col].astype(str) + "/" + df_met[scenarios_col].astype(str)
+        df_met = df_met.set_index(first_col).drop(drop_cols, axis=1)
 
         # Clean up
         df_met.columns = year_headings
