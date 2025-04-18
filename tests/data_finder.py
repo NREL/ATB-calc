@@ -59,6 +59,8 @@ class DataFinder:
         """
         assert cls._tech is not None, "The TechProcessor must be set first with set_tech()."
 
+        sheet_name = cls._tech.get_sheet_name(case)
+
         # Create a lookup table between fancy long names in the workbook and names to use for the
         # data files. This table partially borrows from the metrics list.
         metric_lookup = list(cls._tech.metrics)
@@ -72,11 +74,11 @@ class DataFinder:
         ]
         assert metric in [
             m[0] for m in metric_lookup
-        ], f"metric {metric} is not known for sheet {cls._tech.sheet_name}"
+        ], f"metric {metric} is not known for sheet {sheet_name}"
         df_name = [m[1] for m in metric_lookup if m[0] == metric][0]
 
         # Files in ./data/{tech}
-        clean_sheet_name = str(cls._tech.sheet_name).replace(" ", "_")
+        clean_sheet_name = str(sheet_name).replace(" ", "_")
         tech_dir = os.path.join(DATA_DIR, clean_sheet_name)
         if not os.path.exists(tech_dir):
             os.makedirs(tech_dir)
