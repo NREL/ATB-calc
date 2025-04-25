@@ -25,6 +25,7 @@ from .config import (
     CFF_CELL_NAME,
     REFERENCES_CELL_NAME,
     FinancialCases,
+    WITHOUT_TAX_CREDITS_CASES,
 )
 
 FIN_ASSUMP_COL = 5  # Number of columns from fin assumption keys to values
@@ -47,6 +48,9 @@ MANDATORY_COLUMNS = [
     REF_DETAIL,
 ]
 
+WITH_TAX_CREDITS = "With Tax Credits"
+WITHOUT_TAX_CREDITS = "Without Tax Credits"
+
 
 class Extractor(AbstractExtractor):
     """
@@ -64,7 +68,7 @@ class Extractor(AbstractExtractor):
         crp: CrpChoiceType,
         scenarios: List[str],
         base_year: int,
-        is_market_cost_tech: bool,
+        is_expanded_fin_tech: bool,
     ):
         """
         @param data_workbook_fname - file name of data workbook
@@ -73,13 +77,13 @@ class Extractor(AbstractExtractor):
         @param crp - capital recovery period: 20, 30, or 'TechLife'
         @param scenarios - scenarios, e.g. 'Advanced', 'Moderate', etc.
         @param base_year - first year of data for this technology
-        @param is_market_cost_tech - True if this is a market cost tech
+        @param is_expanded_fin_tech - True if this is an expanded financial tech
         """
 
         self._data_workbook_fname = data_workbook_fname
         self.sheet_name = sheet_name
         self._case = case
-        self._is_market_cost_tech = is_market_cost_tech
+        self.is_expanded_fin_tech = is_expanded_fin_tech
         self.scenarios = scenarios
         self.base_year = base_year
 
@@ -87,11 +91,10 @@ class Extractor(AbstractExtractor):
         wb = xw.Book(data_workbook_fname)
         sheet = wb.sheets["Financial and CRP Inputs"]
 
-        if case == FinancialCases.R_AND_D:
-            sheet.range("B5").value = case.value
+        if case in WITHOUT_TAX_CREDITS_CASES:
+            sheet.range("B5").value = WITHOUT_TAX_CREDITS
         else:
-            # Market cases both uses "Market"
-            sheet.range("B5").value = "Market"
+            sheet.range("B5").value = WITH_TAX_CREDITS
 
         sheet.range("E5").value = crp
         wb.save()
@@ -197,7 +200,11 @@ class Extractor(AbstractExtractor):
         """
         df_wacc = pd.read_excel(self._data_workbook_fname, self.wacc_sheet)
 
-        case_name = "R&D" if self._case == FinancialCases.R_AND_D else "Market Factors"
+        if self._case in WITHOUT_TAX_CREDITS_CASES:
+            case_name = WITHOUT_TAX_CREDITS
+        else:
+            case_name = WITH_TAX_CREDITS
+
         tech_wacc_name = self.sheet_name if tech_wacc_name is None else tech_wacc_name
         search = f"{tech_wacc_name} {case_name}"
 
@@ -429,7 +436,7 @@ class Extractor(AbstractExtractor):
         end_col = self._next_empty_col(self._df_tech_full, r, first_col) - 1
 
         # Extract year headings
-        col_offset = 3 if self._is_market_cost_tech else 2
+        col_offset = 3  # how far over is year data from metric name?
         year_headings = self._df_tech_full.loc[first_row - 1, first_col + col_offset : end_col]
         year_headings = list(year_headings.astype(int))
 
@@ -442,12 +449,8 @@ class Extractor(AbstractExtractor):
         )
 
         # Create index from tech details and scenario.
-        if self._is_market_cost_tech:
-            scenarios_col = first_col + 2
-            drop_cols = [scenarios_col, first_col + 1]  # scenarios and case columns
-        else:
-            scenarios_col = first_col + 1
-            drop_cols = scenarios_col
+        scenarios_col = first_col + 2
+        drop_cols = [scenarios_col, first_col + 1]  # scenarios and case columns
         df_met[first_col] = df_met[first_col].astype(str) + "/" + df_met[scenarios_col].astype(str)
         df_met = df_met.set_index(first_col).drop(drop_cols, axis=1)
 

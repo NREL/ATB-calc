@@ -11,7 +11,7 @@ from typing import List, Optional, Type
 import numpy as np
 import pandas as pd
 
-from .config import FinancialCases, CrpChoiceType
+from .config import FinancialCases, CrpChoiceType, WITHOUT_TAX_CREDITS_CASES
 from .extractor import Extractor
 from .tech_extractors import PVBatteryExtractor
 from .macrs import MACRS_6, MACRS_16, MACRS_21
@@ -45,8 +45,8 @@ class FloatingOffShoreWindProc(OffShoreWindProc):
 
 class LandBasedWindProc(TechProcessor):
     tech_name = "LandbasedWind"
-    rnd_sheet_name = "Land-Based Wind - R&D costs"
-    market_sheet_name = "Land-Based Wind - Expanded"
+    rnd_sheet_name = "Land-Based Wind - R&D"
+    expanded_sheet_name = "Land-Based Wind - Expanded"
     wacc_name = "Land-Based Wind"
     tech_life = 30
     num_tds = 10
@@ -57,7 +57,7 @@ class LandBasedWindProc(TechProcessor):
 class DistributedWindProc(TechProcessor):
     tech_name = "DistributedWind"
     rnd_sheet_name = "Distributed Wind - R&D"
-    market_sheet_name = "Distributed Wind - Expanded"
+    expanded_sheet_name = "Distributed Wind - Expanded"
     wacc_name = "Distributed Wind"
     tech_life = 30
     num_tds = 40
@@ -69,7 +69,7 @@ class UtilityPvProc(TechProcessor):
     tech_name = "UtilityPV"
     tech_life = 30
     rnd_sheet_name = "Solar - Utility PV - R&D"
-    market_sheet_name = "Solar - Utility PV - Expanded"
+    expanded_sheet_name = "Solar - Utility PV - Expanded"
     wacc_name = "Solar - Utility PV"
     num_tds = 10
     default_tech_detail = "Utility PV - Class 5"
@@ -80,7 +80,7 @@ class CommPvProc(TechProcessor):
     tech_name = "CommPV"
     tech_life = 30
     rnd_sheet_name = "Solar - PV Dist. Comm - R&D"
-    market_sheet_name = "Solar - PV Dist. Comm - Expand"
+    expanded_sheet_name = "Solar - PV Dist. Comm - Expand"
     wacc_name = "Solar - PV Dist. Comm"
     num_tds = 10
     default_tech_detail = "Commercial PV - Class 5"
@@ -91,7 +91,7 @@ class ResPvProc(TechProcessor):
     tech_name = "ResPV"
     tech_life = 30
     rnd_sheet_name = "Solar - PV Dist. Res - R&D"
-    market_sheet_name = "Solar - PV Dist. Res - Expanded"
+    expanded_sheet_name = "Solar - PV Dist. Res - Expanded"
     wacc_name = "Solar - PV Dist. Res"
     num_tds = 10
     default_tech_detail = "Residential PV - Class 5"
@@ -102,7 +102,7 @@ class UtilityPvPlusBatteryProc(TechProcessor):
     tech_name = "Utility-Scale PV-Plus-Battery"
     tech_life = 30
     rnd_sheet_name = "Utility-Scale PV-Plus-Batt R&D"
-    market_sheet_name = "Utility-Scale PV-Plus-Batt Exp"
+    expanded_sheet_name = "Utility-Scale PV-Plus-Batt Exp"
     wacc_name = "Utility-Scale PV-Plus-Battery"
     num_tds = 10
     default_tech_detail = "PV+Storage - Class 5"
@@ -129,7 +129,7 @@ class UtilityPvPlusBatteryProc(TechProcessor):
     def __init__(
         self,
         data_workbook_fname: str,
-        case: FinancialCases = FinancialCases.MARKET,
+        case: FinancialCases = FinancialCases.R_AND_D_WITHOUT_TAX_CREDITS,
         crp: CrpChoiceType = 30,
         tcc: str = "PV PTC and Battery ITC",
         extractor: Type[PVBatteryExtractor] = PVBatteryExtractor,
@@ -187,12 +187,12 @@ class UtilityPvPlusBatteryProc(TechProcessor):
         print(f"Loading data from {self.sheet_name}, for {self._case} and {crp_msg}")
         extractor = self._ExtractorClass(  # type: ignore
             self._data_workbook_fname,
-            self.sheet_name,
+            self.sheet_name,  # type: ignore
             self._case,
             self._requested_crp,
             self.scenarios,
             self.base_year,
-            self.is_market_cost_tech(),
+            self.is_expanded_fin_tech(),
             self.tax_credit_case,
         )
 
@@ -332,7 +332,7 @@ class HydropowerProc(TechProcessor):
     dscr = 1.35
 
     def get_depreciation_schedule(self, year):
-        if self._case == FinancialCases.MARKET and (year < 2025):
+        if self._case in WITHOUT_TAX_CREDITS_CASES and (year < 2025):
             return MACRS_21
         else:
             return MACRS_6
@@ -566,7 +566,7 @@ class NuclearProc(TechProcessor):
         return df_lcoe
 
     def get_depreciation_schedule(self, year):
-        if self._case == FinancialCases.MARKET and (year < 2025):
+        if self._case in WITHOUT_TAX_CREDITS_CASES and (year < 2025):
             return MACRS_16
         else:
             return MACRS_6
@@ -648,7 +648,7 @@ class UtilityBatteryProc(AbstractBatteryProc):
     tech_name = "Utility-Scale Battery Storage"
     tech_life = 30
     rnd_sheet_name = "Utility-Scale Battery - R&D"
-    market_sheet_name = "Utility-Scale Battery - Expand"
+    expanded_sheet_name = "Utility-Scale Battery - Expand"
     wacc_name = "Utility-Scale Battery Storage"
     num_tds = 5
 
@@ -657,7 +657,7 @@ class CommBatteryProc(AbstractBatteryProc):
     tech_name = "Commercial Battery Storage"
     tech_life = 30
     rnd_sheet_name = "Commercial Battery - R&D"
-    market_sheet_name = "Commercial Battery - Expand"
+    expanded_sheet_name = "Commercial Battery - Expand"
     wacc_name = "Commercial Battery Storage"
     num_tds = 5
 
@@ -666,8 +666,8 @@ class ResBatteryProc(AbstractBatteryProc):
     tech_name = "Residential Battery Storage"
     tech_life = 30
     rnd_sheet_name = "Residential Battery - R&D"
-    market_sheet_name = "Residential Battery - Expanded"
-    wacc_name= "Residential Battery Storage"
+    expanded_sheet_name = "Residential Battery - Expanded"
+    wacc_name = "Residential Battery Storage"
     num_tds = 2
 
 

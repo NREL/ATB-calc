@@ -15,7 +15,13 @@ import pandas as pd
 
 from .tech_processors import ALL_TECHS
 from .base_processor import TechProcessor
-from .config import CRP_CHOICES, CrpChoiceType, TAX_CREDIT_CASES, FinancialCases
+from .config import (
+    CRP_CHOICES,
+    CrpChoiceType,
+    TAX_CREDIT_CASES,
+    FinancialCases,
+    EXPANDED_FINANCIAL_CASES,
+)
 
 
 class ProcessAll:
@@ -94,8 +100,8 @@ class ProcessAll:
 
         for i, Tech in enumerate(self._techs):
             print(f"##### Processing {Tech.tech_name} ({i+1}/{len(self._techs)}) #####")
-            word = " " if Tech.is_market_cost_tech() else " not "
-            print(f"{Tech.tech_name} is{word}a market cost tech")
+            word = " " if Tech.is_expanded_fin_tech() else " not "
+            print(f"{Tech.tech_name} is{word}an expanded financials tech")
 
             proc: TechProcessor
             for crp in CRP_CHOICES:
@@ -104,7 +110,7 @@ class ProcessAll:
                     continue
 
                 for case in Tech.supported_financial_cases():
-                    if case is FinancialCases.MARKET and Tech.tech_name in TAX_CREDIT_CASES:
+                    if case in EXPANDED_FINANCIAL_CASES and Tech.tech_name in TAX_CREDIT_CASES:
                         tax_credit_cases = TAX_CREDIT_CASES[Tech.tech_name]  # type: ignore
                         for tcc in tax_credit_cases:
                             proc = self._run_tech(
