@@ -11,7 +11,7 @@ from typing import List, Optional, Type
 import numpy as np
 import pandas as pd
 
-from .config import FinancialCases, CrpChoiceType, WITHOUT_TAX_CREDITS_CASES
+from .config import FinancialCases, CrpChoiceType, WITH_TAX_CREDITS_CASES
 from .extractor import Extractor
 from .tech_extractors import PVBatteryExtractor
 from .macrs import MACRS_6, MACRS_16, MACRS_21
@@ -332,7 +332,7 @@ class HydropowerProc(TechProcessor):
     dscr = 1.35
 
     def get_depreciation_schedule(self, year):
-        if self._case in WITHOUT_TAX_CREDITS_CASES and (year < 2025):
+        if self._case in WITH_TAX_CREDITS_CASES and (year < 2025):
             return MACRS_21
         else:
             return MACRS_6
@@ -566,7 +566,7 @@ class NuclearProc(TechProcessor):
         return df_lcoe
 
     def get_depreciation_schedule(self, year):
-        if self._case in WITHOUT_TAX_CREDITS_CASES and (year < 2025):
+        if self._case in WITH_TAX_CREDITS_CASES and (year < 2025):
             return MACRS_16
         else:
             return MACRS_6

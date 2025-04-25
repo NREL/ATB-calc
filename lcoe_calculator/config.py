@@ -50,6 +50,12 @@ WITHOUT_TAX_CREDITS_CASES = [
 ]
 """ Both financial cases without tax credits"""
 
+WITH_TAX_CREDITS_CASES = [
+    FinancialCases.EXPANDED_WITH_TAX_CREDITS,
+    FinancialCases.R_AND_D_WITH_TAX_CREDITS,
+]
+""" Both financial cases without tax credits"""
+
 # Tax credit cases
 ITC_ONLY_CASE = "ITC only"
 PTC_PLUS_ITC_CASE_PVB = "PV PTC and Battery ITC"
