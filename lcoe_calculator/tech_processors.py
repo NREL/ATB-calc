@@ -46,7 +46,7 @@ class FloatingOffShoreWindProc(OffShoreWindProc):
 class LandBasedWindProc(TechProcessor):
     tech_name = "LandbasedWind"
     rnd_sheet_name = "Land-Based Wind - R&D costs"
-    market_sheet_name = "Land-Based Wind - Market"
+    market_sheet_name = "Land-Based Wind - Expanded"
     wacc_name = "Land-Based Wind"
     tech_life = 30
     num_tds = 10
@@ -56,7 +56,9 @@ class LandBasedWindProc(TechProcessor):
 
 class DistributedWindProc(TechProcessor):
     tech_name = "DistributedWind"
-    sheet_name = "Distributed Wind"
+    rnd_sheet_name = "Distributed Wind - R&D"
+    market_sheet_name = "Distributed Wind - Expanded"
+    wacc_name = "Distributed Wind"
     tech_life = 30
     num_tds = 40
     default_tech_detail = "Midsize DW - Class 4"
@@ -66,8 +68,8 @@ class DistributedWindProc(TechProcessor):
 class UtilityPvProc(TechProcessor):
     tech_name = "UtilityPV"
     tech_life = 30
-    rnd_sheet_name = "Solar - Utility PV - R&D costs"
-    market_sheet_name = "Solar - Utility PV - Market"
+    rnd_sheet_name = "Solar - Utility PV - R&D"
+    market_sheet_name = "Solar - Utility PV - Expanded"
     wacc_name = "Solar - Utility PV"
     num_tds = 10
     default_tech_detail = "Utility PV - Class 5"
@@ -77,7 +79,9 @@ class UtilityPvProc(TechProcessor):
 class CommPvProc(TechProcessor):
     tech_name = "CommPV"
     tech_life = 30
-    sheet_name = "Solar - PV Dist. Comm"
+    rnd_sheet_name = "Solar - PV Dist. Comm - R&D"
+    market_sheet_name = "Solar - PV Dist. Comm - Expand"
+    wacc_name = "Solar - PV Dist. Comm"
     num_tds = 10
     default_tech_detail = "Commercial PV - Class 5"
     dscr = 1.275
@@ -86,7 +90,9 @@ class CommPvProc(TechProcessor):
 class ResPvProc(TechProcessor):
     tech_name = "ResPV"
     tech_life = 30
-    sheet_name = "Solar - PV Dist. Res"
+    rnd_sheet_name = "Solar - PV Dist. Res - R&D"
+    market_sheet_name = "Solar - PV Dist. Res - Expanded"
+    wacc_name = "Solar - PV Dist. Res"
     num_tds = 10
     default_tech_detail = "Residential PV - Class 5"
     dscr = 1.275
@@ -95,7 +101,9 @@ class ResPvProc(TechProcessor):
 class UtilityPvPlusBatteryProc(TechProcessor):
     tech_name = "Utility-Scale PV-Plus-Battery"
     tech_life = 30
-    sheet_name = "Utility-Scale PV-Plus-Battery"
+    rnd_sheet_name = "Utility-Scale PV-Plus-Batt R&D"
+    market_sheet_name = "Utility-Scale PV-Plus-Batt Exp"
+    wacc_name = "Utility-Scale PV-Plus-Battery"
     num_tds = 10
     default_tech_detail = "PV+Storage - Class 5"
     dscr = 1.275
@@ -639,21 +647,27 @@ class AbstractBatteryProc(TechProcessor):
 class UtilityBatteryProc(AbstractBatteryProc):
     tech_name = "Utility-Scale Battery Storage"
     tech_life = 30
-    sheet_name = "Utility-Scale Battery Storage"
+    rnd_sheet_name = "Utility-Scale Battery - R&D"
+    market_sheet_name = "Utility-Scale Battery - Expand"
+    wacc_name = "Utility-Scale Battery Storage"
     num_tds = 5
 
 
 class CommBatteryProc(AbstractBatteryProc):
     tech_name = "Commercial Battery Storage"
     tech_life = 30
-    sheet_name = "Commercial Battery Storage"
+    rnd_sheet_name = "Commercial Battery - R&D"
+    market_sheet_name = "Commercial Battery - Expand"
+    wacc_name = "Commercial Battery Storage"
     num_tds = 5
 
 
 class ResBatteryProc(AbstractBatteryProc):
     tech_name = "Residential Battery Storage"
     tech_life = 30
-    sheet_name = "Residential Battery Storage"
+    rnd_sheet_name = "Residential Battery - R&D"
+    market_sheet_name = "Residential Battery - Expanded"
+    wacc_name= "Residential Battery Storage"
     num_tds = 2
 
 
