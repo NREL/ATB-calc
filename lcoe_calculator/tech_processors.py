@@ -129,7 +129,7 @@ class UtilityPvPlusBatteryProc(TechProcessor):
     def __init__(
         self,
         data_workbook_fname: str,
-        case: FinancialCases = FinancialCases.R_AND_D_WITHOUT_TAX_CREDITS,
+        case: FinancialCases = FinancialCases,
         crp: CrpChoiceType = 30,
         tcc: str = "PV PTC and Battery ITC",
         extractor: Type[PVBatteryExtractor] = PVBatteryExtractor,
@@ -184,10 +184,10 @@ class UtilityPvPlusBatteryProc(TechProcessor):
             else f"TechLife ({self.tech_life})"
         )
 
-        print(f"Loading data from {self.sheet_name}, for {self._case} and {crp_msg}")
+        print(f"Loading data from {self.get_sheet_name(self._case)}, for {self._case} and {crp_msg}")
         extractor = self._ExtractorClass(  # type: ignore
             self._data_workbook_fname,
-            self.sheet_name,  # type: ignore
+            self.get_sheet_name(self._case),  # type: ignore
             self._case,
             self._requested_crp,
             self.scenarios,
