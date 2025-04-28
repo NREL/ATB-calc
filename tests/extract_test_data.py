@@ -52,7 +52,7 @@ def extract_data_for_crp_case(
         crp,
         tech.scenarios,
         tech.base_year,
-        tech.is_market_cost_tech(),
+        tech.is_expanded_fin_tech(),
     )
 
     metrics = list(tech.metrics)

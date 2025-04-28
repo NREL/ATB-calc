@@ -5,5 +5,5 @@
   },
   "black-formatter.args": ["--line-length", "100"],
   "autoDocstring.docstringFormat": "sphinx-notypes",
-  "cSpell.words": ["capex", "lcoe"]
+  "cSpell.words": ["capex", "financials", "lcoe"]
 }

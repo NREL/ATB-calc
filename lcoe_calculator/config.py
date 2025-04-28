@@ -8,6 +8,7 @@
 """
 Config and constants for the LCOE pipeline.
 """
+
 from enum import Enum
 from typing import Literal, List
 
@@ -20,18 +21,40 @@ YEARS = list(range(BASE_YEAR, END_YEAR + 1, 1))
 
 class FinancialCases(Enum):
     """
-    Enum for financial cases.
+    Possible financial cases for ATB technologies. All techs support the R&D financial cases, but
+    not all techs support the expanded financial cases.
     """
 
-    MARKET_COST = "Market Cost"
-    """ Market financials and cost case"""
+    EXPANDED_WITHOUT_TAX_CREDITS = "Exp"
+    """ Expanded financials without tax credits"""
 
-    MARKET = "Market"
-    """ Market financials only"""
+    EXPANDED_WITH_TAX_CREDITS = "Exp + TC"
+    """ Expanded financials withtax credits"""
 
-    R_AND_D = "R&D"
-    """ Research and Development financials only"""
+    R_AND_D_WITHOUT_TAX_CREDITS = "R&D"
+    """ Research and development financials without tax credits"""
 
+    R_AND_D_WITH_TAX_CREDITS = "R&D + TC"
+    """ Research and development financials with tax credits"""
+
+
+EXPANDED_FINANCIAL_CASES = [
+    FinancialCases.EXPANDED_WITHOUT_TAX_CREDITS,
+    FinancialCases.EXPANDED_WITH_TAX_CREDITS,
+]
+""" Both expanded financial cases"""
+
+WITHOUT_TAX_CREDITS_CASES = [
+    FinancialCases.EXPANDED_WITHOUT_TAX_CREDITS,
+    FinancialCases.R_AND_D_WITHOUT_TAX_CREDITS,
+]
+""" Both financial cases without tax credits"""
+
+WITH_TAX_CREDITS_CASES = [
+    FinancialCases.EXPANDED_WITH_TAX_CREDITS,
+    FinancialCases.R_AND_D_WITH_TAX_CREDITS,
+]
+""" Both financial cases without tax credits"""
 
 # Tax credit cases
 ITC_ONLY_CASE = "ITC only"

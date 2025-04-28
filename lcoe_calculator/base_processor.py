@@ -27,6 +27,7 @@ from .config import (
     TECH_DETAIL_SCENARIO_COL,
     CrpChoiceType,
     FinancialCases,
+    EXPANDED_FINANCIAL_CASES,
 )
 from .extractor import (
     MANDATORY_COLUMNS,
@@ -66,11 +67,11 @@ class TechProcessor(ABC):
         overlap.
         """
 
-    # Either sheet_name or both market_sheet_name and rnd_sheet_name must be set. Sheet name is
-    # used for all non-market cost technologies that only have two financial cases. For market cost
-    # technologies, the market_sheet_name and rnd_sheet_name must be set.
+    # Either sheet_name or both expanded_sheet_name and rnd_sheet_name must be set. Sheet name is
+    # used for all r&d technologies that only have two financial cases. For expanded financials
+    # technologies, the expanded_sheet_name and rnd_sheet_name must be set.
     sheet_name: str | None = None
-    market_sheet_name: str | None = None
+    expanded_sheet_name: str | None = None
     rnd_sheet_name: str | None = None
 
     # For a consistent depreciation schedule, use one of the lists from the
@@ -138,7 +139,7 @@ class TechProcessor(ABC):
     def __init__(
         self,
         data_workbook_fname: str,
-        case: FinancialCases = FinancialCases.MARKET,
+        case: FinancialCases = FinancialCases.R_AND_D_WITHOUT_TAX_CREDITS,
         crp: CrpChoiceType = 30,
         tcc: Optional[str] = None,
         extractor: Type[AbstractExtractor] = Extractor,
@@ -146,7 +147,7 @@ class TechProcessor(ABC):
     ):
         """
         @param data_workbook_fname - name of workbook
-        @param case - financial case to run: 'Market' or 'R&D'
+        @param case - financial case to run
         @param crp - capital recovery period: 20, 30, or 'TechLife'
         @param tcc - tax credit case: 'ITC only' or 'PV PTC and Battery ITC'. Only required for the
             PV plus battery technology.
@@ -163,9 +164,9 @@ class TechProcessor(ABC):
 
         # Sanity check case request and sheet names
         self._check_sheet_names()
-        if case == FinancialCases.MARKET_COST and not self.is_market_cost_tech():
+        if case in EXPANDED_FINANCIAL_CASES and not self.is_expanded_fin_tech():
             raise ValueError(
-                "Market cost financial case was requested for a non-market cost tech: "
+                "Expanded financial case was requested for a non-expanded tech: "
                 f"{self.tech_name}"
             )
 
@@ -559,7 +560,7 @@ class TechProcessor(ABC):
             self._requested_crp,
             self.scenarios,
             self.base_year,
-            self.is_market_cost_tech(),
+            self.is_expanded_fin_tech(),
         )
 
         print("\tLoading metrics")
@@ -822,30 +823,30 @@ class TechProcessor(ABC):
         """
         Helper function to sanity check sheet names. Raises AttributeError if not set correctly.
         """
-        if self.is_market_cost_tech() and self.wacc_name is None:
-            raise AttributeError("`wacc_name` must be set for market cost technologies.")
+        if self.is_expanded_fin_tech() and self.wacc_name is None:
+            raise AttributeError("`wacc_name` must be set for expanded financials technologies.")
 
     @classmethod
-    def is_market_cost_tech(cls):
+    def is_expanded_fin_tech(cls):
         """
-        If True, this is a market cost tech and has separate r&d and market sheets.
+        If True, this is an expanded financials tech and has separate r&d and expanded sheets.
         """
         if (
             cls.sheet_name is not None
             and cls.rnd_sheet_name is None
-            and cls.market_sheet_name is None
+            and cls.expanded_sheet_name is None
         ):
             return False
 
         if (
             cls.sheet_name is None
             and cls.rnd_sheet_name is not None
-            and cls.market_sheet_name is not None
+            and cls.expanded_sheet_name is not None
         ):
             return True
 
         raise AttributeError(
-            '"sheet_name", "market_sheet_name", and "rnd_sheet_name" are not set correctly'
+            '"sheet_name", "expanded_sheet_name", and "rnd_sheet_name" are not set correctly'
         )
 
     @classmethod
@@ -854,11 +855,11 @@ class TechProcessor(ABC):
 
         :return: list of supported financial cases
         """
-        if cls.is_market_cost_tech():
+        if cls.is_expanded_fin_tech():
             return list(FinancialCases)
 
-        # By definition, only MARKET and R&D cases are supported for non-market cost technologies
-        return [FinancialCases.MARKET, FinancialCases.R_AND_D]
+        # By definition, only R&D cases are supported for non-expanded technologies
+        return [FinancialCases.R_AND_D_WITHOUT_TAX_CREDITS, FinancialCases.R_AND_D_WITH_TAX_CREDITS]
 
     @classmethod
     def get_sheet_name(cls, case: FinancialCases) -> str:
@@ -867,9 +868,9 @@ class TechProcessor(ABC):
         :param case: Desired financial case
         :return: Sheet name
         """
-        if cls.is_market_cost_tech():
-            if case == FinancialCases.MARKET_COST:
-                sheet_name = cls.market_sheet_name
+        if cls.is_expanded_fin_tech():
+            if case in EXPANDED_FINANCIAL_CASES:
+                sheet_name = cls.expanded_sheet_name
             else:
                 sheet_name = cls.rnd_sheet_name
         else:
