@@ -26,16 +26,16 @@ class AbstractExtractor(ABC):
         crp: CrpChoiceType,
         scenarios: List[str],
         base_year: int,
-        is_market_cost_tech: bool,
+        is_expanded_fin_tech: bool,
     ):
         """
         @param data_workbook_fname - file name of data workbook
         @param sheet_name - name of sheet to process
-        @param case - 'Market' or 'R&D'
+        @param case - desired financial case
         @param crp - capital recovery period: 20, 30, or 'TechLife'
         @param scenarios - scenarios, e.g. 'Advanced', 'Moderate', etc.
         @param base_year - first year of data for this technology
-        @param is_market_cost_tech - True if this is a market cost tech
+        @param is_expanded_fin_tech - True if this is an expanded financial tech
         """
 
     @abstractmethod
@@ -89,11 +89,11 @@ class AbstractExtractor(ABC):
         """
 
     @abstractmethod
-    def get_wacc(self, tech_name: str | None = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def get_wacc(self, tech_wacc_name: str | None = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
         Extract values for tech and case from WACC sheet.
 
-        @param tech_name - name of tech to search for on WACC sheet. Use sheet name if None.
+        @param tech_wacc_name - name of tech to search for on WACC sheet. Use sheet name if None.
 
         @returns df_wacc - all WACC values
         @returns df_just_wacc - last six rows of wacc sheet, 'WACC Nominal - {scenario}' and 'WACC

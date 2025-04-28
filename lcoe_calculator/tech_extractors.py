@@ -30,7 +30,7 @@ class PVBatteryExtractor(Extractor):
         crp: CrpChoiceType,
         scenarios: List[str],
         base_year: int,
-        is_market_cost_tech: bool,
+        is_expanded_fin_tech: bool,
         tax_credit_case: str,
     ):
         """
@@ -40,7 +40,7 @@ class PVBatteryExtractor(Extractor):
         @param crp - capital recovery period: 20, 30, or 'TechLife'
         @param scenarios - scenarios, e.g. 'Advanced', 'Moderate', etc.
         @param base_year - first year of data for this technology
-        @param is_market_cost_tech - True if this is a market cost tech
+        @param is_expanded_fin_tech - True if this is an expanded financial tech
         @param tax_credit_case - tax credit case: "PV PTC and Battery ITC" or "ITC only"
         """
         self._data_workbook_fname = data_workbook_fname
@@ -55,5 +55,5 @@ class PVBatteryExtractor(Extractor):
             wb.save()
 
         super().__init__(
-            data_workbook_fname, sheet_name, case, crp, scenarios, base_year, is_market_cost_tech
+            data_workbook_fname, sheet_name, case, crp, scenarios, base_year, is_expanded_fin_tech
         )

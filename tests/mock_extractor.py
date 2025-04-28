@@ -37,13 +37,13 @@ class MockExtractor(AbstractExtractor):
         crp: CrpChoiceType,
         ___: List[int],  # scenarios
         ____: int,  # base year
-        _____: bool,  # is_market_cost_tech
+        _____: bool,  # is_expanded_fin_tech
         ______: Optional[str] = None,  # tax credit case (PV Battery only)
     ):
         """
         @param data_workbook_fname - IGNORED
         @param sheet_name - IGNORED
-        @param case - 'Market' or 'R&D'
+        @param case - desired financial case
         @param crp - capital recovery period: 20, 30, or 'TechLife'
         @param scenarios - IGNORED
         @param base_year - IGNORED
