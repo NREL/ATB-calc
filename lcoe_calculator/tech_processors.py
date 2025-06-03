@@ -576,7 +576,7 @@ class BiopowerProc(TechProcessor):
     tech_name = "Biopower"
     tech_life = 45
     sheet_name = "Biopower"
-    num_tds = 1
+    num_tds = 2
     default_tech_detail = "Biopower - Dedicated"
     dscr = 1.45
 
