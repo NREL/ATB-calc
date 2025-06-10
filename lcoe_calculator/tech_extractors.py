@@ -47,9 +47,11 @@ class PVBatteryExtractor(Extractor):
         self.sheet_name = sheet_name
 
         if tax_credit_case:
+            # WACC calc only references one control cell, and it's on the R&D sheet for PVB
+            tax_credit_sheet_name = 'Utility-Scale PV-Plus-Batt R&D'
             # Open workbook, set tax credit case, and save
-            wb = xw.Book(data_workbook_fname)
-            sheet = wb.sheets[sheet_name]
+            wb = xw.Book(self._data_workbook_fname)
+            sheet = wb.sheets[tax_credit_sheet_name]
             print("Setting tax credit case", tax_credit_case)
             sheet.range("Q46").value = tax_credit_case
             wb.save()
