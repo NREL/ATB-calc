@@ -26,16 +26,16 @@ class FinancialCases(Enum):
     """
 
     EXPANDED_WITHOUT_TAX_CREDITS = "Exp"
-    """ Expanded financials without tax credits"""
+    """ Expanded Cost Drivers without tax credits"""
 
     EXPANDED_WITH_TAX_CREDITS = "Exp + TC"
-    """ Expanded financials withtax credits"""
+    """ Expanded Cost Drivers withtax credits"""
 
     R_AND_D_WITHOUT_TAX_CREDITS = "R&D"
-    """ Research and development financials without tax credits"""
+    """ R&D Cost Drivers Without Tax Credits"""
 
     R_AND_D_WITH_TAX_CREDITS = "R&D + TC"
-    """ Research and development financials with tax credits"""
+    """ R&D Cost Drivers With Tax Credits"""
 
 
 EXPANDED_FINANCIAL_CASES = [
