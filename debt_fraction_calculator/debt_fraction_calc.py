@@ -23,6 +23,7 @@ from lcoe_calculator.config import (
     CrpChoiceType,
     PTC_PLUS_ITC_CASE_PVB,
     FinancialCases,
+    WITH_TAX_CREDITS_CASES
 )
 from lcoe_calculator.tech_processors import LCOE_TECHS
 from lcoe_calculator.base_processor import TechProcessor
@@ -307,7 +308,7 @@ def calculate_all_debt_fractions(
             # Values that are specific to the representative tech detail
             detail_vals = d[
                 (d.DisplayName == Tech.default_tech_detail)
-                & (d.Case == fin_case)
+                & (d.Case == fin_case.value)
                 & (d.Scenario == "Moderate")
                 & (d.CRPYears == 20)
                 & (
@@ -325,7 +326,7 @@ def calculate_all_debt_fractions(
             tech_vals = d[
                 (d.Technology == Tech.tech_name)
                 & (d.CRPYears == 20)
-                & (d.Case == fin_case)
+                & (d.Case == fin_case.value)
                 & (
                     (d.Parameter == "Inflation Rate")
                     | (d.Parameter == "Tax Rate (Federal and State)")
@@ -347,16 +348,17 @@ def calculate_all_debt_fractions(
 
                 input_vals: InputVals
                 gen_vals: InputVals
+
                 input_vals = detail_vals.set_index("Parameter")[year].to_dict()  # type: ignore
                 gen_vals = tech_vals.set_index("Parameter")[year].to_dict()  # type: ignore
 
                 # Tax credits - assumes each tech has one PTC or one ITC
-                if Tech.has_tax_credit and fin_case == "Market":
+                if Tech.has_tax_credit and fin_case in WITH_TAX_CREDITS_CASES:
                     name = str(Tech.sheet_name)
                     if Tech.wacc_name:
                         name = Tech.wacc_name
 
-                    if Tech.sheet_name == "Utility-Scale PV-Plus-Battery":
+                    if Tech.sheet_name == "Utility-Scale PV-Plus-Batt R&D" or Tech.sheet_name == "Utility-Scale PV-Plus-Batt Exp":
                         if proc.tax_credit_case is PTC_PLUS_ITC_CASE_PVB and year > 2022:
                             if (
                                 Tech.default_tech_detail is None
