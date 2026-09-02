@@ -10,8 +10,7 @@ The pipeline requires [Python](https://www.python.org) 3.10 or newer. Dependanci
 $ pip install -r requirements.txt
 ```
 
-Note that some examples may require additional dependencies such as Jupyter. See the README files in individual
-directories for specifics.
+Note that some examples may require additional dependencies such as Jupyter. See the README files in individual directories for specifics.
 
 Once Python and all dependancies are installed the installation can be tested by running:
 
@@ -23,11 +22,7 @@ Tests take about a minute and should complete without errors. The ATB pipeline u
 
 ## Running the ATB Electricity Pipeline
 
-Running the pipeline requires downloaded the most current data in `xlsx` format from the
-[ATB website](https://atb.nrel.gov). The pipeline may be ran for one or all ATB electricity technologies.
-Data may be exported in several formats. Below are several example workflows. It is assumed that all
-commands are run from the root directory of the repository. In the examples `{PATH-TO-DATA-WORKBOOK}`
-is the path and filename to the ATB electricity data workbook `xlsx` file.
+Running the pipeline requires downloaded the most current data in `xlsx` format from the [ATB website](https://atb.nrel.gov). The pipeline may be ran for one or all ATB electricity technologies. Data may be exported in several formats. Below are several example workflows. It is assumed that all commands are run from the root directory of the repository. In the examples `{PATH-TO-DATA-WORKBOOK}` is the path and filename to the ATB electricity data workbook `xlsx` file.
 
 Process all techs and export to a flat file named `flat_file.csv`:
 
@@ -57,20 +52,16 @@ $ python -m lcoe_calculator.process_all --help
 
 ## Debt Fraction Calculator
 
-The debt fraction calculator uses [PySAM](https://nrel-pysam.readthedocs.io/en/main/) to calculate
-debt fractions for one or all ATB technologies. To calculate debt fractions for all technologies run
-the following from the repository root directory:
+The debt fraction calculator uses [PySAM](https://nrel-pysam.readthedocs.io/en/main/) to calculate debt fractions for one or all ATB technologies. To calculate debt fractions for all technologies run the following from the repository root directory:
 
 ```
 $ python -m  debt_fraction_calculator.debt_fraction_calc {PATH-TO-DATA-WORKBOOK} \
 	{OUTPUT-CSV-FILE}
 ```
 
-where `{PATH-TO-DATA-WORKBOOK}` is the path and filename of the ATB data workbook, and
-`{OUTPUT-CSV-FILE}` is the name of the `csv` file to create with the calculated debt fractions.
+where `{PATH-TO-DATA-WORKBOOK}` is the path and filename of the ATB data workbook, and `{OUTPUT-CSV-FILE}` is the name of the `csv` file to create with the calculated debt fractions.
 
-Debt fractions can also be calculated for a single ATB technology if desired. The below command will
-calculate debt fractions for land-based wind:
+Debt fractions can also be calculated for a single ATB technology if desired. The below command will calculate debt fractions for land-based wind:
 
 ```
 $ python -m debt_fraction_calculator.debt_fraction_calc --tech LandBasedWindProc \
@@ -85,9 +76,7 @@ $ python -m debt_fraction_calculator.debt_fraction_calc --help
 
 ## Example Jupyter Notebooks
 
-The `./example_notebooks` directory has several [Jupyter](https://jupyter.org/) notebooks showing
-how to perform various tasks. The notebooks are a good way to understand how to use the code and
-experiment with the ATB pipeline code. Jupyter must first be installed before use:
+The `./example_notebooks` directory has several [Jupyter](https://jupyter.org/) notebooks showing how to perform various tasks. The notebooks are a good way to understand how to use the code and experiment with the ATB pipeline code. Jupyter must first be installed before use:
 
 ```
 $ pip install jupyter

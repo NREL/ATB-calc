@@ -11,9 +11,7 @@ from typing import List, Optional, Type
 import numpy as np
 import pandas as pd
 
-from lcoe_calculator.abstract_extractor import AbstractExtractor
-
-from .config import MARKET_FIN_CASE, CrpChoiceType
+from .config import FinancialCases, CrpChoiceType, WITH_TAX_CREDITS_CASES
 from .extractor import Extractor
 from .tech_extractors import PVBatteryExtractor
 from .macrs import MACRS_6, MACRS_16, MACRS_21
@@ -27,7 +25,7 @@ class OffShoreWindProc(TechProcessor):
 
     tech_name = "OffShoreWind"
     tech_life = 30
-    dscr = 1.35
+    dscr = 1.375
 
 
 class FixedOffShoreWindProc(OffShoreWindProc):
@@ -47,62 +45,74 @@ class FloatingOffShoreWindProc(OffShoreWindProc):
 
 class LandBasedWindProc(TechProcessor):
     tech_name = "LandbasedWind"
-    sheet_name = "Land-Based Wind"
+    rnd_sheet_name = "Land-Based Wind - R&D"
+    expanded_sheet_name = "Land-Based Wind - Expanded"
+    wacc_name = "Land-Based Wind"
     tech_life = 30
     num_tds = 10
     default_tech_detail = "Land-Based Wind - Class 4 - Technology 1"
-    dscr = 1.35
+    dscr = 1.375
 
 
 class DistributedWindProc(TechProcessor):
     tech_name = "DistributedWind"
-    sheet_name = "Distributed Wind"
+    rnd_sheet_name = "Distributed Wind - R&D"
+    expanded_sheet_name = "Distributed Wind - Expanded"
+    wacc_name = "Distributed Wind"
     tech_life = 30
     num_tds = 40
     default_tech_detail = "Midsize DW - Class 4"
-    dscr = 1.35
+    dscr = 1.375
 
 
 class UtilityPvProc(TechProcessor):
     tech_name = "UtilityPV"
     tech_life = 30
-    sheet_name = "Solar - Utility PV"
+    rnd_sheet_name = "Solar - Utility PV - R&D"
+    expanded_sheet_name = "Solar - Utility PV - Expanded"
+    wacc_name = "Solar - Utility PV"
     num_tds = 10
     default_tech_detail = "Utility PV - Class 5"
-    dscr = 1.25
+    dscr = 1.275
 
 
 class CommPvProc(TechProcessor):
     tech_name = "CommPV"
     tech_life = 30
-    sheet_name = "Solar - PV Dist. Comm"
+    rnd_sheet_name = "Solar - PV Dist. Comm - R&D"
+    expanded_sheet_name = "Solar - PV Dist. Comm - Expand"
+    wacc_name = "Solar - PV Dist. Comm"
     num_tds = 10
     default_tech_detail = "Commercial PV - Class 5"
-    dscr = 1.25
+    dscr = 1.275
 
 
 class ResPvProc(TechProcessor):
     tech_name = "ResPV"
     tech_life = 30
-    sheet_name = "Solar - PV Dist. Res"
+    rnd_sheet_name = "Solar - PV Dist. Res - R&D"
+    expanded_sheet_name = "Solar - PV Dist. Res - Expanded"
+    wacc_name = "Solar - PV Dist. Res"
     num_tds = 10
     default_tech_detail = "Residential PV - Class 5"
-    dscr = 1.25
+    dscr = 1.275
 
 
 class UtilityPvPlusBatteryProc(TechProcessor):
     tech_name = "Utility-Scale PV-Plus-Battery"
     tech_life = 30
-    sheet_name = "Utility-Scale PV-Plus-Battery"
+    rnd_sheet_name = "Utility-Scale PV-Plus-Batt R&D"
+    expanded_sheet_name = "Utility-Scale PV-Plus-Batt Exp"
+    wacc_name = "Utility-Scale PV-Plus-Battery"
     num_tds = 10
     default_tech_detail = "PV+Storage - Class 5"
-    dscr = 1.25
+    dscr = 1.275
 
     GRID_ROUNDTRIP_EFF = 0.85  # Roundtrip Efficiency (Grid charging)
-    CO_LOCATION_SAVINGS = 0.9228  # Reduction in OCC from co-locating the PV and battery system on the same site
-    BATT_PV_RATIO = (
-        60.0 / 100.0
-    )  # Modifier for $/kW to get everything on the same basis
+    CO_LOCATION_SAVINGS = (
+        0.9228  # Reduction in OCC from co-locating the PV and battery system on the same site
+    )
+    BATT_PV_RATIO = 60.0 / 100.0  # Modifier for $/kW to get everything on the same basis
 
     metrics = [
         ("Net Capacity Factor (%)", "df_ncf"),
@@ -119,16 +129,17 @@ class UtilityPvPlusBatteryProc(TechProcessor):
     def __init__(
         self,
         data_workbook_fname: str,
-        case: str = MARKET_FIN_CASE,
+        case: FinancialCases = FinancialCases,
         crp: CrpChoiceType = 30,
         tcc: str = "PV PTC and Battery ITC",
         extractor: Type[PVBatteryExtractor] = PVBatteryExtractor,
+        load_refs: bool = True,
     ):
         # Additional data frames pulled from excel
         self.df_pv_cost: Optional[pd.DataFrame] = None
         self.df_batt_cost: Optional[pd.DataFrame] = None
 
-        super().__init__(data_workbook_fname, case, crp, tcc, extractor)
+        super().__init__(data_workbook_fname, case, crp, tcc, extractor, load_refs=load_refs)
 
     def _calc_lcoe(self):
         batt_charge_frac = self.df_fin.loc[
@@ -145,16 +156,10 @@ class UtilityPvPlusBatteryProc(TechProcessor):
         )  # account for RTE losses at 100% grid charging (might need to make equation above better)
 
         fcr_pv = pd.concat([self.df_crf.values * self.df_pff_pv] * self.num_tds).values
-        fcr_batt = pd.concat(
-            [self.df_crf.values * self.df_pff_batt] * self.num_tds
-        ).values
+        fcr_batt = pd.concat([self.df_crf.values * self.df_pff_batt] * self.num_tds).values
 
         df_lcoe_part = (
-            (
-                fcr_pv
-                * self.df_cff
-                * (self.df_pv_cost * self.CO_LOCATION_SAVINGS + self.df_gcc)
-            )
+            (fcr_pv * self.df_cff * (self.df_pv_cost * self.CO_LOCATION_SAVINGS + self.df_gcc))
             + (
                 fcr_batt
                 * self.df_cff
@@ -171,7 +176,7 @@ class UtilityPvPlusBatteryProc(TechProcessor):
 
         return df_lcoe
 
-    def _extract_data(self):
+    def _extract_data(self, load_refs: bool):
         """Pull all data from the workbook"""
         crp_msg = (
             self._requested_crp
@@ -179,14 +184,15 @@ class UtilityPvPlusBatteryProc(TechProcessor):
             else f"TechLife ({self.tech_life})"
         )
 
-        print(f"Loading data from {self.sheet_name}, for {self._case} and {crp_msg}")
-        extractor = self._ExtractorClass(
+        print(f"Loading data from {self.get_sheet_name(self._case)}, for {self._case} and {crp_msg}")
+        extractor = self._ExtractorClass(  # type: ignore
             self._data_workbook_fname,
-            self.sheet_name,
+            self.get_sheet_name(self._case),  # type: ignore
             self._case,
             self._requested_crp,
             self.scenarios,
             self.base_year,
+            self.is_expanded_fin_tech(),
             self.tax_credit_case,
         )
 
@@ -195,7 +201,7 @@ class UtilityPvPlusBatteryProc(TechProcessor):
             if var_name == "df_cff":
                 # Grab DF index from another value to use in full CFF DF
                 index = getattr(self, self.metrics[0][1]).index
-                self.df_cff = self.load_cff(extractor, metric, index)
+                self.df_cff = self.load_cff(extractor, metric, index)  # type: ignore
                 continue
 
             temp = extractor.get_metric_values(metric, self.num_tds, self.split_metrics)
@@ -212,6 +218,11 @@ class UtilityPvPlusBatteryProc(TechProcessor):
         if self.has_wacc:
             print("\tLoading WACC data")
             self.df_wacc, self.df_just_wacc = extractor.get_wacc(self.wacc_name)
+
+        if load_refs:
+            print("\tLoading references")
+            metric_names = [m[0] for m in self.metrics]
+            self.df_references = extractor.get_references(metric_names)
 
         print("\tDone loading data")
         return extractor
@@ -321,7 +332,7 @@ class HydropowerProc(TechProcessor):
     dscr = 1.35
 
     def get_depreciation_schedule(self, year):
-        if self._case is MARKET_FIN_CASE and (year < 2025):
+        if self._case in WITH_TAX_CREDITS_CASES and (year < 2025):
             return MACRS_21
         else:
             return MACRS_6
@@ -343,6 +354,7 @@ class PumpedStorageHydroProc(TechProcessor):
         ("df_vom", "Variable O&M"),
         ("df_cfc", "CFC"),
         ("df_capex", "CAPEX"),
+        ("df_rte", "Round-Trip Efficiency"),
     ]
 
     metrics = [
@@ -351,6 +363,7 @@ class PumpedStorageHydroProc(TechProcessor):
         ("Fixed Operation and Maintenance Expenses ($/kW-yr)", "df_fom"),
         ("Variable Operation and Maintenance Expenses ($/MWh)", "df_vom"),
         ("Construction Finance Factor", "df_cff"),
+        ("Round-Trip Efficiency", "df_rte"),
     ]
 
 
@@ -502,7 +515,7 @@ class NuclearProc(TechProcessor):
     tech_name = "Nuclear"
     tech_life = 60
     sheet_name = "Nuclear"
-    num_tds = 2
+    num_tds = 3
     default_tech_detail = "Nuclear - Large"
     dscr = 1.45
     base_year = 2030
@@ -553,7 +566,7 @@ class NuclearProc(TechProcessor):
         return df_lcoe
 
     def get_depreciation_schedule(self, year):
-        if self._case is MARKET_FIN_CASE and (year < 2025):
+        if self._case in WITH_TAX_CREDITS_CASES and (year < 2025):
             return MACRS_16
         else:
             return MACRS_6
@@ -563,7 +576,7 @@ class BiopowerProc(TechProcessor):
     tech_name = "Biopower"
     tech_life = 45
     sheet_name = "Biopower"
-    num_tds = 1
+    num_tds = 2
     default_tech_detail = "Biopower - Dedicated"
     dscr = 1.45
 
@@ -605,7 +618,7 @@ class AbstractBatteryProc(TechProcessor):
     Abstract tech processor for batteries w/o LCOE or CAPEX.
     """
 
-    has_wacc = False
+    has_wacc = True
     has_lcoe = False
 
     # This is false because the ATB does not calculate LCOS (batteries can receive the ITC).
@@ -617,6 +630,7 @@ class AbstractBatteryProc(TechProcessor):
         ("Fixed Operation and Maintenance Expenses ($/kW-yr)", "df_fom"),
         ("Variable Operation and Maintenance Expenses ($/MWh)", "df_vom"),
         ("Construction Finance Factor", "df_cff"),
+        ("Round-Trip Efficiency", "df_rte"),
     ]
 
     flat_attrs = [
@@ -626,27 +640,34 @@ class AbstractBatteryProc(TechProcessor):
         ("df_vom", "Variable O&M"),
         ("df_cfc", "CFC"),
         ("df_capex", "CAPEX"),
+        ("df_rte", "Round-Trip Efficiency"),
     ]
 
 
 class UtilityBatteryProc(AbstractBatteryProc):
     tech_name = "Utility-Scale Battery Storage"
     tech_life = 30
-    sheet_name = "Utility-Scale Battery Storage"
+    rnd_sheet_name = "Utility-Scale Battery - R&D"
+    expanded_sheet_name = "Utility-Scale Battery - Expand"
+    wacc_name = "Utility-Scale Battery Storage"
     num_tds = 5
 
 
 class CommBatteryProc(AbstractBatteryProc):
     tech_name = "Commercial Battery Storage"
     tech_life = 30
-    sheet_name = "Commercial Battery Storage"
+    rnd_sheet_name = "Commercial Battery - R&D"
+    expanded_sheet_name = "Commercial Battery - Expand"
+    wacc_name = "Commercial Battery Storage"
     num_tds = 5
 
 
 class ResBatteryProc(AbstractBatteryProc):
     tech_name = "Residential Battery Storage"
     tech_life = 30
-    sheet_name = "Residential Battery Storage"
+    rnd_sheet_name = "Residential Battery - R&D"
+    expanded_sheet_name = "Residential Battery - Expanded"
+    wacc_name = "Residential Battery Storage"
     num_tds = 2
 
 

@@ -10,7 +10,7 @@ Mock data extractor for testing.
 from typing import List, Optional, Tuple
 import pandas as pd
 from lcoe_calculator.abstract_extractor import AbstractExtractor
-from lcoe_calculator.config import CrpChoiceType
+from lcoe_calculator.config import CrpChoiceType, FinancialCases
 from .data_finder import (
     DataFinder,
     TAX_CREDIT_FAKE_SS_NAME,
@@ -31,18 +31,19 @@ class MockExtractor(AbstractExtractor):
 
     def __init__(
         self,
-        _: str,
-        __: str,
-        case: str,
+        _: str,  # workbook name
+        __: str,  # sheet name
+        case: FinancialCases,
         crp: CrpChoiceType,
-        ___: List[int],
-        ____: int,
-        _____: Optional[str] = None,
+        ___: List[int],  # scenarios
+        ____: int,  # base year
+        _____: bool,  # is_expanded_fin_tech
+        ______: Optional[str] = None,  # tax credit case (PV Battery only)
     ):
         """
         @param data_workbook_fname - IGNORED
         @param sheet_name - IGNORED
-        @param case - 'Market' or 'R&D'
+        @param case - desired financial case
         @param crp - capital recovery period: 20, 30, or 'TechLife'
         @param scenarios - IGNORED
         @param base_year - IGNORED
@@ -51,7 +52,7 @@ class MockExtractor(AbstractExtractor):
         self._case = case
         self._requested_crp = crp
 
-    def get_metric_values(self, metric: str, _: int, __=False) -> pd.DataFrame:
+    def get_metric_values(self, metric: str, _: int, __=False, ___=False) -> pd.DataFrame:
         """
         Grab metric values table
 
@@ -72,7 +73,7 @@ class MockExtractor(AbstractExtractor):
         df = self.read_csv(fname)
         return df
 
-    def get_cff(self, cff_name: str, _) -> pd.DataFrame:
+    def get_cff(self, cff_name: str, _, __=False) -> pd.DataFrame:
         """
         Pull CFF values
 
@@ -104,9 +105,7 @@ class MockExtractor(AbstractExtractor):
         @returns {pd.DataFrame} df_just_wacc - last six rows of wacc sheet,
             'WACC Nominal - {scenario}' and 'WACC Real - {scenario}'
         """
-        fname = DataFinder.get_data_filename(
-            WACC_FAKE_SS_NAME, self._case, self._requested_crp
-        )
+        fname = DataFinder.get_data_filename(WACC_FAKE_SS_NAME, self._case, self._requested_crp)
         df_wacc = self.read_csv(fname)
         fname = DataFinder.get_data_filename(
             JUST_WACC_FAKE_SS_NAME, self._case, self._requested_crp
@@ -125,3 +124,11 @@ class MockExtractor(AbstractExtractor):
         df = pd.read_csv(fname, index_col=0)
         df.columns = df.columns.astype(int)
         return df
+
+    def get_references(self, metrics: List[str]) -> pd.DataFrame:  # type: ignore
+        """
+        Dynamically search for references and return as a data frame.
+
+        @param metrics - list of metrics to load from spreadsheet
+        @returns references
+        """

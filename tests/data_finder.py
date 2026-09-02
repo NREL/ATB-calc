@@ -18,7 +18,7 @@ Find path to test data CSV files. General layout:
 from typing import Optional, Type
 import os
 from lcoe_calculator.base_processor import TechProcessor
-from lcoe_calculator.config import LCOE_SS_NAME, CAPEX_SS_NAME, CrpChoiceType
+from lcoe_calculator.config import LCOE_CELL_NAME, CAPEX_CELL_NAME, CrpChoiceType, FinancialCases
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
@@ -48,7 +48,7 @@ class DataFinder:
         cls._tech = tech
 
     @classmethod
-    def get_data_filename(cls, metric: str, case: str, crp: CrpChoiceType):
+    def get_data_filename(cls, metric: str, case: FinancialCases, crp: CrpChoiceType):
         """
         Get path and filename to test data.
 
@@ -57,16 +57,16 @@ class DataFinder:
         @param crp - name of desired CRP
         @returns path to CSV file for metric in testing data dir
         """
-        assert (
-            cls._tech is not None
-        ), "The TechProcessor must be set first with set_tech()."
+        assert cls._tech is not None, "The TechProcessor must be set first with set_tech()."
+
+        sheet_name = cls._tech.get_sheet_name(case)
 
         # Create a lookup table between fancy long names in the workbook and names to use for the
         # data files. This table partially borrows from the metrics list.
         metric_lookup = list(cls._tech.metrics)
         metric_lookup += [
-            (LCOE_SS_NAME, "df_lcoe"),
-            (CAPEX_SS_NAME, "df_capex"),
+            (LCOE_CELL_NAME, "df_lcoe"),
+            (CAPEX_CELL_NAME, "df_capex"),
             (FIN_ASSUMP_FAKE_SS_NAME, "df_fin_assump"),
             (WACC_FAKE_SS_NAME, "df_wacc"),
             (JUST_WACC_FAKE_SS_NAME, "df_just_wacc"),
@@ -74,11 +74,11 @@ class DataFinder:
         ]
         assert metric in [
             m[0] for m in metric_lookup
-        ], f"metric {metric} is not known for sheet {cls._tech.sheet_name}"
+        ], f"metric {metric} is not known for sheet {sheet_name}"
         df_name = [m[1] for m in metric_lookup if m[0] == metric][0]
 
         # Files in ./data/{tech}
-        clean_sheet_name = str(cls._tech.sheet_name).replace(" ", "_")
+        clean_sheet_name = str(sheet_name).replace(" ", "_")
         tech_dir = os.path.join(DATA_DIR, clean_sheet_name)
         if not os.path.exists(tech_dir):
             os.makedirs(tech_dir)
@@ -86,7 +86,7 @@ class DataFinder:
             return os.path.join(tech_dir, f"{df_name}.csv")
 
         # Files in ./data/{tech}/{case}
-        case_dir = os.path.join(tech_dir, case)
+        case_dir = os.path.join(tech_dir, case.value.replace(" ", "_"))
         if not os.path.exists(case_dir):
             os.makedirs(case_dir)
         if df_name in ["df_cff", "df_wacc", "df_just_wacc"]:

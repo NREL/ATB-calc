@@ -1,5 +1,6 @@
 #
-# Copyright (c) Alliance for Sustainable Energy, LLC and Skye Analytics, Inc. See also https://github.com/NREL/ATB-calc/blob/main/LICENSE
+# Copyright (c) Alliance for Sustainable Energy, LLC and Skye Analytics, Inc. See also
+# https://github.com/NREL/ATB-calc/blob/main/LICENSE
 #
 # This file is part of ATB-calc
 # (see https://github.com/NREL/ATB-calc).
@@ -7,9 +8,9 @@
 """
 Workflow to calculate debt fractions based on ATB data
 
-Developed against PySAM 4.0.0
+Updated to PySAM 6.0.1
 """
-from typing import TypedDict, List, Dict, Type
+from typing import TypedDict, List, Dict, Type, Tuple
 import pandas as pd
 import click
 
@@ -19,15 +20,17 @@ from lcoe_calculator.extractor import Extractor
 from lcoe_calculator.config import (
     YEARS,
     END_YEAR,
-    FINANCIAL_CASES,
     CrpChoiceType,
     PTC_PLUS_ITC_CASE_PVB,
+    FinancialCases,
+    WITH_TAX_CREDITS_CASES
 )
 from lcoe_calculator.tech_processors import LCOE_TECHS
-import lcoe_calculator.tech_processors
 from lcoe_calculator.base_processor import TechProcessor
 from lcoe_calculator.macrs import MACRS_6, MACRS_16, MACRS_21
 
+# Tax credit transferability: For the 2025 ATB this doesn't vary by year so hardcode for now
+PTC_DSCR_FACTOR = 0.7
 
 InputVals = TypedDict(
     "InputVals",
@@ -62,15 +65,13 @@ def calculate_debt_fraction(input_vals: InputVals, debug=False) -> float:
     @returns debt_fraction - Calculated debt fraction (% 0-100)
     """
     # Partnership flip with debt (tax-equity financing)
-    model = levpartflip.default("GenericSystemLeveragedPartnershipFlip")
+    model = levpartflip.default("CustomGenerationProfileLeveragedPartnershipFlip")
 
     # Values required for computation. Set to pysam using model.value() calls below
     analysis_period = 20
     ac_capacity = 1000  # kW
     capacity_factor = input_vals["CF"]
-    gen = [
-        capacity_factor * ac_capacity
-    ] * 8760  # Distribute evenly throughout the year
+    gen = [capacity_factor * ac_capacity] * 8760  # Distribute evenly throughout the year
 
     capex = input_vals["OCC"]
     con_fin_costs = input_vals["CFC"]
@@ -105,9 +106,7 @@ def calculate_debt_fraction(input_vals: InputVals, debug=False) -> float:
     # Specify length 1 so degradation is applied each year.
     # An array of 0.7 len(analysis_period) assumes degradation the first year, but not afterwards
     model.value("degradation", [degradation])
-    model.value(
-        "system_use_lifetime_output", 0
-    )  # Do degradation in the financial model
+    model.value("system_use_lifetime_output", 0)  # Do degradation in the financial model
 
     model.value(
         "debt_option", 1
@@ -155,11 +154,16 @@ def calculate_debt_fraction(input_vals: InputVals, debug=False) -> float:
     model.value("itc_fed_percent", [input_vals["ITC"] * 100])
     model.value("itc_fed_percent_maxvalue", [1e38])
     model.value("itc_sta_amount", [0])
-    model.value("ptc_fed_amount", [input_vals["PTC"] / 1000])  # Convert $/MWh to $/kWh
+    model.value(
+        "ptc_fed_amount", [input_vals["PTC"] / 1000 * (1 - PTC_DSCR_FACTOR)]
+    )  # Convert $/MWh to $/kWh, apply remainder of dscr factor
+    model.value("ptc_fed_term", 10)
+    model.value("ptc_fed_escal", 2.5)
 
-    # Production based incentive code to test treating the tax credits as available for debt service, currently unused
-    model.value("pbi_fed_amount", [0])
-    model.value("pbi_fed_term", 0)
+    # PTC_DSCR_FACTOR indicated what percent is available for debt service, vs what percent is
+    # treated like a pre-IRA tax credit
+    model.value("pbi_fed_amount", [input_vals["PTC"] / 1000 * PTC_DSCR_FACTOR])
+    model.value("pbi_fed_term", 10)
     model.value("pbi_fed_escal", 2.5)
     model.value("pbi_fed_for_ds", True)
     model.value("pbi_fed_tax_fed", False)
@@ -216,9 +220,7 @@ def calculate_debt_fraction(input_vals: InputVals, debug=False) -> float:
     model.execute()
 
     if debug:
-        print(
-            f"LCOE: {model.Outputs.lcoe_real} cents/kWh"
-        )  # multiply by 10 to get $ / MWh
+        print(f"LCOE: {model.Outputs.lcoe_real} cents/kWh")  # multiply by 10 to get $ / MWh
         print(f"NPV: {model.Outputs.cf_project_return_aftertax_npv}")
         print()
         print(f"IRR in target year: {model.Outputs.flip_target_irr}")
@@ -247,13 +249,22 @@ tech_names = [Tech.__name__ for Tech in LCOE_TECHS]
 @click.option(
     "-t",
     "--tech",
+    "techs",
     type=click.Choice(tech_names),
-    help="Name of technology to calculate debt fraction for. Use all techs if none are "
-    "specified. Only technologies with an LCOE may be processed.",
+    multiple=True,
+    help="Name of technology(ies) to calculate debt fraction for. Use all techs if none are "
+    "specified. Only technologies with an LCOE may be processed. Multiple techs may be specified.",
 )
 @click.option("-d", "--debug", is_flag=True, default=False, help="Print debug data.")
+@click.option(
+    "-i", "--ignore-references", is_flag=True, default=False, help="Do not load references."
+)
 def calculate_all_debt_fractions(
-    data_workbook_filename: str, output_filename: str, tech: str | None, debug: bool
+    data_workbook_filename: str,
+    output_filename: str,
+    techs: Tuple[str],
+    debug: bool,
+    ignore_references: bool,
 ):
     """
     Calculate debt fractions for one or more technologies, and all financial cases and years.
@@ -261,42 +272,43 @@ def calculate_all_debt_fractions(
     DATA_WORKBOOK_FILENAME - Path and name of ATB data workbook XLXS file.
     OUTPUT_FILENAME - File to save calculated debt fractions to. Should end with .csv
     """
-    tech_map: Dict[str, Type[TechProcessor]] = {
-        tech.__name__: tech for tech in LCOE_TECHS
-    }
-    techs = LCOE_TECHS if tech is None else [tech_map[tech]]
+    tech_map: Dict[str, Type[TechProcessor]] = {tech.__name__: tech for tech in LCOE_TECHS}
+    tech_classes = LCOE_TECHS if len(techs) == 0 else [tech_map[tech] for tech in techs]
 
-    df_itc, df_ptc = Extractor.get_tax_credits_sheet(data_workbook_filename)
+    df_itc, df_ptc, df_tfr = Extractor.get_tax_credits_sheet(data_workbook_filename)
 
     crp: CrpChoiceType = 20
-    debt_frac_dict = {}
+    header_columns = ["Tech Sheet Name", "Technology", "Case"]
+    columns_for_all_techs = header_columns + [str(year) for year in YEARS]
+    df_all_debt_fracs = pd.DataFrame(columns=columns_for_all_techs)
 
-    for Tech in techs:
+    for Tech in tech_classes:  # pylint: disable=invalid-name
+        # Column structure of tech specific data frame
         tech_years = range(Tech.base_year, END_YEAR + 1)
+        tech_columns = header_columns + [str(year) for year in tech_years]
 
-        # column structure of resulting data frame
-        cols = ["Technology", "Case"] + [str(year) for year in tech_years]
-
-        for fin_case in FINANCIAL_CASES:
-            click.echo(
-                f"Processing tech {Tech.tech_name} and financial case {fin_case}"
-            )
-            debt_fracs = [Tech.tech_name, fin_case]  # First two columns are metadata
+        for fin_case in Tech.supported_financial_cases():
+            click.echo(f"Processing tech {Tech.__name__} and financial case {fin_case}")
+            debt_fracs: list[str | FinancialCases | float | None] = [
+                Tech.get_sheet_name(fin_case),
+                Tech.tech_name,  # type: ignore
+                fin_case,
+            ]  # First 3 columns are metadata
 
             proc = Tech(
                 data_workbook_filename,
                 crp=crp,
                 case=fin_case,
                 tcc=PTC_PLUS_ITC_CASE_PVB,
+                load_refs=(not ignore_references),
             )
             proc.run()
-
-            d = proc.flat
+            d = proc.combined_data()
 
             # Values that are specific to the representative tech detail
             detail_vals = d[
                 (d.DisplayName == Tech.default_tech_detail)
-                & (d.Case == fin_case)
+                & (d.Case == fin_case.value)
                 & (d.Scenario == "Moderate")
                 & (d.CRPYears == 20)
                 & (
@@ -314,7 +326,7 @@ def calculate_all_debt_fractions(
             tech_vals = d[
                 (d.Technology == Tech.tech_name)
                 & (d.CRPYears == 20)
-                & (d.Case == fin_case)
+                & (d.Case == fin_case.value)
                 & (
                     (d.Parameter == "Inflation Rate")
                     | (d.Parameter == "Tax Rate (Federal and State)")
@@ -334,61 +346,64 @@ def calculate_all_debt_fractions(
                     debt_fracs.append(None)
                     continue
 
-                input_vals = detail_vals.set_index("Parameter")[year].to_dict()
-                gen_vals = tech_vals.set_index("Parameter")[year].to_dict()
+                input_vals: InputVals
+                gen_vals: InputVals
+
+                input_vals = detail_vals.set_index("Parameter")[year].to_dict()  # type: ignore
+                gen_vals = tech_vals.set_index("Parameter")[year].to_dict()  # type: ignore
 
                 # Tax credits - assumes each tech has one PTC or one ITC
-                if Tech.has_tax_credit and fin_case == "Market":
+                if Tech.has_tax_credit and fin_case in WITH_TAX_CREDITS_CASES:
                     name = str(Tech.sheet_name)
                     if Tech.wacc_name:
                         name = Tech.wacc_name
 
-                    if Tech.sheet_name == "Utility-Scale PV-Plus-Battery":
-                        if (
-                            proc.tax_credit_case is PTC_PLUS_ITC_CASE_PVB
-                            and year > 2022
-                        ):
-                            if Tech.default_tech_detail is None:
-                                raise AttributeError(
-                                    "Tech.default_tech_detail must be set for "
-                                )
-                            ncf = proc.df_ncf.loc[
-                                Tech.default_tech_detail + "/Moderate"
-                            ][year]
-                            pvcf = proc.df_pvcf.loc[
-                                Tech.default_tech_detail + "/Moderate"
-                            ][year]
+                    if Tech.sheet_name == "Utility-Scale PV-Plus-Batt R&D" or Tech.sheet_name == "Utility-Scale PV-Plus-Batt Exp":
+                        if proc.tax_credit_case is PTC_PLUS_ITC_CASE_PVB and year > 2022:
+                            if (
+                                Tech.default_tech_detail is None
+                                or proc.df_ncf is None
+                                or proc.df_pvcf is None
+                                or not hasattr(proc, "CO_LOCATION_SAVINGS")
+                            ):
+                                raise AttributeError(f"Missing attribute(s) for {Tech.__name__}")
 
+                            ncf = proc.df_ncf.loc[Tech.default_tech_detail + "/Moderate"][year]
+                            pvcf = proc.df_pvcf.loc[Tech.default_tech_detail + "/Moderate"][year]
                             batt_occ_percent = (
-                                proc.df_batt_cost
-                                * proc.CO_LOCATION_SAVINGS
-                                / proc.df_occ
+                                proc.df_batt_cost * proc.CO_LOCATION_SAVINGS / proc.df_occ
                             )
 
-                            input_vals["PTC"] = df_ptc.loc[name][year] * min(
-                                ncf / pvcf, 1.0
+                            input_vals["PTC"] = (
+                                df_ptc.loc[name][year]
+                                * min(ncf / pvcf, 1.0)
+                                * df_tfr.loc["PTC Transfer Discount"][year]
                             )
                             input_vals["ITC"] = (
                                 df_itc.loc[name][year]
-                                * batt_occ_percent.loc[
-                                    Tech.default_tech_detail + "/Moderate"
-                                ][year]
-                            )
+                                * batt_occ_percent.loc[Tech.default_tech_detail + "/Moderate"][year]
+                            ) * df_tfr.loc["ITC Transfer Discount"][year]
                         else:
                             input_vals["PTC"] = 0
-                            input_vals["ITC"] = df_itc.loc[name][year]
+                            input_vals["ITC"] = (
+                                df_itc.loc[name][year] * df_tfr.loc["ITC Transfer Discount"][year]
+                            )
                     else:
-                        input_vals["PTC"] = df_ptc.loc[name][year]
-                        input_vals["ITC"] = df_itc.loc[name][year]
+                        input_vals["PTC"] = (
+                            df_ptc.loc[name][year] * df_tfr.loc["PTC Transfer Discount"][year]
+                        )
+                        input_vals["ITC"] = (
+                            df_itc.loc[name][year] * df_tfr.loc["ITC Transfer Discount"][year]
+                        )
                 else:
                     input_vals["PTC"] = 0
                     input_vals["ITC"] = 0
 
                 # Financial parameters stored in tech processor
+                if Tech.dscr is None:
+                    raise ValueError("DSCR is None. Debt fraction cannot be calculated.")
                 input_vals["DSCR"] = Tech.dscr
-
                 input_vals["MACRS"] = proc.get_depreciation_schedule(year)
-
                 input_vals.update(gen_vals)
 
                 # Calculate debt fraction using PySAM
@@ -396,10 +411,11 @@ def calculate_all_debt_fractions(
                 debt_frac /= 100.0
                 debt_fracs.append(debt_frac)
 
-            debt_frac_dict[proc.tech_name + fin_case] = debt_fracs
+            # Store debt fracs for current tech in a data frame and merge with other debt fracs
+            df_debt_fracs = pd.DataFrame([debt_fracs], columns=tech_columns)
+            df_all_debt_fracs = pd.concat([df_all_debt_fracs, df_debt_fracs])
 
-    debt_frac_df = pd.DataFrame.from_dict(debt_frac_dict, orient="index", columns=cols)
-    debt_frac_df.to_csv(output_filename)
+    df_all_debt_fracs.to_csv(output_filename, index=False)
 
 
 if __name__ == "__main__":

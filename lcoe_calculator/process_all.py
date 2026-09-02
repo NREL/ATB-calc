@@ -1,5 +1,6 @@
 #
-# Copyright (c) Alliance for Sustainable Energy, LLC and Skye Analytics, Inc. See also https://github.com/NREL/ATB-calc/blob/main/LICENSE
+# Copyright (c) Alliance for Sustainable Energy, LLC and Skye Analytics, Inc. See also
+# https://github.com/NREL/ATB-calc/blob/main/LICENSE
 #
 # This file is part of ATB-calc
 # (see https://github.com/NREL/ATB-calc).
@@ -7,7 +8,7 @@
 """
 Process all (or some) ATB technologies and calculate all metrics.
 """
-from typing import List, Dict, Type
+from typing import List, Dict, Type, Optional
 from datetime import datetime as dt
 import click
 import pandas as pd
@@ -15,11 +16,11 @@ import pandas as pd
 from .tech_processors import ALL_TECHS
 from .base_processor import TechProcessor
 from .config import (
-    FINANCIAL_CASES,
-    MARKET_FIN_CASE,
     CRP_CHOICES,
     CrpChoiceType,
     TAX_CREDIT_CASES,
+    FinancialCases,
+    EXPANDED_FINANCIAL_CASES,
 )
 
 
@@ -41,7 +42,8 @@ class ProcessAll:
         if not isinstance(techs, list):
             techs = [techs]
 
-        self.data = pd.DataFrame()  # Flat data
+        self.data = pd.DataFrame()  # Data
+        self.flat_data = pd.DataFrame()  # Flat data
         self.meta = pd.DataFrame()  # Meta data
 
         self._techs = techs
@@ -49,12 +51,13 @@ class ProcessAll:
 
     def _run_tech(
         self,
-        Tech: TechProcessor,
+        Tech: type[TechProcessor],  # typing: ignore
         crp: CrpChoiceType,
-        case: str,
-        tcc: str,
-        test_capex,
-        test_lcoe,
+        case: FinancialCases,
+        tcc: Optional[str],
+        test_capex: bool,
+        test_lcoe: bool,
+        load_refs: bool,
     ):
         """
         Runs the specified Tech with the specified parameters
@@ -62,12 +65,13 @@ class ProcessAll:
         @param crp - cost recovery period, one of CrpChoiceType
         @param case - financial case
         @param tcc - tax credit case
-        @param test_capex - boolean. True runs a comparison of the CAPEX to the spreadsheet
-        @param test_lcoe - boolean. True runs a comparison of the LCOE to the spreadsheet
+        @param test_capex - True runs a comparison of the CAPEX to the spreadsheet
+        @param test_lcoe - True runs a comparison of the LCOE to the spreadsheet
+        @param load_refs - True loads references
 
         @returns TechProcessor with processed data from the other inputs
         """
-        proc = Tech(self._fname, crp=crp, case=case, tcc=tcc)
+        proc = Tech(self._fname, crp=crp, case=case, tcc=tcc, load_refs=load_refs)
         proc.run()
 
         if test_capex:
@@ -75,36 +79,53 @@ class ProcessAll:
         if test_lcoe:
             proc.test_lcoe()
 
-        flat = proc.flat
-        self.data = pd.concat([self.data, flat])
-
         return proc
 
-    def process(self, test_capex: bool = True, test_lcoe: bool = True):
-        """Process all techs"""
+    def process(
+        self,
+        test_capex: bool = True,
+        test_lcoe: bool = True,
+        flat_file: bool = True,
+        load_refs: bool = True,
+    ):
+        """Processing all requested techs
+
+        :param test_capex: test CAPEX if True, defaults to True
+        :param test_lcoe: test LCOE if True, defaults to True
+        :param flat_file: extract flat file data if True, defaults to True
+        :param load_refs: load references from xlsx if True
+        """
         self.data = pd.DataFrame()
         self.meta = pd.DataFrame()
 
         for i, Tech in enumerate(self._techs):
             print(f"##### Processing {Tech.tech_name} ({i+1}/{len(self._techs)}) #####")
+            word = " " if Tech.is_expanded_fin_tech() else " not "
+            print(f"{Tech.tech_name} is{word}an expanded financials tech")
 
-            proc = None
+            proc: TechProcessor
             for crp in CRP_CHOICES:
                 # skip TechLife if 20 or 30 so we don't duplicate effort
                 if crp == "TechLife" and Tech.tech_life in CRP_CHOICES:
                     continue
 
-                for case in FINANCIAL_CASES:
-                    if case is MARKET_FIN_CASE and Tech.tech_name in TAX_CREDIT_CASES:
-                        tax_cases = TAX_CREDIT_CASES[Tech.tech_name]
-                        for tc in tax_cases:
+                for case in Tech.supported_financial_cases():
+                    if case in EXPANDED_FINANCIAL_CASES and Tech.tech_name in TAX_CREDIT_CASES:
+                        tax_credit_cases = TAX_CREDIT_CASES[Tech.tech_name]  # type: ignore
+                        for tcc in tax_credit_cases:
                             proc = self._run_tech(
-                                Tech, crp, case, tc, test_capex, test_lcoe
+                                Tech, crp, case, tcc, test_capex, test_lcoe, load_refs
                             )
+                            self.data = pd.concat([self.data, proc.combined_data()])
+                            if flat_file:
+                                self.flat_data = pd.concat([self.flat_data, proc.flat_data()])
                     else:
                         proc = self._run_tech(
-                            Tech, crp, case, None, test_capex, test_lcoe
+                            Tech, crp, case, None, test_capex, test_lcoe, load_refs
                         )
+                        self.data = pd.concat([self.data, proc.combined_data()])
+                        if flat_file:
+                            self.flat_data = pd.concat([self.flat_data, proc.flat_data()])
 
             meta = proc.get_meta_data()
             meta["Tech Name"] = Tech.tech_name
@@ -112,26 +133,15 @@ class ProcessAll:
 
         self.data = self.data.reset_index(drop=True)
         self.meta = self.meta.reset_index(drop=True)
+        if flat_file:
+            self.flat_data.reset_index(drop=True)
 
     @property
     def data_flattened(self):
         """Get flat data pivoted with each year as a row"""
-        if self.data is None:
+        if self.flat_data is None:
             raise ValueError("Please run process() first")
-
-        melted = pd.melt(
-            self.data,
-            id_vars=[
-                "Parameter",
-                "Case",
-                "TaxCreditCase",
-                "CRPYears",
-                "Technology",
-                "DisplayName",
-                "Scenario",
-            ],
-        )
-        return melted
+        return self.flat_data
 
     def to_csv(self, fname: str):
         """Write data to CSV"""
@@ -165,16 +175,11 @@ tech_names = [Tech.__name__ for Tech in ALL_TECHS]
     type=click.Choice(tech_names),
     help="Name of tech to process. Process all techs if none are specified.",
 )
+@click.option("-m", "--save-meta", "meta_file", type=click.Path(), help="Save meta data to CSV.")
 @click.option(
-    "-m", "--save-meta", "meta_file", type=click.Path(), help="Save meta data to CSV."
+    "-f", "--save-flat", "flat_file", type=click.Path(), help="Save data in flat format to CSV."
 )
-@click.option(
-    "-f",
-    "--save-flat",
-    "flat_file",
-    type=click.Path(),
-    help="Save data in flat format to CSV.",
-)
+@click.option("-i", "--ignore-references", is_flag=True, help="Don't load references from XLSX.")
 @click.option(
     "-p",
     "--save-pivoted",
@@ -183,32 +188,28 @@ tech_names = [Tech.__name__ for Tech in ALL_TECHS]
     help="Save data in pivoted format to CSV.",
 )
 @click.option(
-    "-c",
-    "--clipboard",
-    is_flag=True,
-    default=False,
-    help="Copy data to system clipboard.",
+    "-c", "--clipboard", is_flag=True, default=False, help="Copy data to system clipboard."
 )
-def process(
+def run(
     data_workbook_filename: str,
     tech: str | None,
     meta_file: str | None,
     flat_file: str | None,
+    ignore_references: bool,
     pivoted_file: str | None,
     clipboard: bool,
 ):
     """
     CLI to process ATB data workbook and calculate metrics.
     """
-    tech_map: Dict[str, Type[TechProcessor]] = {
-        tech.__name__: tech for tech in ALL_TECHS
-    }
+    tech_map: Dict[str, Type[TechProcessor]] = {tech.__name__: tech for tech in ALL_TECHS}
 
     techs = ALL_TECHS if tech is None else [tech_map[tech]]
 
     start_dt = dt.now()
+
     processor = ProcessAll(data_workbook_filename, techs)
-    processor.process()
+    processor.process(flat_file=bool(flat_file), load_refs=not ignore_references)
     click.echo(f"Processing completed in {dt.now()-start_dt}.")
 
     if meta_file:
@@ -229,4 +230,4 @@ def process(
 
 
 if __name__ == "__main__":
-    process()  # pylint: disable=no-value-for-parameter
+    run()  # pylint: disable=no-value-for-parameter

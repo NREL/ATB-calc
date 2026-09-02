@@ -1,5 +1,6 @@
 #
-# Copyright (c) Alliance for Sustainable Energy, LLC and Skye Analytics, Inc. See also https://github.com/NREL/ATB-calc/blob/main/LICENSE
+# Copyright (c) Alliance for Sustainable Energy, LLC and Skye Analytics, Inc. See also
+# https://github.com/NREL/ATB-calc/blob/main/LICENSE
 #
 # This file is part of ATB-calc
 # (see https://github.com/NREL/ATB-calc).
@@ -7,27 +8,38 @@
 """
 Tech LCOE and CAPEX processor class. This is effectively an abstract class and must be subclassed.
 """
-from typing import List, Tuple, Type, Optional
 from abc import ABC, abstractmethod
-import pandas as pd
-import numpy as np
+from typing import Dict, List, Optional, Tuple, Type
 
-from .macrs import MACRS_6
-from .extractor import Extractor
+import click
+import numpy as np
+import pandas as pd
+
 from .abstract_extractor import AbstractExtractor
 from .config import (
-    FINANCIAL_CASES,
-    END_YEAR,
-    TECH_DETAIL_SCENARIO_COL,
-    MARKET_FIN_CASE,
-    CRP_CHOICES,
-    SCENARIOS,
-    LCOE_SS_NAME,
-    CAPEX_SS_NAME,
-    CFF_SS_NAME,
-    CrpChoiceType,
     BASE_YEAR,
+    CAPEX_CELL_NAME,
+    CFF_CELL_NAME,
+    CRP_CHOICES,
+    END_YEAR,
+    LCOE_CELL_NAME,
+    SCENARIOS,
+    TECH_DETAIL_SCENARIO_COL,
+    CrpChoiceType,
+    FinancialCases,
+    EXPANDED_FINANCIAL_CASES,
 )
+from .extractor import (
+    MANDATORY_COLUMNS,
+    REF_DETAIL,
+    REF_END_YEAR,
+    REF_METRIC,
+    REF_REFERENCE,
+    REF_SCENARIO,
+    REF_START_YEAR,
+    Extractor,
+)
+from .macrs import MACRS_6
 
 
 class TechProcessor(ABC):
@@ -46,16 +58,21 @@ class TechProcessor(ABC):
     test_capex() - Compare calculated CAPEX to CAPEX in workbook.
     """
 
-    # ----------- These attributes must be set for each tech --------------
-    @property
-    @abstractmethod
-    def sheet_name(self) -> str:
-        """Name of the sheet in the excel data workbook"""
-
     @property
     @abstractmethod
     def tech_name(self) -> str:
-        """Name of tech for flat file"""
+        """
+        Name of tech for flat file. The same tech_name can be used for multiple tech processors
+        (assuming each tech processor has a different sheet_name) if the resource classes do not
+        overlap.
+        """
+
+    # Either sheet_name or both expanded_sheet_name and rnd_sheet_name must be set. Sheet name is
+    # used for all r&d technologies that only have two financial cases. For expanded financials
+    # technologies, the expanded_sheet_name and rnd_sheet_name must be set.
+    sheet_name: str | None = None
+    expanded_sheet_name: str | None = None
+    rnd_sheet_name: str | None = None
 
     # For a consistent depreciation schedule, use one of the lists from the
     # macrs.py file as shown below. More complex schedules can be defined by
@@ -71,7 +88,7 @@ class TechProcessor(ABC):
         ("Grid Connection Costs (GCC) ($/kW)", "df_gcc"),
         ("Fixed Operation and Maintenance Expenses ($/kW-yr)", "df_fom"),
         ("Variable Operation and Maintenance Expenses ($/MWh)", "df_vom"),
-        (CFF_SS_NAME, "df_cff"),
+        (CFF_CELL_NAME, "df_cff"),
     ]
 
     tech_life = 30  # Tech lifespan in years
@@ -89,9 +106,15 @@ class TechProcessor(ABC):
     has_capex = True  # If True, calculate CAPEX
     has_lcoe = True  # If True, calculate CRF, PFF, & LCOE.
 
-    split_metrics = (
-        False  # Indicates 3 empty rows in tech detail metrics, e.g. hydropower
-    )
+    split_metrics = False
+    """ Indicates 3 empty rows in tech detail metrics, e.g. hydropower """
+
+    allow_empty_values = False
+    """
+    If False, all xlsx data and calculated LCOE and CAPEX values will be checked for
+    NaN/null/empty values and an error will be thrown if any are found. If True, empty values
+    are allowed and will not throw an error.
+    """
 
     # Attributes to export in flat file, format: (attr name in class, value for
     # flat file). Any attributes that are None are silently ignored. Financial
@@ -111,32 +134,41 @@ class TechProcessor(ABC):
     # Variables used by the debt fraction calculator. Should be filled out for any tech
     # where self.has_lcoe == True.
     default_tech_detail: Optional[str] = None
-    dscr: Optional[float] = (
-        None  # Debt service coverage ratio (unitless, typically 1-1.5)
-    )
+    dscr: Optional[float] = None  # Debt service coverage ratio (unitless, typically 1-1.5)
 
     def __init__(
         self,
         data_workbook_fname: str,
-        case: str = MARKET_FIN_CASE,
+        case: FinancialCases = FinancialCases.R_AND_D_WITHOUT_TAX_CREDITS,
         crp: CrpChoiceType = 30,
         tcc: Optional[str] = None,
         extractor: Type[AbstractExtractor] = Extractor,
+        load_refs: bool = True,
     ):
         """
         @param data_workbook_fname - name of workbook
-        @param case - financial case to run: 'Market' or 'R&D'
+        @param case - financial case to run
         @param crp - capital recovery period: 20, 30, or 'TechLife'
-        @param tcc - tax credit case: 'ITC only' or 'PV PTC and Battery ITC' Only required for the PV plus battery technology.
+        @param tcc - tax credit case: 'ITC only' or 'PV PTC and Battery ITC'. Only required for the
+            PV plus battery technology.
         @param extractor - Extractor class to use to obtain source data.
+        @param load_refs - Load references if True
         """
-        assert case in FINANCIAL_CASES, (
-            f"Financial case must be one of {FINANCIAL_CASES}," f" received {case}"
+        assert case in list(FinancialCases), (
+            f"Financial case must be one of {FinancialCases}," f" received {case}"
         )
         assert crp in CRP_CHOICES, (
             f"Financial case must be one of {CRP_CHOICES}," f" received {crp}"
         )
         assert isinstance(self.scenarios, list), "self.scenarios must be a list"
+
+        # Sanity check case request and sheet names
+        self._check_sheet_names()
+        if case in EXPANDED_FINANCIAL_CASES and not self.is_expanded_fin_tech():
+            raise ValueError(
+                "Expanded financial case was requested for a non-expanded tech: "
+                f"{self.tech_name}"
+            )
 
         if self.has_lcoe:
             if self.default_tech_detail is None:
@@ -153,65 +185,184 @@ class TechProcessor(ABC):
         self.tax_credit_case = tcc
 
         # These data frames are extracted from excel
-        self.df_ncf = None  # Net capacity factor (%)
-        self.df_occ = None  # Overnight capital cost ($/kW)
-        self.df_gcc = None  # Grid connection costs ($/kW)
-        self.df_fom = None  # Fixed O&M ($/kW-yr)
-        self.df_vom = None  # Variable O&M ($/MWh)
-        self.df_tc = None  # Tax credits (varies)
-        self.df_wacc = None  # WACC table (varies)
-        self.df_just_wacc = None  # Last six rows of WACC table
-        self.df_hrp = None  # Heat Rate Penalty (% change), retrofits only
-        self.df_nop = None  # Net Output Penalty (% change), retrofits only
-        self.df_pvcf = None  # PV-only capacity factor (%), PV-plus-battery only
+        self.df_ncf: Optional[pd.DataFrame] = None  # Net capacity factor (%)
+        self.df_occ: Optional[pd.DataFrame] = None  # Overnight capital cost ($/kW)
+        self.df_gcc: Optional[pd.DataFrame] = None  # Grid connection costs ($/kW)
+        self.df_fom: Optional[pd.DataFrame] = None  # Fixed O&M ($/kW-yr)
+        self.df_vom: Optional[pd.DataFrame] = None  # Variable O&M ($/MWh)
+        self.df_tc: Optional[pd.DataFrame] = None  # Tax credits (varies)
+        self.df_wacc: Optional[pd.DataFrame] = None  # WACC table (varies)
+        self.df_just_wacc: Optional[pd.DataFrame] = None  # Last six rows of WACC table
+        self.df_hrp: Optional[pd.DataFrame] = None  # Heat Rate Penalty (% change), retrofits only
+        self.df_nop: Optional[pd.DataFrame] = None  # Net Output Penalty (% change), retrofits only
+        self.df_pvcf: Optional[pd.DataFrame] = None  # PV-only cap factor (%), PV-plus-batt only
+        self.df_references: Optional[pd.DataFrame] = None  # References for metrics
+        self.ss_capex: pd.DataFrame
+        self.ss_lcoe: pd.DataFrame
 
         # These data frames are calculated and populated by object methods
-        self.df_aep = None  # Annual energy production (kWh/kW)
-        self.df_capex = None  # CAPEX ($/kW)
-        self.df_cfc = None  # Construction finance cost ($/kW)
-        self.df_crf = None  # Capital recovery factor - real (%)
-        self.df_pff = None  # Project finance factor (unitless)
-        self.df_lcoe = None  # LCOE ($/MWh)
+        self.df_aep: Optional[pd.DataFrame] = None  # Annual energy production (kWh/kW)
+        self.df_capex: Optional[pd.DataFrame] = None  # CAPEX ($/kW)
+        self.df_cfc: Optional[pd.DataFrame] = None  # Construction finance cost ($/kW)
+        self.df_crf: Optional[pd.DataFrame] = None  # Capital recovery factor - real (%)
+        self.df_pff: Optional[pd.DataFrame] = None  # Project finance factor (unitless)
+        self.df_lcoe: Optional[pd.DataFrame] = None  # LCOE ($/MWh)
 
         self._ExtractorClass = extractor
-        self._extractor = self._extract_data()
+        self._extractor = self._extract_data(load_refs)
 
     def run(self):
         """Run all calculations for CAPEX and LCOE"""
         if self.has_capex:
             self.df_cfc = self._calc_con_fin_cost()
             self.df_capex = self._calc_capex()
-            assert (
-                not self.df_capex.isnull().any().any()
-            ), f"Error in calculated CAPEX, found missing values: {self.df_capex}"
+            if not self.allow_empty_values:
+                assert (
+                    not self.df_capex.isnull().any().any()
+                ), f"Error in calculated CAPEX, found missing values: {self.df_capex}"
 
         if self.has_lcoe and self.has_wacc:
             self.df_aep = self._calc_aep()
             self.df_crf = self._calc_crf()
             self.df_pff = self._calc_pff()
             self.df_lcoe = self._calc_lcoe()
-            assert (
-                not self.df_lcoe.isnull().any().any()
-            ), f"Error in calculated LCOE, found missing values: {self.df_lcoe}"
+            if not self.allow_empty_values:
+                assert (
+                    not self.df_lcoe.isnull().any().any()
+                ), f"Error in calculated LCOE, found missing values: {self.df_lcoe}"
 
-    @property
-    def flat(self) -> pd.DataFrame:
+    def flat_data(self) -> pd.DataFrame:
         """
-        Return flattened data, joining all outputs. Split tech detail and
+        Return flattened data, with a row for each year, scenario, parameter, etc, combo. References
+        are appended. Outputs are defined in self.flat_attrs, but are silently skipped if value
+        attribute value is None.
+
+        @returns Flattened data
+        """
+        df_melted = pd.melt(
+            self.combined_data(),
+            id_vars=[
+                "Parameter",
+                "Case",
+                "TaxCreditCase",
+                "CRPYears",
+                "Technology",
+                "DisplayName",
+                "Scenario",
+            ],
+        )
+        melted = df_melted.to_dict(orient="records")
+
+        if self.df_references is None:
+            print("Warning: references not loaded, excluding from flat file")
+            return pd.DataFrame.from_dict(melted)  # type: ignore
+
+        # Create lookup table for full metric name keyed by abbreviation. Abbreviations in
+        # self.flat_attrs that do not have a matching value in self.metrics will be ignored. E.g.:
+        # {
+        #   'CF': 'Net Capacity Factor (%)',
+        #   'Fixed O&M': 'Fixed Operation and Maintenance Expenses ($/kW-yr)',
+        # }
+        metrics_by_var = {metric[1]: metric[0] for metric in self.metrics}
+        abbrevs_to_metrics = {
+            attr[1]: metrics_by_var[attr[0]]
+            for attr in self.flat_attrs
+            if attr[0] in metrics_by_var
+        }
+
+        if self.df_references is None:
+            raise ValueError("References must be loaded to flatten data")
+
+        # Append reference info to each record
+        duplicate_warnings: List[str] = []
+        for record in melted:
+            self._append_reference_info(
+                record, abbrevs_to_metrics, self.df_references, duplicate_warnings  # type: ignore
+            )
+
+        return pd.DataFrame.from_dict(melted)  # type: ignore
+
+    @staticmethod
+    def _append_reference_info(
+        record: Dict[str, str | int | float],
+        abbrevs_to_metrics: Dict[str, str],
+        df_refs: pd.DataFrame,
+        duplicate_warnings: List[str],
+    ):
+        """Append reference info to a single flat file record. This modifies the record in place.
+
+        :param record: Record to add reference info to.
+        :param abbrevs_to_metrics: Mapping of abbreviations to full metric names.
+        :param df_refs: DataFrame of references
+        :param duplicate_warnings: List for tracking which metrics have already seen a duplicate
+            reference warning.
+        """
+        ref_columns = list(df_refs.columns)
+        optional_columns = [col for col in ref_columns if col not in MANDATORY_COLUMNS]
+
+        metric = abbrevs_to_metrics.get(record["Parameter"], "")  # type: ignore
+        if metric == "":
+            record["Reference"] = ""
+            for col in optional_columns:
+                record[col] = ""
+            return
+
+        # Filter references by metric, scenario, and tech detail
+        scenario = record["Scenario"]
+        tech_detail: str = record["DisplayName"]  # type: ignore
+        scenario_mask = (df_refs[REF_SCENARIO] == scenario) | (df_refs[REF_SCENARIO] == "All")
+        metric_mask = df_refs[REF_METRIC] == metric
+        tech_detail_mask = (df_refs[REF_DETAIL].str.contains(tech_detail)) | (
+            df_refs[REF_DETAIL] == "All"
+        )
+        def_refs_filtered = df_refs[metric_mask & scenario_mask & tech_detail_mask]
+
+        if len(def_refs_filtered) == 0:
+            raise ValueError(
+                f"No reference found for metric '{metric}', scenario '{scenario}', tech detail "
+                f"'{tech_detail}'"
+            )
+
+        # Find the reference for year
+        year = int(record["variable"])
+        year_mask = (def_refs_filtered[REF_START_YEAR] <= year) & (
+            def_refs_filtered[REF_END_YEAR] >= year
+        )
+        df_ref = def_refs_filtered[year_mask]
+
+        if len(df_ref) == 0:
+            raise ValueError(
+                f"There is no reference for year {year} for metric '{metric}', scenario "
+                f"'{scenario}, and tech detail '{tech_detail}'"
+            )
+
+        # Warn about multiple references
+        if len(df_ref) > 1 and metric not in duplicate_warnings:
+            duplicate_warnings.append(metric)
+            click.echo(
+                f"Multiple references found for {year}, '{metric}', '{scenario}', "
+                f"'{tech_detail}'",
+                err=True,
+            )
+
+        # Finally, append reference values
+        record["Reference"] = df_ref[REF_REFERENCE].values[0]
+        for col in optional_columns:
+            record[col] = df_ref[col].values[0]
+
+    def combined_data(self) -> pd.DataFrame:
+        """
+        Return combined data, joining all outputs. Split tech detail and
         scenario into separate columns and append tech, parameter name, case and
         crp. Include financial if present. Outputs are defined in self.flat_attrs,
         but are silently skipped if value attribute value is None.
 
-        @returns Flat data for tech
+        @returns Combined data for tech
         """
         df_flat = pd.DataFrame() if self.df_wacc is None else self._flat_fin_assump()
 
-        case = self._case.upper()
-        if case == "MARKET":
-            case = MARKET_FIN_CASE
-
         for attr, parameter in self.flat_attrs:
-            df = getattr(self, attr)
+            df: pd.DataFrame = getattr(self, attr)
             df = df.reset_index()
 
             old_cols = df.columns
@@ -224,7 +375,7 @@ class TechProcessor(ABC):
             df_flat = pd.concat([df_flat, df])
 
         df_flat["Technology"] = self.tech_name
-        df_flat["Case"] = case
+        df_flat["Case"] = self._case.value
         df_flat["CRPYears"] = self._crp_years
         df_flat["TaxCreditCase"] = self._get_tax_credit_case()
 
@@ -268,18 +419,23 @@ class TechProcessor(ABC):
         assert self.df_lcoe is not None, "Please run `run()` first to calculate LCOE."
 
         self.ss_lcoe = self._extractor.get_metric_values(
-            LCOE_SS_NAME, self.num_tds, self.split_metrics
+            LCOE_CELL_NAME, self.num_tds, self.split_metrics, self.allow_empty_values
         )
 
-        assert (
-            not self.df_lcoe.isnull().any().any()
-        ), f"Error in calculated LCOE, found missing values: {self.df_lcoe}"
-        assert (
-            not self.ss_lcoe.isnull().any().any()
-        ), f"Error in LCOE from workbook, found missing values: {self.ss_lcoe}"
+        if not self.allow_empty_values:
+            assert (
+                not self.df_lcoe.isnull().any().any()
+            ), f"Error in calculated LCOE, found missing values: {self.df_lcoe}"
+
+        if not self.allow_empty_values:
+            assert (
+                not self.ss_lcoe.isnull().any().any()
+            ), f"Error in LCOE from workbook, found missing values: {self.ss_lcoe}"
 
         if np.allclose(
-            np.array(self.df_lcoe, dtype=float), np.array(self.ss_lcoe, dtype=float)
+            np.array(self.df_lcoe, dtype=float),
+            np.array(self.ss_lcoe, dtype=float),
+            equal_nan=self.allow_empty_values,
         ):
             print("Calculated LCOE matches LCOE from workbook")
         else:
@@ -302,17 +458,22 @@ class TechProcessor(ABC):
         assert self.df_capex is not None, "Please run `run()` first to calculate CAPEX."
 
         self.ss_capex = self._extractor.get_metric_values(
-            CAPEX_SS_NAME, self.num_tds, self.split_metrics
+            CAPEX_CELL_NAME, self.num_tds, self.split_metrics, self.allow_empty_values
         )
 
-        assert (
-            not self.df_capex.isnull().any().any()
-        ), f"Error in calculated CAPEX, found missing values: {self.df_capex}"
-        assert (
-            not self.ss_capex.isnull().any().any()
-        ), f"Error in CAPEX from workbook, found missing values: {self.ss_capex}"
+        if not self.allow_empty_values:
+            assert (
+                not self.df_capex.isnull().any().any()
+            ), f"Error in calculated CAPEX, found missing values: {self.df_capex}"
+
+        if not self.allow_empty_values:
+            assert (
+                not self.ss_capex.isnull().any().any()
+            ), f"Error in CAPEX from workbook, found missing values: {self.ss_capex}"
         if np.allclose(
-            np.array(self.df_capex, dtype=float), np.array(self.ss_capex, dtype=float)
+            np.array(self.df_capex, dtype=float),
+            np.array(self.ss_capex, dtype=float),
+            equal_nan=self.allow_empty_values,
         ):
             print("Calculated CAPEX matches CAPEX from workbook")
         else:
@@ -350,9 +511,7 @@ class TechProcessor(ABC):
         df = df.reset_index(drop=False)
         df[["Parameter", "Scenario"]] = df.WACC.str.split(" - ", expand=True)
         df.loc[df.Scenario.isnull(), "Scenario"] = "*"
-        df.loc[df.Scenario == "Nominal", "Parameter"] = (
-            "Interest During Construction - Nominal"
-        )
+        df.loc[df.Scenario == "Nominal", "Parameter"] = "Interest During Construction - Nominal"
         df.loc[df.Scenario == "Nominal", "Scenario"] = "*"
         df["DisplayName"] = "*"
         df["TaxCreditCase"] = self._get_tax_credit_case()
@@ -380,22 +539,28 @@ class TechProcessor(ABC):
 
         return crf, fcr
 
-    def _extract_data(self):
-        """Pull all data from the workbook"""
+    def _extract_data(self, load_refs: bool):
+        """
+        Pull all data from the workbook
+
+        @param load_refs - Load references if True
+        """
         crp_msg = (
             self._requested_crp
             if self._requested_crp != "TechLife"
             else f"TechLife ({self.tech_life})"
         )
+        sheet_name = self.get_sheet_name(self._case)
+        print(f"Loading data from sheet '{sheet_name}', for '{self._case.value}' and {crp_msg}")
 
-        print(f"Loading data from {self.sheet_name}, for {self._case} and {crp_msg}")
         extractor = self._ExtractorClass(
             self._data_workbook_fname,
-            self.sheet_name,
+            sheet_name,  # type: ignore
             self._case,
             self._requested_crp,
             self.scenarios,
             self.base_year,
+            self.is_expanded_fin_tech(),
         )
 
         print("\tLoading metrics")
@@ -403,11 +568,12 @@ class TechProcessor(ABC):
             if var_name == "df_cff":
                 # Grab DF index from another value to use in full CFF DF
                 index = getattr(self, self.metrics[0][1]).index
-                self.df_cff = self.load_cff(extractor, metric, index)
+                self.df_cff = self.load_cff(extractor, metric, index)  # type: ignore
                 continue
-
-            temp = extractor.get_metric_values(metric, self.num_tds, self.split_metrics)
-            setattr(self, var_name, temp)
+            df_temp = extractor.get_metric_values(
+                metric, self.num_tds, self.split_metrics, self.allow_empty_values
+            )
+            setattr(self, var_name, df_temp)
 
         if self.has_tax_credit:
             self.df_tc = extractor.get_tax_credits()
@@ -420,6 +586,11 @@ class TechProcessor(ABC):
         if self.has_wacc:
             print("\tLoading WACC data")
             self.df_wacc, self.df_just_wacc = extractor.get_wacc(self.wacc_name)
+
+        if load_refs:
+            print("\tLoading references")
+            metric_names = [m[0] for m in self.metrics]
+            self.df_references = extractor.get_references(metric_names)
 
         print("\tDone loading data")
         return extractor
@@ -438,10 +609,9 @@ class TechProcessor(ABC):
         @param return_short_df - return original 3 row data frame if True
         @returns - CFF data frame
         """
-        df_cff = extractor.get_cff(cff_name, len(cls.scenarios))
+        df_cff = extractor.get_cff(cff_name, len(cls.scenarios), cls.allow_empty_values)
         assert len(df_cff) == len(cls.scenarios), (
-            f"Wrong number of CFF rows found. Expected {len(cls.scenarios)}, "
-            f"get {len(df_cff)}."
+            f"Wrong number of CFF rows found. Expected {len(cls.scenarios)}, " f"get {len(df_cff)}."
         )
 
         if return_short_df:
@@ -462,9 +632,7 @@ class TechProcessor(ABC):
 
     def _calc_capex(self):
         assert (
-            self.df_cff is not None
-            and self.df_occ is not None
-            and self.df_gcc is not None
+            self.df_cff is not None and self.df_occ is not None and self.df_gcc is not None
         ), "CFF, OCC, and GCC must to loaded to calculate CAPEX"
         df_capex = self.df_cff * (self.df_occ + self.df_gcc)
         df_capex = df_capex.copy()
@@ -498,16 +666,14 @@ class TechProcessor(ABC):
         raw_crp = self.df_fin.loc["Capital Recovery Period (Years)", "Value"]
 
         try:
-            crp = float(raw_crp)
+            crp = float(raw_crp)  # type: ignore
         except ValueError as err:
             msg = f"Error converting CRP value ({raw_crp}) to a float: {err}."
             print(f"{msg} self.df_fin is:")
             print(self.df_fin)
             raise ValueError(msg) from err
 
-        assert not np.isnan(
-            crp
-        ), f'CRP must be a number, got "{crp}", type is "{type(crp)}"'
+        assert not np.isnan(crp), f'CRP must be a number, got "{crp}", type is "{type(crp)}"'
         return crp
 
     def _calc_itc(self, itc_type=""):
@@ -546,9 +712,7 @@ class TechProcessor(ABC):
 
                 MACRS_schedule = self.get_depreciation_schedule(year)
 
-                df_depreciation_factor = self._calc_dep_factor(
-                    MACRS_schedule, inflation, scenario
-                )
+                df_depreciation_factor = self._calc_dep_factor(MACRS_schedule, inflation, scenario)
 
                 df_pvd.loc["PVD - " + scenario, year] = np.dot(
                     MACRS_schedule, df_depreciation_factor[year]
@@ -556,9 +720,9 @@ class TechProcessor(ABC):
 
         itc_schedule = self._calc_itc(itc_type=itc_type)
 
-        df_pff = (
-            1 - df_tax_rate.values * df_pvd * (1 - itc_schedule / 2) - itc_schedule
-        ) / (1 - df_tax_rate.values)
+        df_pff = (1 - df_tax_rate.values * df_pvd * (1 - itc_schedule / 2) - itc_schedule) / (
+            1 - df_tax_rate.values
+        )
         df_pff.index = [f"PFF - {scenario}" for scenario in self.scenarios]
         return df_pff
 
@@ -578,9 +742,9 @@ class TechProcessor(ABC):
         wacc_real = self.df_wacc.loc["WACC Real - " + scenario]
 
         for dep_year in range(dep_years):
-            df_depreciation_factor.loc[dep_year + 1] = 1 / (
-                (1 + wacc_real) * (1 + inflation)
-            ) ** (dep_year + 1)
+            df_depreciation_factor.loc[dep_year + 1] = 1 / ((1 + wacc_real) * (1 + inflation)) ** (
+                dep_year + 1
+            )
 
         return df_depreciation_factor
 
@@ -592,9 +756,7 @@ class TechProcessor(ABC):
         """
         if self.has_tax_credit:
             df_tax_credit = self.df_tc.reset_index()
-            df_ptc = df_tax_credit.loc[
-                df_tax_credit["Tax Credit"].str.contains("PTC/", na=False)
-            ]
+            df_ptc = df_tax_credit.loc[df_tax_credit["Tax Credit"].str.contains("PTC/", na=False)]
 
             assert len(df_ptc) != 0, f"PTC data is missing for {self.sheet_name}"
             assert len(df_ptc) == len(
@@ -619,9 +781,7 @@ class TechProcessor(ABC):
         x = self.df_crf.values * self.df_pff
         y = pd.concat([x] * self.num_tds)
 
-        df_lcoe = (
-            1000 * (y.values * self.df_capex.values + self.df_fom) / self.df_aep.values
-        )
+        df_lcoe = 1000 * (y.values * self.df_capex.values + self.df_fom) / self.df_aep.values
         df_lcoe = df_lcoe + self.df_vom.values - ptc
 
         return df_lcoe
@@ -642,7 +802,8 @@ class TechProcessor(ABC):
         ptc = self._calc_ptc()
         itc = self._calc_itc()
 
-        # Trim the 2022 to eliminate pre-inflation reduction act confusion (consider removing in future years)
+        # Trim the 2022 to eliminate pre-inflation reduction act confusion (consider removing in
+        # future years)
         ptc = ptc[:, 1:]
         itc = itc[1:]
 
@@ -657,3 +818,65 @@ class TechProcessor(ABC):
             return "ITC"
         else:
             return "None"
+
+    def _check_sheet_names(self):
+        """
+        Helper function to sanity check sheet names. Raises AttributeError if not set correctly.
+        """
+        if self.is_expanded_fin_tech() and self.wacc_name is None:
+            raise AttributeError("`wacc_name` must be set for expanded financials technologies.")
+
+    @classmethod
+    def is_expanded_fin_tech(cls):
+        """
+        If True, this is an expanded financials tech and has separate r&d and expanded sheets.
+        """
+        if (
+            cls.sheet_name is not None
+            and cls.rnd_sheet_name is None
+            and cls.expanded_sheet_name is None
+        ):
+            return False
+
+        if (
+            cls.sheet_name is None
+            and cls.rnd_sheet_name is not None
+            and cls.expanded_sheet_name is not None
+        ):
+            return True
+
+        raise AttributeError(
+            '"sheet_name", "expanded_sheet_name", and "rnd_sheet_name" are not set correctly'
+        )
+
+    @classmethod
+    def supported_financial_cases(cls) -> list[FinancialCases]:
+        """Get the list of supported financial cases for this technology.
+
+        :return: list of supported financial cases
+        """
+        if cls.is_expanded_fin_tech():
+            return list(FinancialCases)
+
+        # By definition, only R&D cases are supported for non-expanded technologies
+        return [FinancialCases.R_AND_D_WITHOUT_TAX_CREDITS, FinancialCases.R_AND_D_WITH_TAX_CREDITS]
+
+    @classmethod
+    def get_sheet_name(cls, case: FinancialCases) -> str:
+        """Get appropriate sheet name based on financial case
+
+        :param case: Desired financial case
+        :return: Sheet name
+        """
+        if cls.is_expanded_fin_tech():
+            if case in EXPANDED_FINANCIAL_CASES:
+                sheet_name = cls.expanded_sheet_name
+            else:
+                sheet_name = cls.rnd_sheet_name
+        else:
+            sheet_name = cls.sheet_name
+
+        if sheet_name is None:
+            raise ValueError(f"Sheet name is None for {cls.__name__} and case {case}")
+
+        return sheet_name

@@ -14,12 +14,12 @@ from lcoe_calculator.base_processor import TechProcessor
 from lcoe_calculator.tech_processors import ALL_TECHS
 from lcoe_calculator.extractor import Extractor
 from lcoe_calculator.config import (
-    FINANCIAL_CASES,
-    LCOE_SS_NAME,
-    CAPEX_SS_NAME,
-    CFF_SS_NAME,
+    LCOE_CELL_NAME,
+    CAPEX_CELL_NAME,
+    CFF_CELL_NAME,
     CRP_CHOICES,
     CrpChoiceType,
+    FinancialCases,
 )
 from .data_finder import (
     DataFinder,
@@ -32,7 +32,7 @@ from .data_finder import (
 
 # Use extractor to pull values from data workbook and save as CSV
 def extract_data_for_crp_case(
-    data_workbook_fname: str, tech: Type[TechProcessor], case: str, crp: CrpChoiceType
+    data_workbook_fname: str, tech: Type[TechProcessor], case: FinancialCases, crp: CrpChoiceType
 ):
     """
     Extract data from ATB data workbook for a tech and save as CSV.
@@ -42,37 +42,43 @@ def extract_data_for_crp_case(
     @param case - name of desired financial case
     @param crp - name of desired CRP
     """
+
+    sheet_name = tech.get_sheet_name(case)
+
     extractor = Extractor(
         data_workbook_fname,
-        str(tech.sheet_name),
+        sheet_name,
         case,
         crp,
         tech.scenarios,
-        base_year=tech.base_year,
+        tech.base_year,
+        tech.is_expanded_fin_tech(),
     )
 
     metrics = list(tech.metrics)
 
     if tech.has_lcoe:
-        metrics.append((LCOE_SS_NAME, ""))
+        metrics.append((LCOE_CELL_NAME, ""))
 
     if tech.has_capex:
-        metrics.append((CAPEX_SS_NAME, ""))
+        metrics.append((CAPEX_CELL_NAME, ""))
 
     extract_cff = False
     for metric, _ in metrics:
-        if metric == CFF_SS_NAME:
+        if metric == CFF_CELL_NAME:
             extract_cff = True
             continue
 
-        df = extractor.get_metric_values(metric, tech.num_tds, tech.split_metrics)
+        df = extractor.get_metric_values(
+            metric, tech.num_tds, tech.split_metrics, tech.allow_empty_values
+        )
         index = df.index
         fname = DataFinder.get_data_filename(metric, case, crp)
         df.to_csv(fname)
 
     if extract_cff:
-        df_cff = tech.load_cff(extractor, CFF_SS_NAME, index, return_short_df=True)
-        fname = DataFinder.get_data_filename(CFF_SS_NAME, case, crp)
+        df_cff = tech.load_cff(extractor, CFF_CELL_NAME, index, return_short_df=True)
+        fname = DataFinder.get_data_filename(CFF_CELL_NAME, case, crp)
         df_cff.to_csv(fname)
 
     if tech.has_fin_assump:
@@ -104,9 +110,7 @@ def extract(filename: str, tech: str | None):
     Extract test data for one or more techs for all CRPs and financial cases. Data will be extracted
     from the Excel ATB data workbook FILENAME and saved as CSV for testing.
     """
-    tech_map: Dict[str, Type[TechProcessor]] = {
-        tech.__name__: tech for tech in ALL_TECHS
-    }
+    tech_map: Dict[str, Type[TechProcessor]] = {tech.__name__: tech for tech in ALL_TECHS}
 
     if tech is None:
         techs = ALL_TECHS
@@ -114,12 +118,14 @@ def extract(filename: str, tech: str | None):
         techs = [tech_map[tech]]
 
     for Tech in techs:
-        print(f"Extracting values for {Tech.sheet_name}")
+        print(f"Extracting values for {Tech.tech_name}")
+
         DataFinder.set_tech(Tech)
 
-        for case in FINANCIAL_CASES:
+        for case in Tech.supported_financial_cases():
+            sheet_name = Tech.get_sheet_name(case)
             for crp in CRP_CHOICES:
-                print(f"\tcrp={crp}, case={case}")
+                print(f"\tcrp={crp}, case={case}, sheet={sheet_name}")
                 extract_data_for_crp_case(filename, Tech, case, crp)
 
     print("Done")

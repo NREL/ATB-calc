@@ -12,7 +12,7 @@ processor needs special functions beyond the basic Extractor
 from typing import List
 import xlwings as xw
 
-from .config import CrpChoiceType
+from .config import CrpChoiceType, FinancialCases
 from .extractor import Extractor
 
 
@@ -26,10 +26,11 @@ class PVBatteryExtractor(Extractor):
         self,
         data_workbook_fname: str,
         sheet_name: str,
-        case: str,
+        case: FinancialCases,
         crp: CrpChoiceType,
         scenarios: List[str],
         base_year: int,
+        is_expanded_fin_tech: bool,
         tax_credit_case: str,
     ):
         """
@@ -39,19 +40,22 @@ class PVBatteryExtractor(Extractor):
         @param crp - capital recovery period: 20, 30, or 'TechLife'
         @param scenarios - scenarios, e.g. 'Advanced', 'Moderate', etc.
         @param base_year - first year of data for this technology
+        @param is_expanded_fin_tech - True if this is an expanded financial tech
         @param tax_credit_case - tax credit case: "PV PTC and Battery ITC" or "ITC only"
         """
         self._data_workbook_fname = data_workbook_fname
         self.sheet_name = sheet_name
 
         if tax_credit_case:
+            # WACC calc only references one control cell, and it's on the R&D sheet for PVB
+            tax_credit_sheet_name = 'Utility-Scale PV-Plus-Batt R&D'
             # Open workbook, set tax credit case, and save
-            wb = xw.Book(data_workbook_fname)
-            sheet = wb.sheets[sheet_name]
+            wb = xw.Book(self._data_workbook_fname)
+            sheet = wb.sheets[tax_credit_sheet_name]
             print("Setting tax credit case", tax_credit_case)
             sheet.range("Q46").value = tax_credit_case
             wb.save()
 
         super().__init__(
-            data_workbook_fname, sheet_name, case, crp, scenarios, base_year
+            data_workbook_fname, sheet_name, case, crp, scenarios, base_year, is_expanded_fin_tech
         )

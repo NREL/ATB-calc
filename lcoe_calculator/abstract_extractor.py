@@ -1,5 +1,6 @@
 #
-# Copyright (c) Alliance for Sustainable Energy, LLC and Skye Analytics, Inc. See also https://github.com/NREL/ATB-calc/blob/main/LICENSE
+# Copyright (c) Alliance for Sustainable Energy, LLC and Skye Analytics, Inc. See also
+# https://github.com/NREL/ATB-calc/blob/main/LICENSE
 #
 # This file is part of ATB-calc
 # (see https://github.com/NREL/ATB-calc).
@@ -8,7 +9,7 @@ from typing import List, Tuple
 from abc import ABC, abstractmethod
 import pandas as pd
 
-from .config import CrpChoiceType
+from .config import CrpChoiceType, FinancialCases
 
 
 class AbstractExtractor(ABC):
@@ -21,23 +22,29 @@ class AbstractExtractor(ABC):
         self,
         data_workbook_fname: str,
         sheet_name: str,
-        case: str,
+        case: FinancialCases,
         crp: CrpChoiceType,
         scenarios: List[str],
         base_year: int,
+        is_expanded_fin_tech: bool,
     ):
         """
         @param data_workbook_fname - file name of data workbook
         @param sheet_name - name of sheet to process
-        @param case - 'Market' or 'R&D'
+        @param case - desired financial case
         @param crp - capital recovery period: 20, 30, or 'TechLife'
         @param scenarios - scenarios, e.g. 'Advanced', 'Moderate', etc.
         @param base_year - first year of data for this technology
+        @param is_expanded_fin_tech - True if this is an expanded financial tech
         """
 
     @abstractmethod
     def get_metric_values(
-        self, metric: str, num_tds: int, split_metrics: bool = False
+        self,
+        metric: str,
+        num_tds: int,
+        split_metrics: bool = False,
+        allow_empty_values: bool = False,
     ) -> pd.DataFrame:
         """
         Grab metric values table.
@@ -45,6 +52,7 @@ class AbstractExtractor(ABC):
         @param metric - name of desired metric
         @param num_tds - number of tech resource groups
         @param split_metrics - metric has blanks in between tech details if True
+        @param allow_empty_values - throw error if empty values are found for metric if False
         @returns data frame for metric
         """
 
@@ -72,13 +80,20 @@ class AbstractExtractor(ABC):
         """
 
     @abstractmethod
-    def get_wacc(
-        self, tech_name: str | None = None
-    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def get_references(self, metrics: List[str]) -> pd.DataFrame:
+        """
+        Dynamically search for references and return as a data frame.
+
+        @param metrics - list of metrics to load from spreadsheet
+        @returns references
+        """
+
+    @abstractmethod
+    def get_wacc(self, tech_wacc_name: str | None = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
         Extract values for tech and case from WACC sheet.
 
-        @param tech_name - name of tech to search for on WACC sheet. Use sheet name if None.
+        @param tech_wacc_name - name of tech to search for on WACC sheet. Use sheet name if None.
 
         @returns df_wacc - all WACC values
         @returns df_just_wacc - last six rows of wacc sheet, 'WACC Nominal - {scenario}' and 'WACC
